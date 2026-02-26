@@ -1,229 +1,312 @@
-"use client";
+import Link from "next/link"
+import { createClient } from "@supabase/supabase-js"
 
-import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabaseClient";
-
-type Stats = {
-  active_jobs: number;
-  companies: number;
-  candidates: number;
-  employers: number;
-};
-
-type LatestJob = {
-  id: string;
-  title: string | null;
-  city: string | null;
-  work_format: string | null;
-  salary_from: number | null;
-  salary_to: number | null;
-  company_name: string | null;
-  created_at: string;
-};
-
-function formatMoneyRange(from?: number | null, to?: number | null) {
-  const fmt = (n: number) => n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
-  if (from && to) return `${fmt(from)} – ${fmt(to)}`;
-  if (from) return `от ${fmt(from)}`;
-  if (to) return `до ${fmt(to)}`;
-  return "ЗП не указана";
+type Job = {
+  id: string
+  title: string
+  description: string | null
+  created_at: string
+  company_id: string | null
 }
 
-function formatWorkFormat(v?: string | null) {
-  if (!v) return "";
-  if (v === "office") return "Офис";
-  if (v === "remote") return "Удалёнка";
-  if (v === "hybrid") return "Гибрид";
-  return v;
+function supabaseServer() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+  if (!url || !key) {
+    throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY")
+  }
+
+  return createClient(url, key, { auth: { persistSession: false } })
 }
 
-export default function HomePage() {
-  const router = useRouter();
+async function getCounts() {
+  const supabase = supabaseServer()
 
-  const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState<Stats>({
-    active_jobs: 0,
-    companies: 0,
-    candidates: 0,
-    employers: 0,
-  });
-  const [jobs, setJobs] = useState<LatestJob[]>([]);
-  const [error, setError] = useState<string | null>(null);
+  const jobsCountReq = await supabase.from("jobs").select("*", { count: "exact", head: true })
+  const companiesCountReq = await supabase.from("companies").select("*", { count: "exact", head: true })
 
-  useEffect(() => {
-    (async () => {
-      setLoading(true);
-      setError(null);
+  let candidatesCount = 0
+  let employersCount = 0
 
-      // 1) статистика
-      const s = await supabase.rpc("fh_public_stats");
-      if (s.error) {
-        setError(s.error.message);
-      } else {
-        const val = (s.data ?? {}) as any;
-        setStats({
-          active_jobs: Number(val.active_jobs ?? 0),
-          companies: Number(val.companies ?? 0),
-          candidates: Number(val.candidates ?? 0),
-          employers: Number(val.employers ?? 0),
-        });
-      }
+  // Пытаемся посчитать по role (если у вас есть колонка role в profiles)
+  const candByRole = await supabase
+    .from("profiles")
+    .select("*", { count: "exact", head: true })
+    .eq("role", "candidate")
 
-      // 2) свежие вакансии
-      const j = await supabase.rpc("fh_latest_jobs", { limit_count: 3 });
-      if (j.error) {
-        setError((prev) => prev ?? j.error.message);
-        setJobs([]);
-      } else {
-        setJobs((j.data ?? []) as LatestJob[]);
-      }
+  const empByRole = await supabase
+    .from("profiles")
+    .select("*", { count: "exact", head: true })
+    .eq("role", "employer")
 
-      setLoading(false);
-    })();
-  }, []);
+  if (!candByRole.error) candidatesCount = candByRole.count || 0
+  if (!empByRole.error) employersCount = empByRole.count || 0
 
-  const statCards = useMemo(
-    () => [
-      { label: "Активных вакансий", value: stats.active_jobs },
-      { label: "Компаний", value: stats.companies },
-      { label: "Соискателей", value: stats.candidates },
-      { label: "Работодателей", value: stats.employers },
-    ],
-    [stats]
-  );
+  // Если role нет (ошибка) — просто показываем общее число профилей как соискатели, а работодатели = компании
+  if (candByRole.error) {
+    const totalProfiles = await supabase.from("profiles").select("*", { count: "exact", head: true })
+    candidatesCount = totalProfiles.count || 0
+  }
+  if (empByRole.error) {
+    employersCount = companiesCountReq.count || 0
+  }
+
+  return {
+    jobs: jobsCountReq.count || 0,
+    companies: companiesCountReq.count || 0,
+    candidates: candidatesCount,
+    employers: employersCount,
+    hasEnvError: false,
+  }
+}
+
+async function getFreshJobs() {
+  const supabase = supabaseServer()
+
+  const { data, error } = await supabase
+    .from("jobs")
+    .select("id,title,description,created_at,company_id")
+    .order("created_at", { ascending: false })
+    .limit(3)
+
+  if (error) return []
+  return (data || []) as Job[]
+}
+
+function formatDate(iso: string) {
+  try {
+    const d = new Date(iso)
+    return d.toLocaleDateString("ru-RU")
+  } catch {
+    return ""
+  }
+}
+
+export default async function HomePage() {
+  let counts = { jobs: 0, companies: 0, candidates: 0, employers: 0, hasEnvError: false }
+  let freshJobs: Job[] = []
+
+  try {
+    counts = await getCounts()
+    freshJobs = await getFreshJobs()
+  } catch (e) {
+    // Если env переменные не подхватились на Vercel — покажем понятный текст
+    return (
+      <main style={{ minHeight: "100vh", background: "#0b0a14", color: "#fff", padding: 24 }}>
+        <h1 style={{ fontSize: 28, fontWeight: 700, marginBottom: 12 }}>FreedomHIRE</h1>
+        <p style={{ opacity: 0.8, lineHeight: 1.5, maxWidth: 780 }}>
+          Ошибка подключения к Supabase. Проверь, что на Vercel в Project Settings → Environment Variables
+          добавлены:
+          <br />
+          NEXT_PUBLIC_SUPABASE_URL
+          <br />
+          NEXT_PUBLIC_SUPABASE_ANON_KEY
+          <br />
+          Потом сделай Redeploy.
+        </p>
+      </main>
+    )
+  }
 
   return (
-    <div className="min-h-screen bg-[#070914] text-white">
-      {/* TOP BAR */}
-      <div className="max-w-6xl mx-auto px-6 pt-8">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-2xl bg-white/10 border border-white/10 flex items-center justify-center font-semibold">
-              FH
+    <main style={{ minHeight: "100vh", background: "#0b0a14", color: "#ffffff" }}>
+      <div style={{ maxWidth: 1120, margin: "0 auto", padding: "24px 20px 64px" }}>
+        <header
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 16,
+            padding: "12px 0 24px",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: 14,
+                background: "rgba(255,255,255,0.08)",
+                display: "grid",
+                placeItems: "center",
+                border: "1px solid rgba(255,255,255,0.10)",
+              }}
+            >
+              <span style={{ fontWeight: 800 }}>FH</span>
             </div>
             <div>
-              <div className="font-semibold leading-5">FreedomHIRE</div>
-              <div className="text-xs text-white/50 leading-4">freedomhire.uz</div>
+              <div style={{ fontWeight: 800, letterSpacing: 0.2 }}>FreedomHIRE</div>
+              <div style={{ fontSize: 12, opacity: 0.65 }}>freedomhire.uz</div>
             </div>
           </div>
 
-          <div className="hidden md:flex items-center gap-8 text-white/70 text-sm">
-            <button onClick={() => router.push("/jobs")} className="hover:text-white">
+          <nav style={{ display: "flex", gap: 18, alignItems: "center" }}>
+            <Link href="/jobs" style={{ color: "#fff", opacity: 0.85, textDecoration: "none" }}>
               Вакансии
-            </button>
-            <button onClick={() => router.push("/auth?role=employer")} className="hover:text-white">
+            </Link>
+            <Link href="/employers" style={{ color: "#fff", opacity: 0.85, textDecoration: "none" }}>
               Работодателям
-            </button>
-            <button onClick={() => router.push("/about")} className="hover:text-white">
+            </Link>
+            <Link href="/about" style={{ color: "#fff", opacity: 0.85, textDecoration: "none" }}>
               О нас
-            </button>
-          </div>
+            </Link>
+          </nav>
 
-          <button
-            onClick={() => router.push("/auth")}
-            className="rounded-2xl bg-[#6d39ff] px-5 py-2 font-semibold hover:opacity-95"
+          <Link
+            href="/auth"
+            style={{
+              textDecoration: "none",
+              color: "white",
+              padding: "10px 14px",
+              borderRadius: 14,
+              background: "linear-gradient(90deg, rgba(124,58,237,1) 0%, rgba(168,85,247,1) 100%)",
+              fontWeight: 700,
+              border: "1px solid rgba(255,255,255,0.12)",
+              whiteSpace: "nowrap",
+            }}
           >
             Войти / Регистрация
-          </button>
-        </div>
-      </div>
+          </Link>
+        </header>
 
-      {/* HERO CARD */}
-      <div className="max-w-6xl mx-auto px-6 py-10">
-        <div className="rounded-[32px] border border-white/10 bg-white/[0.06] p-8 md:p-10">
-          <div className="grid md:grid-cols-2 gap-8 items-center">
-            {/* LEFT */}
+        <section
+          style={{
+            borderRadius: 28,
+            border: "1px solid rgba(255,255,255,0.10)",
+            background:
+              "radial-gradient(1200px 500px at 20% 10%, rgba(124,58,237,0.22), transparent 60%), radial-gradient(900px 500px at 80% 30%, rgba(168,85,247,0.18), transparent 60%), rgba(255,255,255,0.03)",
+            boxShadow: "0 20px 80px rgba(0,0,0,0.55)",
+            padding: 34,
+          }}
+        >
+          <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: 24 }}>
             <div>
-              <h1 className="text-4xl md:text-5xl font-semibold leading-tight">
-                Найди работу <span className="text-white/55 italic">своей мечты</span> в Узбекистане
+              <h1 style={{ fontSize: 56, lineHeight: 1.05, margin: "10px 0 12px", fontWeight: 900 }}>
+                Найди работу <span style={{ opacity: 0.7, fontStyle: "italic" }}>своей мечты</span> в
+                Узбекистане
               </h1>
-              <p className="text-white/55 mt-4 max-w-xl">
-                Тысячи вакансий от лучших компаний. Профессионально. Быстро. Надёжно.
+
+              <p style={{ marginTop: 10, opacity: 0.78, fontSize: 16, lineHeight: 1.6, maxWidth: 520 }}>
+                Вакансии от реальных работодателей. Профессионально. Быстро. Надёжно.
               </p>
 
-              <div className="flex flex-wrap gap-3 mt-6">
-                <button
-                  onClick={() => router.push("/jobs")}
-                  className="rounded-2xl bg-[#6d39ff] px-6 py-3 font-semibold hover:opacity-95"
+              <div style={{ display: "flex", gap: 12, marginTop: 22, flexWrap: "wrap" }}>
+                <Link
+                  href="/jobs"
+                  style={{
+                    textDecoration: "none",
+                    color: "white",
+                    padding: "12px 18px",
+                    borderRadius: 14,
+                    background: "rgba(124,58,237,0.95)",
+                    fontWeight: 800,
+                    border: "1px solid rgba(255,255,255,0.12)",
+                  }}
                 >
                   Найти работу
-                </button>
-                <button
-                  onClick={() => router.push("/auth?role=employer")}
-                  className="rounded-2xl bg-white/10 border border-white/10 px-6 py-3 font-semibold hover:bg-white/15"
+                </Link>
+
+                <Link
+                  href="/employer"
+                  style={{
+                    textDecoration: "none",
+                    color: "white",
+                    padding: "12px 18px",
+                    borderRadius: 14,
+                    background: "rgba(255,255,255,0.06)",
+                    fontWeight: 800,
+                    border: "1px solid rgba(255,255,255,0.12)",
+                  }}
                 >
                   Разместить вакансию
-                </button>
+                </Link>
               </div>
-
-              {error ? (
-                <div className="text-sm text-red-300 mt-4">
-                  Ошибка данных: {error}
-                </div>
-              ) : null}
             </div>
 
-            {/* RIGHT: latest jobs */}
-            <div className="rounded-3xl border border-white/10 bg-black/20 p-5">
-              <div className="text-white/70 text-sm mb-3">Свежие вакансии</div>
+            <div
+              style={{
+                borderRadius: 22,
+                border: "1px solid rgba(255,255,255,0.10)",
+                background: "rgba(255,255,255,0.04)",
+                padding: 18,
+              }}
+            >
+              <div style={{ opacity: 0.8, fontWeight: 700, marginBottom: 12 }}>Свежие вакансии</div>
 
-              {loading ? (
-                <div className="space-y-3">
-                  <div className="h-16 rounded-2xl bg-white/5 border border-white/10" />
-                  <div className="h-16 rounded-2xl bg-white/5 border border-white/10" />
-                  <div className="h-16 rounded-2xl bg-white/5 border border-white/10" />
-                </div>
-              ) : jobs.length === 0 ? (
-                <div className="text-white/60 text-sm">
-                  Пока нет активных вакансий. Создай вакансию как работодатель — она появится здесь.
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {jobs.map((j) => (
-                    <button
-                      key={j.id}
-                      onClick={() => router.push("/jobs")}
-                      className="w-full text-left rounded-2xl border border-white/10 bg-white/[0.06] hover:bg-white/[0.09] p-4"
-                      title="Открыть список вакансий"
-                    >
-                      <div className="flex items-center justify-between gap-3">
-                        <div>
-                          <div className="font-semibold">{j.title ?? "Вакансия"}</div>
-                          <div className="text-xs text-white/60 mt-1">
-                            {(j.city ?? "Город не указан") +
-                              (j.company_name ? ` · ${j.company_name}` : "")}
-                          </div>
-                          <div className="text-xs text-white/60 mt-1">
-                            {formatWorkFormat(j.work_format)}
-                            {j.work_format ? " · " : ""}
-                            {formatMoneyRange(j.salary_from, j.salary_to)}
-                          </div>
-                        </div>
-                        <div className="text-xs text-white/60">Новая</div>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* STATS */}
-          <div className="mt-10 pt-6 border-t border-white/10">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
-              {statCards.map((s) => (
-                <div key={s.label}>
-                  <div className="text-2xl font-semibold">
-                    {loading ? "…" : `${s.value.toLocaleString("ru-RU")}+`}
+              <div style={{ display: "grid", gap: 12 }}>
+                {freshJobs.length === 0 ? (
+                  <div style={{ opacity: 0.75, lineHeight: 1.5 }}>
+                    Пока нет вакансий. Добавь первую вакансию через работодателя, и она появится здесь.
                   </div>
-                  <div className="text-xs text-white/55 mt-2">{s.label}</div>
-                </div>
-              ))}
+                ) : (
+                  freshJobs.map((job) => (
+                    <Link
+                      key={job.id}
+                      href={`/jobs/${job.id}`}
+                      style={{
+                        textDecoration: "none",
+                        color: "white",
+                        borderRadius: 18,
+                        border: "1px solid rgba(255,255,255,0.10)",
+                        background: "rgba(0,0,0,0.22)",
+                        padding: 14,
+                        display: "block",
+                      }}
+                    >
+                      <div style={{ fontWeight: 900, marginBottom: 6 }}>{job.title}</div>
+                      <div style={{ opacity: 0.72, fontSize: 13, display: "flex", gap: 10 }}>
+                        <span>Узбекистан</span>
+                        <span>•</span>
+                        <span>{formatDate(job.created_at)}</span>
+                      </div>
+                      {job.description ? (
+                        <div style={{ marginTop: 8, opacity: 0.8, fontSize: 13, lineHeight: 1.4 }}>
+                          {job.description.slice(0, 90)}
+                          {job.description.length > 90 ? "..." : ""}
+                        </div>
+                      ) : null}
+                    </Link>
+                  ))
+                )}
+              </div>
             </div>
           </div>
-        </div>
+
+          <div
+            style={{
+              marginTop: 26,
+              paddingTop: 18,
+              borderTop: "1px solid rgba(255,255,255,0.10)",
+              display: "grid",
+              gridTemplateColumns: "repeat(4, 1fr)",
+              gap: 12,
+            }}
+          >
+            <Stat title="Активных вакансий" value={counts.jobs} />
+            <Stat title="Компаний" value={counts.companies} />
+            <Stat title="Соискателей" value={counts.candidates} />
+            <Stat title="Работодателей" value={counts.employers} />
+          </div>
+        </section>
       </div>
+    </main>
+  )
+}
+
+function Stat({ title, value }: { title: string; value: number }) {
+  return (
+    <div
+      style={{
+        borderRadius: 18,
+        border: "1px solid rgba(255,255,255,0.10)",
+        background: "rgba(255,255,255,0.03)",
+        padding: 14,
+        textAlign: "center",
+      }}
+    >
+      <div style={{ fontSize: 20, fontWeight: 900 }}>{value.toLocaleString("ru-RU")}+</div>
+      <div style={{ marginTop: 6, fontSize: 12, opacity: 0.75 }}>{title}</div>
     </div>
-  );
+  )
 }
