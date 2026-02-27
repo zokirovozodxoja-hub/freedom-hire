@@ -42,8 +42,10 @@ export async function updateMyProfile(payload: Partial<Profile>) {
   const user = auth.user;
   if (!user) return { error: new Error("Not authenticated") };
 
-  const clean: any = { ...payload };
-  Object.keys(clean).forEach((k) => clean[k] === undefined && delete clean[k]);
+  const clean: Partial<Profile> = { ...payload };
+  (Object.keys(clean) as (keyof Profile)[]).forEach((k) => {
+    if (clean[k] === undefined) delete clean[k];
+  });
 
   const { error } = await supabase.from("profiles").update(clean).eq("id", user.id);
   return { error };

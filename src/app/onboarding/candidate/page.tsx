@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { getMyProfile, updateMyProfile } from "@/lib/profile";
 
-export default function CandidateOnboardingPage() {
+function CandidateOnboardingPageContent() {
   const router = useRouter();
   const sp = useSearchParams();
   const isEditMode = sp.get("edit") === "1";
@@ -67,8 +67,8 @@ export default function CandidateOnboardingPage() {
       if (error) throw error;
 
       router.push("/resume");
-    } catch (e: any) {
-      setMsg(e?.message ?? "Ошибка сохранения");
+    } catch (e: unknown) {
+      setMsg(e instanceof Error ? e.message : "Ошибка сохранения");
     } finally {
       setSaving(false);
     }
@@ -158,5 +158,13 @@ export default function CandidateOnboardingPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function CandidateOnboardingPage() {
+  return (
+    <Suspense fallback={null}>
+      <CandidateOnboardingPageContent />
+    </Suspense>
   );
 }

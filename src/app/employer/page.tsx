@@ -4,9 +4,15 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 
+type Company = {
+  id: string;
+  name: string;
+  city: string | null;
+};
+
 export default function EmployerDashboard() {
   const router = useRouter();
-  const [company, setCompany] = useState<any>(null);
+  const [company, setCompany] = useState<Company | null>(null);
 
   useEffect(() => {
     (async () => {

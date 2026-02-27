@@ -26,7 +26,7 @@ export async function listMySkills() {
 export async function addSkill(name: string, level: SkillLevel) {
   const { data: auth } = await supabase.auth.getUser();
   const user = auth.user;
-  if (!user) return { error: { message: "Not authorized" } as any };
+  if (!user) return { error: new Error("Not authorized") };
 
   const { error } = await supabase.from("candidate_skills").insert({
     user_id: user.id,

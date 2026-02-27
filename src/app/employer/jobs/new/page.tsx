@@ -5,6 +5,11 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { addJobSkill, createJob, getMyCompanies, type Company } from "@/lib/employerJobs";
 
+type WorkFormat = "office" | "remote" | "hybrid";
+type Seniority = "junior" | "middle" | "senior" | "lead";
+type Education = "any" | "secondary" | "bachelor" | "master";
+type EmploymentKind = "full_time" | "part_time" | "project" | "internship";
+
 function formatNumberWithSpaces(value: string) {
   const digitsOnly = value.replace(/\D/g, "");
   if (!digitsOnly) return "";
@@ -32,10 +37,8 @@ export default function NewJobPage() {
   const [description, setDescription] = useState("");
 
   // format/type
-  const [employmentKind, setEmploymentKind] = useState<"full_time" | "part_time" | "project" | "internship">(
-    "full_time"
-  );
-  const [workFormat, setWorkFormat] = useState<"office" | "remote" | "hybrid">("hybrid");
+  const [employmentKind, setEmploymentKind] = useState<EmploymentKind>("full_time");
+  const [workFormat, setWorkFormat] = useState<WorkFormat>("hybrid");
 
   // optional legacy field if you use it somewhere
   const [employmentTypeText, setEmploymentTypeText] = useState("гибрид");
@@ -46,8 +49,8 @@ export default function NewJobPage() {
 
   // requirements
   const [minExpYears, setMinExpYears] = useState<number>(1);
-  const [seniority, setSeniority] = useState<"junior" | "middle" | "senior" | "lead">("middle");
-  const [education, setEducation] = useState<"any" | "secondary" | "bachelor" | "master">("any");
+  const [seniority, setSeniority] = useState<Seniority>("middle");
+  const [education, setEducation] = useState<Education>("any");
 
   // skills tags
   const [skillInput, setSkillInput] = useState("");
@@ -241,7 +244,7 @@ export default function NewJobPage() {
                 <label className="text-xs text-white/60">Формат</label>
                 <select
                   value={workFormat}
-                  onChange={(e) => setWorkFormat(e.target.value as any)}
+                  onChange={(e) => setWorkFormat(e.target.value as WorkFormat)}
                   className="mt-2 w-full rounded-2xl bg-black/20 border border-white/10 px-4 py-3 outline-none"
                 >
                   <option value="office">Офис</option>
@@ -323,7 +326,7 @@ export default function NewJobPage() {
                 <label className="text-xs text-white/60">Уровень</label>
                 <select
                   value={seniority}
-                  onChange={(e) => setSeniority(e.target.value as any)}
+                  onChange={(e) => setSeniority(e.target.value as Seniority)}
                   className="mt-2 w-full rounded-2xl bg-black/20 border border-white/10 px-4 py-3 outline-none"
                 >
                   <option value="junior">Junior</option>
@@ -337,7 +340,7 @@ export default function NewJobPage() {
                 <label className="text-xs text-white/60">Образование</label>
                 <select
                   value={education}
-                  onChange={(e) => setEducation(e.target.value as any)}
+                  onChange={(e) => setEducation(e.target.value as Education)}
                   className="mt-2 w-full rounded-2xl bg-black/20 border border-white/10 px-4 py-3 outline-none"
                 >
                   <option value="any">Не важно</option>
@@ -352,7 +355,7 @@ export default function NewJobPage() {
               <label className="text-xs text-white/60">Тип занятости</label>
               <select
                 value={employmentKind}
-                onChange={(e) => setEmploymentKind(e.target.value as any)}
+                onChange={(e) => setEmploymentKind(e.target.value as EmploymentKind)}
                 className="mt-2 w-full rounded-2xl bg-black/20 border border-white/10 px-4 py-3 outline-none"
               >
                 <option value="full_time">Полная занятость</option>

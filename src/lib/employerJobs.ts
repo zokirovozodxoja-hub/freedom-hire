@@ -33,7 +33,7 @@ export async function getMyCompanies() {
   if (!user)
     return {
       items: [] as Company[],
-      error: { message: "Not authenticated" } as any,
+      error: new Error("Not authenticated"),
     };
 
   const { data, error } = await supabase

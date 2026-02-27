@@ -11,11 +11,20 @@ const STATUSES = [
   { key: "invited", label: "Приглашение" },
 ];
 
+type ApplicationRow = {
+  id: string;
+  job_id: string;
+  candidate_id: string;
+  cover_letter: string | null;
+  status: string | null;
+  created_at: string;
+};
+
 export default function EmployerApplicationsPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState<string | null>(null);
-  const [rows, setRows] = useState<any[]>([]);
+  const [rows, setRows] = useState<ApplicationRow[]>([]);
 
   useEffect(() => {
     (async () => {

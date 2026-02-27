@@ -4,11 +4,22 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 
+type EmployerJob = {
+  id: string;
+  title: string | null;
+  city: string | null;
+  employment_type: string | null;
+  salary_from: number | null;
+  salary_to: number | null;
+  description: string | null;
+  is_active: boolean | null;
+};
+
 export default function EmployerJobsPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [companyId, setCompanyId] = useState<string | null>(null);
-  const [jobs, setJobs] = useState<any[]>([]);
+  const [jobs, setJobs] = useState<EmployerJob[]>([]);
   const [msg, setMsg] = useState<string | null>(null);
 
   useEffect(() => {
@@ -48,7 +59,7 @@ export default function EmployerJobsPage() {
     })();
   }, [router]);
 
-  async function toggleActive(job: any) {
+  async function toggleActive(job: EmployerJob) {
     setMsg(null);
     const { error } = await supabase
       .from("jobs")

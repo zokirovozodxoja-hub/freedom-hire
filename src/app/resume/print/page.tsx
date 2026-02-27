@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { getMyProfile } from "@/lib/profile";
+import { getMyProfile, type Profile } from "@/lib/profile";
 import { listMyExperiences, type Experience } from "@/lib/experiences";
 import { listMySkills, type Skill } from "@/lib/skills";
 
@@ -38,7 +38,7 @@ function monthsToYM(totalMonths: number) {
 
 export default function ResumePrintPage() {
   const [loading, setLoading] = useState(true);
-  const [profile, setProfile] = useState<any>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [experiences, setExperiences] = useState<Experience[]>([]);
   const [skills, setSkills] = useState<Skill[]>([]);
 

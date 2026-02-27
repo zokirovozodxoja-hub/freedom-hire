@@ -25,7 +25,7 @@ export async function listMyExperiences() {
 export async function addExperience(payload: Omit<Experience, "id">) {
   const { data: auth } = await supabase.auth.getUser();
   const user = auth.user;
-  if (!user) return { error: { message: "Not authorized" } as any };
+  if (!user) return { error: new Error("Not authorized") };
 
   const { error } = await supabase.from("candidate_experiences").insert({
     profile_id: user.id,

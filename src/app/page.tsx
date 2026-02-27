@@ -90,7 +90,7 @@ export default async function HomePage() {
   try {
     counts = await getCounts()
     freshJobs = await getFreshJobs()
-  } catch (e) {
+  } catch {
     // Если env переменные не подхватились на Vercel — покажем понятный текст
     return (
       <main style={{ minHeight: "100vh", background: "#0b0a14", color: "#fff", padding: 24 }}>

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
-import { createClient } from "@supabase/supabase-js"
+import { createClient } from "@/lib/supabase/client"
 
 type Role = "candidate" | "employer"
 type Mode = "signup" | "login"
@@ -11,10 +11,7 @@ export default function RegisterPage() {
   const router = useRouter()
 
   const supabase = useMemo(() => {
-    return createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    )
+    return createClient()
   }, [])
 
   const [mode, setMode] = useState<Mode>("signup")
@@ -27,7 +24,7 @@ export default function RegisterPage() {
   const [error, setError] = useState("")
   const [info, setInfo] = useState("")
 
-  const styles: Record<string, React.CSSProperties> = {
+  const styles = {
     page: {
       minHeight: "100vh",
       background:
@@ -164,7 +161,7 @@ export default function RegisterPage() {
 
     list: { margin: "12px 0 0", paddingLeft: 18, color: "rgba(255,255,255,.80)", fontSize: 13, lineHeight: 1.6 },
     note: { marginTop: 12, fontSize: 12, color: "rgba(255,255,255,.62)", lineHeight: 1.4 },
-  }
+  } satisfies Record<string, React.CSSProperties | ((active: boolean) => React.CSSProperties)>
 
   const goAfterAuth = async () => {
     // Берём свежего пользователя и решаем куда вести
@@ -176,7 +173,7 @@ export default function RegisterPage() {
       return
     }
 
-    const meta = (user.user_metadata as any) || {}
+    const meta = (user.user_metadata as { role?: string; onboarding_done?: boolean } | null) || {}
     const metaRole: Role = meta.role === "employer" ? "employer" : "candidate"
     const done = meta.onboarding_done === true
 
@@ -232,8 +229,8 @@ export default function RegisterPage() {
       if (signInErr) throw signInErr
 
       await goAfterAuth()
-    } catch (e: any) {
-      setError(e?.message || "Ошибка")
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Ошибка")
     } finally {
       setLoading(false)
     }

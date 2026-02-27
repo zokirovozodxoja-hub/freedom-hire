@@ -20,28 +20,26 @@ export default function JobsPage() {
   const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    loadJobs();
-  }, []);
+    (async () => {
+      const { data: auth } = await supabase.auth.getUser();
+      if (!auth.user) {
+        router.push("/auth?role=candidate");
+        return;
+      }
 
-  async function loadJobs() {
-    const { data: auth } = await supabase.auth.getUser();
-    if (!auth.user) {
-      router.push("/auth?role=candidate");
-      return;
-    }
+      const { data, error } = await supabase
+        .from("jobs")
+        .select("id, title, city, salary, description")
+        .order("created_at", { ascending: false });
 
-    const { data, error } = await supabase
-      .from("jobs")
-      .select("id, title, city, salary, description")
-      .order("created_at", { ascending: false });
+      if (error) {
+        setMessage(error.message);
+      }
 
-    if (error) {
-      setMessage(error.message);
-    }
-
-    setJobs(data ?? []);
-    setLoading(false);
-  }
+      setJobs(data ?? []);
+      setLoading(false);
+    })();
+  }, [router]);
 
   async function handleApply(jobId: string) {
     setMessage(null);

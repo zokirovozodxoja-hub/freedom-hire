@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 
 type Role = "candidate" | "employer";
 type Mode = "signup" | "login";
 
-export default function AuthPage() {
+function AuthPageContent() {
   const router = useRouter();
   const sp = useSearchParams();
 
@@ -165,8 +165,8 @@ export default function AuthPage() {
 
       await ensureProfileAndRoute(data.user.id, role);
       setBusy(false);
-    } catch (e: any) {
-      setMsg(e?.message || "Ошибка");
+    } catch (e: unknown) {
+      setMsg(e instanceof Error ? e.message : "Ошибка");
       setBusy(false);
     }
   }
@@ -278,5 +278,13 @@ export default function AuthPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function AuthPage() {
+  return (
+    <Suspense fallback={null}>
+      <AuthPageContent />
+    </Suspense>
   );
 }

@@ -12,6 +12,13 @@ export type Profile = {
 
   avatar_url: string | null;
   job_search_status: string | null;
+
+  salary_expectation: number | null;
+  salary_currency: "UZS" | "USD" | null;
+  employment_type: string | null;
+  work_schedule: string | null;
+  is_visible: boolean | null;
+  show_contacts: boolean | null;
 };
 
 export async function getMyProfile() {
@@ -23,7 +30,7 @@ export async function getMyProfile() {
   const { data: profile, error } = await supabase
     .from("profiles")
     .select(
-      "id, role, is_onboarded, full_name, headline, city, about, avatar_url, job_search_status"
+      "id, role, is_onboarded, full_name, headline, city, about, avatar_url, job_search_status, salary_expectation, salary_currency, employment_type, work_schedule, is_visible, show_contacts"
     )
     .eq("id", user.id)
     .single();
@@ -37,8 +44,10 @@ export async function updateMyProfile(payload: Partial<Profile>) {
   if (!user) return { error: new Error("Not authenticated") };
 
   // не затираем поля undefined
-  const clean: any = { ...payload };
-  Object.keys(clean).forEach((k) => clean[k] === undefined && delete clean[k]);
+  const clean: Partial<Profile> = { ...payload };
+  (Object.keys(clean) as (keyof Profile)[]).forEach((k) => {
+    if (clean[k] === undefined) delete clean[k];
+  });
 
   const { error } = await supabase
     .from("profiles")

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { createclient } from "@/lib/supabase/client"
+import { createClient } from "@/lib/supabase/client"
 
 export default function ProfilePage() {
   const supabase = createClient()
@@ -26,8 +26,8 @@ export default function ProfilePage() {
       if (error) throw error
 
       alert("Аватар загружен 🚀")
-    } catch (error: any) {
-      alert(error.message)
+    } catch (error: unknown) {
+      alert(error instanceof Error ? error.message : "Upload failed")
     } finally {
       setLoading(false)
     }

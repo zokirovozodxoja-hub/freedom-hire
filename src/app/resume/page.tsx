@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { getMyProfile, updateMyProfile } from "@/lib/profile";
+import { getMyProfile, updateMyProfile, type Profile } from "@/lib/profile";
 import {
   listMyExperiences,
   addExperience,
@@ -57,7 +57,7 @@ export default function ResumePage() {
   const [msg, setMsg] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const [profile, setProfile] = useState<any>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
 
   // profile fields
   const [fullName, setFullName] = useState("");
@@ -119,7 +119,8 @@ export default function ResumePage() {
 
       const sk = await listMySkills();
       if (sk.error) {
-        setMsg((prev) => prev ?? sk.error.message);
+        const skillErrorMessage = sk.error.message;
+        setMsg((prev) => prev ?? skillErrorMessage);
         setSkills([]);
       } else {
         setSkills(sk.items);
@@ -170,7 +171,7 @@ export default function ResumePage() {
     setSaving(true);
     setMsg(null);
 
-    const payload: any = {
+    const payload: Partial<Profile> = {
       full_name: fullName.trim() || null,
       headline: headline.trim() || null,
       city: city.trim() || null,
@@ -188,7 +189,7 @@ export default function ResumePage() {
       return;
     }
 
-    setProfile((p: any) => ({ ...(p ?? {}), ...payload }));
+    setProfile((p) => ({ ...(p ?? ({} as Profile)), ...payload }));
     setMsg("Сохранено ✅");
     setSaving(false);
   }
@@ -429,7 +430,7 @@ export default function ResumePage() {
                 <label className="text-xs text-white/60">Валюта</label>
                 <select
                   value={currency}
-                  onChange={(e) => setCurrency(e.target.value as any)}
+                  onChange={(e) => setCurrency(e.target.value as "UZS" | "USD")}
                   className="mt-2 w-full rounded-2xl bg-black/20 border border-white/10 px-4 py-3 outline-none"
                 >
                   <option value="UZS">UZS</option>
