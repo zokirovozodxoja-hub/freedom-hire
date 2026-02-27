@@ -114,15 +114,15 @@ export default function ResumePage() {
       setCurrency((profile.salary_currency as "UZS" | "USD") ?? "UZS");
 
       const ex = await listMyExperiences();
-      if (ex.error) setMsg(ex.error.message);
-      setExperiences(ex.items);
+      if (ex.error) setMsg((prev) => prev ?? ex.error?.message ?? "Ошибка загрузки опыта");
+      setExperiences(ex.items ?? []);
 
       const sk = await listMySkills();
       if (sk.error) {
-        setMsg((prev) => prev ?? sk.error.message);
+        setMsg((prev) => prev ?? sk.error?.message ?? "Ошибка загрузки навыков");
         setSkills([]);
       } else {
-        setSkills(sk.items);
+        setSkills(sk.items ?? []);
       }
 
       setLoading(false);
@@ -152,18 +152,18 @@ export default function ResumePage() {
 
   async function refreshExperiences() {
     const ex = await listMyExperiences();
-    if (ex.error) setMsg(ex.error.message);
-    setExperiences(ex.items);
+    if (ex.error) setMsg((prev) => prev ?? ex.error?.message ?? "Ошибка загрузки опыта");
+    setExperiences(ex.items ?? []);
   }
 
   async function refreshSkills() {
     const sk = await listMySkills();
     if (sk.error) {
-      setMsg(sk.error.message);
+      setMsg((prev) => prev ?? sk.error?.message ?? "Ошибка загрузки навыков");
       setSkills([]);
       return;
     }
-    setSkills(sk.items);
+    setSkills(sk.items ?? []);
   }
 
   async function saveProfile() {
@@ -344,7 +344,6 @@ export default function ResumePage() {
               Перейти к вакансиям
             </button>
 
-            {/* ✅ ВОТ ЭТА КНОПКА ДЕЛАЕТ НОРМАЛЬНЫЙ PDF */}
             <button
               onClick={() => window.open("/resume/print", "_blank")}
               className="rounded-2xl bg-white/10 border border-white/10 px-5 py-2"

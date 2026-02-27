@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { getMyProfile, updateMyProfile } from "@/lib/profile";
 
-export default function CandidateOnboardingPage() {
+function CandidateOnboardingInner() {
   const router = useRouter();
   const sp = useSearchParams();
   const isEditMode = sp.get("edit") === "1";
@@ -158,5 +158,19 @@ export default function CandidateOnboardingPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function CandidateOnboardingPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-[#0b1220] text-white flex items-center justify-center">
+          Загрузка...
+        </div>
+      }
+    >
+      <CandidateOnboardingInner />
+    </Suspense>
   );
 }
