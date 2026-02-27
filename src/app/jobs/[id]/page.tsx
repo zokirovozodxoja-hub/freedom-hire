@@ -1,6 +1,14 @@
+<<<<<<< HEAD
 import { notFound } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 import ApplyButton from "./ApplyButton";
+=======
+"use client";
+
+import { useEffect, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase/client";
+>>>>>>> 186304f (fix: unify supabase client exports)
 
 type Job = {
   id: string;

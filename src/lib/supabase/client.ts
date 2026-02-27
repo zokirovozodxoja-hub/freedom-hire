@@ -1,8 +1,18 @@
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 
+type EnvName = "NEXT_PUBLIC_SUPABASE_URL" | "NEXT_PUBLIC_SUPABASE_ANON_KEY";
+
+function getRequiredEnvVar(name: EnvName) {
+  const value = process.env[name]?.trim();
+  if (!value) throw new Error(`Missing Supabase environment variable: ${name}`);
+  return value;
+}
+
+const supabaseUrl = getRequiredEnvVar("NEXT_PUBLIC_SUPABASE_URL");
+const supabaseAnonKey = getRequiredEnvVar("NEXT_PUBLIC_SUPABASE_ANON_KEY");
+
+export const supabase = createSupabaseClient(supabaseUrl, supabaseAnonKey);
+
 export function createClient() {
-  return createSupabaseClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL || "http://127.0.0.1:54321",
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "public-anon-key",
-  );
+  return supabase;
 }

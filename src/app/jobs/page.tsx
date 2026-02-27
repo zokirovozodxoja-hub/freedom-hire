@@ -2,7 +2,12 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+<<<<<<< HEAD
 import { supabase } from "@/lib/supabaseClient";
+=======
+import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase/client";
+>>>>>>> 186304f (fix: unify supabase client exports)
 
 type Job = {
   id: string;
