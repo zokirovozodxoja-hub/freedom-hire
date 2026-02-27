@@ -2,12 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-<<<<<<< HEAD
-import { supabase } from "@/lib/supabaseClient";
-=======
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase/client";
->>>>>>> 186304f (fix: unify supabase client exports)
+import { createClient } from "@/lib/supabase/client";
 
 type Job = {
   id: string;
@@ -38,12 +34,14 @@ function preview(text: string | null) {
 }
 
 export default function JobsPage() {
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
+      const supabase = createClient();
       const { data, error } = await supabase
         .from("jobs")
         .select("id,title,city,description,created_at,salary_from,salary_to,is_active")

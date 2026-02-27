@@ -1,14 +1,6 @@
-<<<<<<< HEAD
 import { notFound } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 import ApplyButton from "./ApplyButton";
-=======
-"use client";
-
-import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase/client";
->>>>>>> 186304f (fix: unify supabase client exports)
 
 type Job = {
   id: string;
@@ -24,9 +16,7 @@ type Job = {
 function supabaseServer() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
   if (!url || !key) return null;
-
   return createClient(url, key, { auth: { persistSession: false } });
 }
 
@@ -42,12 +32,10 @@ function formatSalary(from: number | null, to: number | null) {
   return `до ${fmt(to!)}`;
 }
 
-export default async function JobDetailsPage({ params }: { params: { id: string } }) {
-  const { id } = params;
+export default async function JobDetailsPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const supabase = supabaseServer();
-  if (!supabase) {
-    notFound();
-  }
+  if (!supabase) notFound();
 
   const { data, error } = await supabase
     .from("jobs")
@@ -55,9 +43,7 @@ export default async function JobDetailsPage({ params }: { params: { id: string 
     .eq("id", id)
     .maybeSingle();
 
-  if (error || !data || !data.is_active) {
-    notFound();
-  }
+  if (error || !data || !data.is_active) notFound();
 
   const job = data as Job;
 
