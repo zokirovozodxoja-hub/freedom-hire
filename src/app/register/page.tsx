@@ -1,33 +1,33 @@
-"use client"
+"use client";
 
-import { useMemo, useState } from "react"
-import { useRouter } from "next/navigation"
-import { createClient } from "@supabase/supabase-js"
+import React, { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { createClient } from "@supabase/supabase-js";
 
-type Role = "candidate" | "employer"
-type Mode = "signup" | "login"
+type Role = "candidate" | "employer";
+type Mode = "signup" | "login";
 
 export default function RegisterPage() {
-  const router = useRouter()
+  const router = useRouter();
 
   const supabase = useMemo(() => {
     return createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    )
-  }, [])
+    );
+  }, []);
 
-  const [mode, setMode] = useState<Mode>("signup")
-  const [role, setRole] = useState<Role>("candidate")
+  const [mode, setMode] = useState<Mode>("signup");
+  const [role, setRole] = useState<Role>("candidate");
 
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
 
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState("")
-  const [info, setInfo] = useState("")
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [info, setInfo] = useState("");
 
-  const styles: Record<string, React.CSSProperties> = {
+  const styles = {
     page: {
       minHeight: "100vh",
       background:
@@ -38,7 +38,8 @@ export default function RegisterPage() {
       color: "white",
       fontFamily:
         'ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial',
-    },
+    } as React.CSSProperties,
+
     shell: {
       width: "100%",
       maxWidth: 980,
@@ -48,7 +49,8 @@ export default function RegisterPage() {
       boxShadow: "0 24px 90px rgba(0,0,0,.45)",
       backdropFilter: "blur(18px)",
       overflow: "hidden",
-    },
+    } as React.CSSProperties,
+
     header: {
       padding: "22px 22px 16px",
       borderBottom: "1px solid rgba(255,255,255,.10)",
@@ -56,9 +58,11 @@ export default function RegisterPage() {
       justifyContent: "space-between",
       alignItems: "flex-start",
       gap: 12,
-    },
-    brand: { margin: 0, fontSize: 28, fontWeight: 950, letterSpacing: "-0.03em" },
-    tagline: { margin: "6px 0 0", color: "rgba(255,255,255,.72)", fontSize: 13, lineHeight: 1.45 },
+    } as React.CSSProperties,
+
+    brand: { margin: 0, fontSize: 28, fontWeight: 950, letterSpacing: "-0.03em" } as React.CSSProperties,
+    tagline: { margin: "6px 0 0", color: "rgba(255,255,255,.72)", fontSize: 13, lineHeight: 1.45 } as React.CSSProperties,
+
     steps: {
       display: "flex",
       alignItems: "center",
@@ -71,7 +75,7 @@ export default function RegisterPage() {
       color: "rgba(255,255,255,.86)",
       whiteSpace: "nowrap",
       fontWeight: 800,
-    },
+    } as React.CSSProperties,
 
     content: {
       padding: 22,
@@ -79,7 +83,7 @@ export default function RegisterPage() {
       gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
       gap: 18,
       alignItems: "stretch",
-    },
+    } as React.CSSProperties,
 
     card: {
       borderRadius: 22,
@@ -87,12 +91,13 @@ export default function RegisterPage() {
       background: "rgba(255,255,255,.04)",
       padding: 18,
       minWidth: 0,
-    },
+    } as React.CSSProperties,
 
-    title: { margin: 0, fontSize: 18, fontWeight: 900 },
-    text: { margin: "8px 0 0", color: "rgba(255,255,255,.72)", fontSize: 13, lineHeight: 1.5 },
+    title: { margin: 0, fontSize: 18, fontWeight: 900 } as React.CSSProperties,
+    text: { margin: "8px 0 0", color: "rgba(255,255,255,.72)", fontSize: 13, lineHeight: 1.5 } as React.CSSProperties,
 
-    toggleRow: { display: "flex", gap: 10, flexWrap: "wrap", marginTop: 14 },
+    toggleRow: { display: "flex", gap: 10, flexWrap: "wrap", marginTop: 14 } as React.CSSProperties,
+
     toggle: (active: boolean): React.CSSProperties => ({
       padding: "10px 12px",
       borderRadius: 14,
@@ -104,8 +109,9 @@ export default function RegisterPage() {
       minWidth: 160,
     }),
 
-    field: { display: "grid", gap: 6, marginTop: 14 },
-    label: { fontSize: 12, color: "rgba(255,255,255,.72)" },
+    field: { display: "grid", gap: 6, marginTop: 14 } as React.CSSProperties,
+    label: { fontSize: 12, color: "rgba(255,255,255,.72)" } as React.CSSProperties,
+
     input: {
       width: "100%",
       padding: "12px 14px",
@@ -116,9 +122,10 @@ export default function RegisterPage() {
       outline: "none",
       fontSize: 14,
       boxSizing: "border-box",
-    },
+    } as React.CSSProperties,
 
-    actions: { display: "flex", gap: 10, flexWrap: "wrap", marginTop: 16 },
+    actions: { display: "flex", gap: 10, flexWrap: "wrap", marginTop: 16 } as React.CSSProperties,
+
     primary: {
       padding: "12px 14px",
       borderRadius: 16,
@@ -129,7 +136,8 @@ export default function RegisterPage() {
       cursor: "pointer",
       minWidth: 200,
       opacity: loading ? 0.75 : 1,
-    },
+    } as React.CSSProperties,
+
     ghost: {
       padding: "12px 14px",
       borderRadius: 16,
@@ -139,7 +147,7 @@ export default function RegisterPage() {
       fontWeight: 900,
       cursor: "pointer",
       minWidth: 160,
-    },
+    } as React.CSSProperties,
 
     msgErr: {
       marginTop: 12,
@@ -150,7 +158,8 @@ export default function RegisterPage() {
       color: "rgba(255,210,210,.95)",
       fontSize: 13,
       lineHeight: 1.4,
-    },
+    } as React.CSSProperties,
+
     msgInfo: {
       marginTop: 12,
       padding: "10px 12px",
@@ -160,84 +169,78 @@ export default function RegisterPage() {
       color: "rgba(210,235,255,.95)",
       fontSize: 13,
       lineHeight: 1.4,
-    },
+    } as React.CSSProperties,
 
-    list: { margin: "12px 0 0", paddingLeft: 18, color: "rgba(255,255,255,.80)", fontSize: 13, lineHeight: 1.6 },
-    note: { marginTop: 12, fontSize: 12, color: "rgba(255,255,255,.62)", lineHeight: 1.4 },
-  }
+    list: { margin: "12px 0 0", paddingLeft: 18, color: "rgba(255,255,255,.80)", fontSize: 13, lineHeight: 1.6 } as React.CSSProperties,
+    note: { marginTop: 12, fontSize: 12, color: "rgba(255,255,255,.62)", lineHeight: 1.4 } as React.CSSProperties,
+  } as const;
 
   const goAfterAuth = async () => {
-    // Берём свежего пользователя и решаем куда вести
-    const { data } = await supabase.auth.getUser()
-    const user = data.user
+    const { data } = await supabase.auth.getUser();
+    const user = data.user;
+
     if (!user) {
-      // если email confirmation включен — сессии может не быть
-      setInfo("Аккаунт создан. Проверьте почту для подтверждения, затем войдите.")
-      return
+      setInfo("Аккаунт создан. Проверьте почту для подтверждения, затем войдите.");
+      return;
     }
 
-    const meta = (user.user_metadata as any) || {}
-    const metaRole: Role = meta.role === "employer" ? "employer" : "candidate"
-    const done = meta.onboarding_done === true
+    const meta = (user.user_metadata as any) || {};
+    const metaRole: Role = meta.role === "employer" ? "employer" : "candidate";
+    const done = meta.onboarding_done === true;
 
-    // Работодатель пока не делаем — чтобы не улетать в 404
     if (metaRole === "employer") {
-      setInfo("Онбординг работодателя сделаем следующим. Сейчас доступен путь соискателя.")
-      router.push("/onboarding/candidate")
-      return
+      setInfo("Онбординг работодателя сделаем следующим. Сейчас доступен путь соискателя.");
+      router.push("/onboarding/candidate");
+      return;
     }
 
-    if (done) router.push("/me")
-    else router.push("/onboarding/candidate")
-  }
+    if (done) router.push("/me");
+    else router.push("/onboarding/candidate");
+  };
 
   const submit = async () => {
-    setError("")
-    setInfo("")
-    setLoading(true)
+    setError("");
+    setInfo("");
+    setLoading(true);
 
     try {
-      if (!email.trim()) throw new Error("Введите email.")
-      if (!password.trim()) throw new Error("Введите пароль (минимум 6 символов).")
+      if (!email.trim()) throw new Error("Введите email.");
+      if (!password.trim()) throw new Error("Введите пароль (минимум 6 символов).");
 
       if (mode === "signup") {
-        // сохраняем role в metadata сразу
         const { error: signUpErr } = await supabase.auth.signUp({
           email: email.trim(),
           password,
           options: {
             data: { role, onboarding_done: false },
           },
-        })
-        if (signUpErr) throw signUpErr
+        });
+        if (signUpErr) throw signUpErr;
 
-        // Если сессия выдалась сразу — создадим/обновим profiles (role NOT NULL)
-        const { data: userRes } = await supabase.auth.getUser()
-        const user = userRes.user
+        const { data: userRes } = await supabase.auth.getUser();
+        const user = userRes.user;
+
         if (user) {
-          await supabase
-            .from("profiles")
-            .upsert({ id: user.id, role }, { onConflict: "id" })
+          await supabase.from("profiles").upsert({ id: user.id, role }, { onConflict: "id" });
         }
 
-        await goAfterAuth()
-        return
+        await goAfterAuth();
+        return;
       }
 
-      // login
       const { error: signInErr } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password,
-      })
-      if (signInErr) throw signInErr
+      });
+      if (signInErr) throw signInErr;
 
-      await goAfterAuth()
+      await goAfterAuth();
     } catch (e: any) {
-      setError(e?.message || "Ошибка")
+      setError(e?.message || "Ошибка");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   return (
     <main style={styles.page}>
@@ -259,7 +262,6 @@ export default function RegisterPage() {
         </div>
 
         <div className="fh-cols" style={styles.content}>
-          {/* LEFT: AUTH */}
           <div style={styles.card}>
             <h2 style={styles.title}>{mode === "signup" ? "Создать аккаунт" : "Войти"}</h2>
             <p style={styles.text}>Пока оставляем только Email + пароль (без телефона).</p>
@@ -333,12 +335,7 @@ export default function RegisterPage() {
                 {loading ? "Подождите…" : mode === "signup" ? "Создать аккаунт" : "Войти"}
               </button>
 
-              <button
-                type="button"
-                style={styles.ghost}
-                onClick={() => router.push("/")}
-                disabled={loading}
-              >
+              <button type="button" style={styles.ghost} onClick={() => router.push("/")} disabled={loading}>
                 На главную
               </button>
             </div>
@@ -348,14 +345,17 @@ export default function RegisterPage() {
             </div>
           </div>
 
-          {/* RIGHT: ONBOARDING PREVIEW */}
           <div style={styles.card}>
             <h2 style={styles.title}>Что будет дальше</h2>
             <p style={styles.text}>Коротко и понятно — чтобы человек не терялся после входа.</p>
 
             <ul style={styles.list}>
-              <li><b>Соискатель</b>: регистрация → заполнить профиль → загрузить портфолио → смотреть вакансии.</li>
-              <li><b>Работодатель</b>: регистрация → компания → документы → первая вакансия (сделаем следующим этапом).</li>
+              <li>
+                <b>Соискатель</b>: регистрация → заполнить профиль → загрузить портфолио → смотреть вакансии.
+              </li>
+              <li>
+                <b>Работодатель</b>: регистрация → компания → документы → первая вакансия (сделаем следующим этапом).
+              </li>
               <li>Вакансии не показываем, пока профиль не заполнен.</li>
             </ul>
 
@@ -366,5 +366,5 @@ export default function RegisterPage() {
         </div>
       </div>
     </main>
-  )
+  );
 }
