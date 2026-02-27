@@ -1,0 +1,8 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* можно добавить базовый фон */
+html, body {
+  height: 100%;
+}
