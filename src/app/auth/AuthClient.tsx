@@ -55,12 +55,20 @@ export default function AuthClient() {
       if (!password.trim() || password.trim().length < 6) throw new Error("Пароль минимум 6 символов.");
 
       if (mode === "signup") {
-        const { error: signupError } = await supabase.auth.signUp({
+        const { data: signupData, error: signupError } = await supabase.auth.signUp({
           email: email.trim(),
           password,
           options: { data: { role, onboarding_done: false } },
         });
         if (signupError) throw signupError;
+
+        // With email confirmation enabled, signup usually returns no active session.
+        // In that case we should not redirect to protected routes.
+        if (!signupData.session) {
+          setNotice("Проверьте почту и подтвердите email, затем войдите в аккаунт.");
+          setMode("login");
+          return;
+        }
       } else {
         const { error: signinError } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
         if (signinError) throw signinError;
