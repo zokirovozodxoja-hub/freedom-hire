@@ -1,4 +1,4 @@
-import { createClient } from "./supabase/client";
+import { supabase } from "@/lib/supabase/browser";
 
 export type Status =
   | "actively_looking"
@@ -66,9 +66,7 @@ function toErr(e: unknown): LibError {
 
 export async function getMyProfile(): Promise<GetMyProfileResponse> {
   try {
-    const supabase = createClient();
-
-    const { data: userRes, error: userErr } =
+        const { data: userRes, error: userErr } =
       await supabase.auth.getUser();
     if (userErr)
       return { user: null, profile: null, error: toErr(userErr) };
@@ -100,9 +98,7 @@ export async function updateMyProfile(
   patch: Partial<Omit<Profile, "id">>
 ): Promise<UpdateMyProfileResponse> {
   try {
-    const supabase = createClient();
-
-    const { data: userRes, error: userErr } =
+        const { data: userRes, error: userErr } =
       await supabase.auth.getUser();
     if (userErr)
       return { profile: null, error: toErr(userErr) };

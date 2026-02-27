@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@supabase/supabase-js";
+import { supabase } from "@/lib/supabase/browser";
 
 type Role = "candidate" | "employer";
 type Mode = "signup" | "login";
@@ -34,13 +34,6 @@ export default function AuthClient() {
   }, []);
 
 
-  const getSupabase = () => {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    if (!url || !key) throw new Error("Supabase не настроен.");
-    return createClient(url, key);
-  };
-
   const getRedirectByRole = (targetRole: Role) =>
     targetRole === "employer" ? "/employer" : "/onboarding/candidate";
 
@@ -50,7 +43,6 @@ export default function AuthClient() {
     setNotice(null);
 
     try {
-      const supabase = getSupabase();
       if (!email.trim()) throw new Error("Введите email.");
       if (!password.trim() || password.trim().length < 6) throw new Error("Пароль минимум 6 символов.");
 

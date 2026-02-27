@@ -1,4 +1,4 @@
-import { supabase } from "./supabaseClient";
+import { supabase } from "@/lib/supabase/browser";
 
 export async function listMySavedJobs() {
   const { data: auth } = await supabase.auth.getUser();
