@@ -1,4 +1,4 @@
-import { supabase } from "./supabaseClient";
+import { supabase } from "@/lib/supabase/browser";
 
 export type SkillLevel = "beginner" | "intermediate" | "advanced" | "expert" | "junior";
 

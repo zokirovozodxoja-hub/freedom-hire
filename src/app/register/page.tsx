@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import { supabase } from "@/lib/supabase/browser";
 
 type Role = "candidate" | "employer";
 type Mode = "signup" | "login";
@@ -10,9 +10,7 @@ type Mode = "signup" | "login";
 export default function RegisterPage() {
   const router = useRouter();
 
-  const supabase = createClient();
-
-  const [mode, setMode] = useState<Mode>("signup");
+    const [mode, setMode] = useState<Mode>("signup");
   const [role, setRole] = useState<Role>("candidate");
 
   const [email, setEmail] = useState("");
