@@ -1,8 +1,8 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { createClient } from "@supabase/supabase-js";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 
 type Role = "candidate" | "employer";
 type Mode = "signup" | "login";
@@ -33,12 +33,7 @@ function AuthClientInner() {
     if (qNext && qNext.startsWith("/")) setNextUrl(qNext);
   }, []);
 
-  const getSupabase = () => {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    if (!url || !key) throw new Error("Supabase не настроен.");
-    return createClient(url, key);
-  };
+  const getSupabase = () => createClient();
 
   // Правильные редиректы:
   // - кандидат → /onboarding/candidate (если не онбордингован) или /resume
