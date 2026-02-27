@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 
 type Role = "candidate" | "employer";
@@ -12,7 +12,7 @@ function getQueryParam(name: string): string | null {
   return new URL(window.location.href).searchParams.get(name);
 }
 
-export default function AuthClient() {
+function AuthClientInner() {
   const router = useRouter();
 
   const [mode, setMode] = useState<Mode>("login");
@@ -27,12 +27,11 @@ export default function AuthClient() {
 
   useEffect(() => {
     const qRole = getQueryParam("role");
-    if (qRole === "candidate" || qRole === "employer") setRole(qRole);
+    if (qRole === "candidate" || qRole === "employer") setRole(qRole as Role);
 
     const qNext = getQueryParam("next");
     if (qNext && qNext.startsWith("/")) setNextUrl(qNext);
   }, []);
-
 
   const getSupabase = () => {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -41,8 +40,11 @@ export default function AuthClient() {
     return createClient(url, key);
   };
 
+  // Правильные редиректы:
+  // - кандидат → /onboarding/candidate (если не онбордингован) или /resume
+  // - работодатель → /onboarding/employer (если нет компании) или /employer
   const getRedirectByRole = (targetRole: Role) =>
-    targetRole === "employer" ? "/employer" : "/onboarding/candidate";
+    targetRole === "employer" ? "/onboarding/employer" : "/onboarding/candidate";
 
   async function submit() {
     setLoading(true);
@@ -52,7 +54,8 @@ export default function AuthClient() {
     try {
       const supabase = getSupabase();
       if (!email.trim()) throw new Error("Введите email.");
-      if (!password.trim() || password.trim().length < 6) throw new Error("Пароль минимум 6 символов.");
+      if (!password.trim() || password.trim().length < 6)
+        throw new Error("Пароль минимум 6 символов.");
 
       if (mode === "signup") {
         const { error: signupError } = await supabase.auth.signUp({
@@ -62,21 +65,61 @@ export default function AuthClient() {
         });
         if (signupError) throw signupError;
       } else {
-        const { error: signinError } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+        const { error: signinError } = await supabase.auth.signInWithPassword({
+          email: email.trim(),
+          password,
+        });
         if (signinError) throw signinError;
       }
 
       const { data } = await supabase.auth.getUser();
       if (!data.user) {
         if (mode === "signup") {
-          setNotice("Проверьте почту и подтвердите email, затем войдите в аккаунт.");
+          setNotice(
+            "Проверьте почту и подтвердите email, затем войдите в аккаунт."
+          );
           setMode("login");
           return;
         }
-        throw new Error("Не удалось получить активную сессию. Попробуйте войти снова.");
+        throw new Error(
+          "Не удалось получить активную сессию. Попробуйте войти снова."
+        );
       }
 
-      const userRole = (data.user.user_metadata?.role as Role | undefined) ?? role;
+      const userRole =
+        (data.user.user_metadata?.role as Role | undefined) ?? role;
+
+      // При логине проверяем — прошёл ли уже онбординг
+      if (mode === "login") {
+        if (userRole === "employer") {
+          // Проверяем есть ли компания
+          const { data: company } = await supabase
+            .from("companies")
+            .select("id")
+            .eq("owner_id", data.user.id)
+            .maybeSingle();
+
+          router.replace(
+            nextUrl || (company ? "/employer" : "/onboarding/employer")
+          );
+          return;
+        } else {
+          // Проверяем профиль кандидата
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("is_onboarded")
+            .eq("id", data.user.id)
+            .maybeSingle();
+
+          router.replace(
+            nextUrl ||
+              (profile?.is_onboarded ? "/resume" : "/onboarding/candidate")
+          );
+          return;
+        }
+      }
+
+      // При регистрации — всегда на онбординг
       router.replace(nextUrl || getRedirectByRole(userRole));
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Ошибка авторизации");
@@ -86,7 +129,11 @@ export default function AuthClient() {
   }
 
   const buttonStyle = (active: boolean) =>
-    `rounded-xl border px-4 py-2 font-semibold ${active ? "border-white bg-white text-black" : "border-white/20 bg-white/5 text-white"}`;
+    `rounded-xl border px-4 py-2 font-semibold ${
+      active
+        ? "border-white bg-white text-black"
+        : "border-white/20 bg-white/5 text-white"
+    }`;
 
   return (
     <main className="mx-auto grid min-h-screen max-w-3xl place-items-center p-6">
@@ -94,13 +141,37 @@ export default function AuthClient() {
         <h1 className="text-2xl font-black">Авторизация</h1>
 
         <div className="mt-4 flex flex-wrap gap-2">
-          <button className={buttonStyle(mode === "login")} onClick={() => setMode("login")} disabled={loading}>Войти</button>
-          <button className={buttonStyle(mode === "signup")} onClick={() => setMode("signup")} disabled={loading}>Создать аккаунт</button>
+          <button
+            className={buttonStyle(mode === "login")}
+            onClick={() => setMode("login")}
+            disabled={loading}
+          >
+            Войти
+          </button>
+          <button
+            className={buttonStyle(mode === "signup")}
+            onClick={() => setMode("signup")}
+            disabled={loading}
+          >
+            Создать аккаунт
+          </button>
         </div>
 
         <div className="mt-3 flex flex-wrap gap-2">
-          <button className={buttonStyle(role === "candidate")} onClick={() => setRole("candidate")} disabled={loading}>Я соискатель</button>
-          <button className={buttonStyle(role === "employer")} onClick={() => setRole("employer")} disabled={loading}>Я работодатель</button>
+          <button
+            className={buttonStyle(role === "candidate")}
+            onClick={() => setRole("candidate")}
+            disabled={loading}
+          >
+            Я соискатель
+          </button>
+          <button
+            className={buttonStyle(role === "employer")}
+            onClick={() => setRole("employer")}
+            disabled={loading}
+          >
+            Я работодатель
+          </button>
         </div>
 
         <label className="mt-5 block text-sm text-white/70">Email</label>
@@ -121,16 +192,36 @@ export default function AuthClient() {
         />
 
         <button
-          className="mt-5 w-full rounded-xl bg-[#7c3aed] px-4 py-3 font-semibold"
+          className="mt-5 w-full rounded-xl bg-[#7c3aed] px-4 py-3 font-semibold disabled:opacity-60"
           onClick={submit}
           disabled={loading}
         >
-          {loading ? "Подождите..." : mode === "login" ? "Войти" : "Создать аккаунт"}
+          {loading
+            ? "Подождите..."
+            : mode === "login"
+            ? "Войти"
+            : "Создать аккаунт"}
         </button>
 
         {error ? <p className="mt-3 text-sm text-red-300">{error}</p> : null}
-        {notice ? <p className="mt-3 text-sm text-emerald-300">{notice}</p> : null}
+        {notice ? (
+          <p className="mt-3 text-sm text-emerald-300">{notice}</p>
+        ) : null}
       </div>
     </main>
+  );
+}
+
+export default function AuthClient() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-[#0b1220] text-white flex items-center justify-center">
+          Загрузка...
+        </div>
+      }
+    >
+      <AuthClientInner />
+    </Suspense>
   );
 }

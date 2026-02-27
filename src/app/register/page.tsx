@@ -184,12 +184,18 @@ export default function RegisterPage() {
     const done = meta.onboarding_done === true;
 
     if (metaRole === "employer") {
-      setInfo("Онбординг работодателя сделаем следующим. Сейчас доступен путь соискателя.");
-      router.push("/onboarding/candidate");
+      // Проверяем есть ли уже компания
+      const { data: company } = await supabase
+        .from("companies")
+        .select("id")
+        .eq("owner_id", user.id)
+        .maybeSingle();
+
+      router.push(company ? "/employer" : "/onboarding/employer");
       return;
     }
 
-    if (done) router.push("/me");
+    if (done) router.push("/resume");
     else router.push("/onboarding/candidate");
   };
 

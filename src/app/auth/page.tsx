@@ -1,9 +1,7 @@
+import { Suspense } from "react";
 import AuthClient from "./AuthClient";
 
 export default function AuthPage() {
-<<<<<<< HEAD
-  return <AuthClient />;
-=======
   return (
     <Suspense
       fallback={
@@ -23,5 +21,4 @@ export default function AuthPage() {
       <AuthClient />
     </Suspense>
   );
->>>>>>> 186304f (fix: unify supabase client exports)
 }
