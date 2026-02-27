@@ -23,6 +23,7 @@ export default function AuthClient() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
     const qRole = getQueryParam("role");
@@ -46,6 +47,7 @@ export default function AuthClient() {
   async function submit() {
     setLoading(true);
     setError(null);
+    setNotice(null);
 
     try {
       const supabase = getSupabase();
@@ -65,7 +67,16 @@ export default function AuthClient() {
       }
 
       const { data } = await supabase.auth.getUser();
-      const userRole = (data.user?.user_metadata?.role as Role | undefined) ?? role;
+      if (!data.user) {
+        if (mode === "signup") {
+          setNotice("Проверьте почту и подтвердите email, затем войдите в аккаунт.");
+          setMode("login");
+          return;
+        }
+        throw new Error("Не удалось получить активную сессию. Попробуйте войти снова.");
+      }
+
+      const userRole = (data.user.user_metadata?.role as Role | undefined) ?? role;
       router.replace(nextUrl || getRedirectByRole(userRole));
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Ошибка авторизации");
@@ -118,6 +129,7 @@ export default function AuthClient() {
         </button>
 
         {error ? <p className="mt-3 text-sm text-red-300">{error}</p> : null}
+        {notice ? <p className="mt-3 text-sm text-emerald-300">{notice}</p> : null}
       </div>
     </main>
   );
