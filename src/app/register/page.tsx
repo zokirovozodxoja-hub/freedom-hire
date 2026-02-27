@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@supabase/supabase-js";
+import { createClient } from "@/lib/supabase/client";
 
 type Role = "candidate" | "employer";
 type Mode = "signup" | "login";
@@ -10,12 +10,7 @@ type Mode = "signup" | "login";
 export default function RegisterPage() {
   const router = useRouter();
 
-  const supabase = useMemo(() => {
-    return createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    );
-  }, []);
+  const supabase = createClient();
 
   const [mode, setMode] = useState<Mode>("signup");
   const [role, setRole] = useState<Role>("candidate");
