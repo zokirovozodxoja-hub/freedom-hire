@@ -6,10 +6,11 @@ import { supabase } from "@/lib/supabaseClient";
 
 type Job = {
   id: string;
-  title: string | null;
-  city: string | null;
-  salary: number | null;
-  description: string | null;
+  company_id: string | null;
+  salary_from: number | null;
+  salary_to: number | null;
+  is_active: boolean | null;
+  created_at: string;
 };
 
 export default function JobsPage() {
@@ -24,15 +25,10 @@ export default function JobsPage() {
   }, []);
 
   async function loadJobs() {
-    const { data: auth } = await supabase.auth.getUser();
-    if (!auth.user) {
-      router.push("/auth?role=candidate");
-      return;
-    }
-
     const { data, error } = await supabase
       .from("jobs")
-      .select("id, title, city, salary, description")
+      .select("id, company_id, salary_from, salary_to, is_active, created_at")
+      .eq("is_active", true)
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -44,30 +40,11 @@ export default function JobsPage() {
   }
 
   async function handleApply(jobId: string) {
-    setMessage(null);
-
     const { data: auth } = await supabase.auth.getUser();
     const user = auth.user;
+
     if (!user) {
       router.push("/auth?role=candidate");
-      return;
-    }
-
-    // Проверяем — уже откликался?
-    const { data: existing, error: checkError } = await supabase
-      .from("applications")
-      .select("id")
-      .eq("candidate_id", user.id)
-      .eq("job_id", jobId)
-      .maybeSingle();
-
-    if (checkError) {
-      setMessage(checkError.message);
-      return;
-    }
-
-    if (existing?.id) {
-      setMessage("Ты уже откликался на эту вакансию ✅");
       return;
     }
 
@@ -97,16 +74,7 @@ export default function JobsPage() {
   return (
     <div className="min-h-screen bg-[#0b1220] text-white p-6">
       <div className="max-w-5xl mx-auto">
-
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-semibold">Вакансии</h1>
-          <button
-            onClick={() => router.push("/resume")}
-            className="rounded-2xl bg-white/10 border border-white/10 px-4 py-2"
-          >
-            Назад в кабинет
-          </button>
-        </div>
+        <h1 className="text-2xl font-semibold mb-6">Вакансии</h1>
 
         {message && (
           <div className="mb-4 text-sm text-white/70">
@@ -126,19 +94,18 @@ export default function JobsPage() {
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <div className="text-lg font-semibold">
-                      {job.title ?? "Без названия"}
+                      Вакансия #{job.id.slice(0, 6)}
                     </div>
 
                     <div className="text-white/70 text-sm mt-1">
-                      {job.city ?? ""}{" "}
-                      {job.salary ? `· ${job.salary}` : ""}
+                      {job.salary_from && job.salary_to
+                        ? `${job.salary_from} — ${job.salary_to}`
+                        : "Зарплата не указана"}
                     </div>
 
-                    {job.description && (
-                      <div className="text-white/70 text-sm mt-2">
-                        {job.description}
-                      </div>
-                    )}
+                    <div className="text-white/50 text-xs mt-1">
+                      Опубликовано: {new Date(job.created_at).toLocaleDateString("ru-RU")}
+                    </div>
                   </div>
 
                   <button
