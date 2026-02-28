@@ -4,6 +4,9 @@ import { Suspense, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
+// ← ЗАМЕНИ НА СВОЙ EMAIL
+const ADMIN_EMAILS = ["zokirovozodxoja@gmail.com"];
+
 type Role = "candidate" | "employer";
 type Mode = "signup" | "login";
 
@@ -66,7 +69,14 @@ function AuthClientInner() {
         throw new Error("Не удалось получить сессию. Попробуйте снова.");
       }
 
+      const userEmail = data.user.email ?? "";
       const userRole = (data.user.user_metadata?.role as Role | undefined) ?? role;
+
+      // Admin — всегда на /admin
+      if (ADMIN_EMAILS.includes(userEmail)) {
+        router.replace("/admin");
+        return;
+      }
 
       if (mode === "login") {
         if (userRole === "employer") {

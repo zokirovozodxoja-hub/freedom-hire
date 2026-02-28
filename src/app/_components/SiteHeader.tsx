@@ -12,7 +12,8 @@ const navItems = [
 export default function SiteHeader() {
   const pathname = usePathname();
 
-  const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
+  const isActive = (href: string) =>
+    pathname === href || pathname.startsWith(`${href}/`);
 
   return (
     <header className="sticky top-0 z-50 border-b border-white/10 bg-[#0b1220]/80 backdrop-blur">
@@ -32,16 +33,33 @@ export default function SiteHeader() {
             <Link
               key={item.href}
               href={item.href}
-              className={isActive(item.href) ? "text-white" : "hover:text-white"}
+              className={
+                isActive(item.href)
+                  ? "text-white font-medium"
+                  : "hover:text-white transition"
+              }
             >
               {item.label}
             </Link>
           ))}
         </nav>
 
-        <Link href="/auth" className="rounded-2xl bg-[#7c3aed] px-5 py-2 font-semibold">
-          Войти
-        </Link>
+        {/* ✅ две кнопки справа */}
+        <div className="flex items-center gap-2">
+          <Link
+            href="/auth/login"
+            className="rounded-2xl border border-white/10 bg-white/5 px-5 py-2 font-semibold text-white/90 hover:bg-white/10 transition"
+          >
+            Войти
+          </Link>
+
+          <Link
+            href="/auth/register"
+            className="rounded-2xl bg-[#7c3aed] px-5 py-2 font-semibold text-white hover:bg-[#6d28d9] transition"
+          >
+            Регистрация
+          </Link>
+        </div>
       </div>
     </header>
   );
