@@ -83,9 +83,7 @@ function AuthClientInner() {
             .from("companies").select("id").eq("owner_id", data.user.id).maybeSingle();
           router.replace(nextUrl || (company ? "/employer" : "/onboarding/employer"));
         } else {
-          const { data: profile } = await supabase
-            .from("profiles").select("is_onboarded").eq("id", data.user.id).maybeSingle();
-          router.replace(nextUrl || (profile?.is_onboarded ? "/resume" : "/onboarding/candidate"));
+          router.replace(nextUrl || "/resume");
         }
         return;
       }
