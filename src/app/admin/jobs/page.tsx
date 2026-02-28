@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
+type Company = { name: string | null };
+
 type Job = {
   id: string;
   title: string | null;
@@ -11,8 +13,14 @@ type Job = {
   created_at: string;
   salary_from: number | null;
   salary_to: number | null;
-  companies: { name: string | null } | null;
+  companies: Company | Company[] | null;
 };
+
+function getCompanyName(companies: Company | Company[] | null): string {
+  if (!companies) return "—";
+  if (Array.isArray(companies)) return companies[0]?.name ?? "—";
+  return companies.name ?? "—";
+}
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("ru-RU");
@@ -42,7 +50,7 @@ export default function AdminJobsPage() {
     if (filter === "hidden") q = q.eq("is_active", false);
 
     const { data } = await q;
-    setJobs((data ?? []) as Job[]);
+    setJobs((data ?? []) as unknown as Job[]);
     setLoading(false);
   }
 
@@ -94,7 +102,7 @@ export default function AdminJobsPage() {
               <div className="flex-1 min-w-0">
                 <div className="font-semibold truncate">{job.title ?? "Без названия"}</div>
                 <div className="text-sm text-white/50 mt-0.5">
-                  {job.companies?.name ?? "—"} · {job.city ?? "—"} · {formatDate(job.created_at)} · {formatSalary(job.salary_from, job.salary_to)}
+                  {getCompanyName(job.companies)} · {job.city ?? "—"} · {formatDate(job.created_at)} · {formatSalary(job.salary_from, job.salary_to)}
                 </div>
               </div>
 
