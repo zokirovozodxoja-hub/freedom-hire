@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { getMyProfile, updateMyProfile } from "@/lib/profile";
+import { createClient } from "@/lib/supabase/client";
 
 const STEPS = ["Основное", "Статус и зарплата", "Контакты"];
 
@@ -25,20 +25,31 @@ function CandidateOnboardingInner() {
   // Шаг 2
   const [jobStatus, setJobStatus] = useState("actively_looking");
   const [salaryFrom, setSalaryFrom] = useState("");
-  const [salaryTo, setSalaryTo] = useState("");
   const [salaryCurrency, setSalaryCurrency] = useState("UZS");
-  const [isVisible, setIsVisible] = useState(true);
 
   // Шаг 3
   const [phone, setPhone] = useState("");
   const [telegram, setTelegram] = useState("");
-  const [showContacts, setShowContacts] = useState(true);
+
+  // Колонки которые точно есть в БД
+  const [hasExtraColumns, setHasExtraColumns] = useState(false);
 
   useEffect(() => {
     (async () => {
-      const { profile, user, error } = await getMyProfile();
-      if (!user) { router.push("/auth"); return; }
+      const supabase = createClient();
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData.user) { router.push("/auth"); return; }
+
+      const { data: profile, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", userData.user.id)
+        .maybeSingle();
+
       if (error) { setMsg(error.message); setLoading(false); return; }
+
+      // Проверяем есть ли колонка telegram
+      if (profile && "telegram" in profile) setHasExtraColumns(true);
 
       if (profile?.is_onboarded && !isEditMode) {
         router.push("/resume");
@@ -51,8 +62,8 @@ function CandidateOnboardingInner() {
         setCity(profile.city ?? "");
         setAbout(profile.about ?? "");
         setJobStatus(profile.job_search_status ?? "actively_looking");
-        setPhone(profile.phone ?? "");
-        setTelegram(profile.telegram ?? "");
+        if (profile.phone) setPhone(profile.phone);
+        if (profile.telegram) setTelegram(profile.telegram);
       }
 
       setLoading(false);
@@ -75,19 +86,34 @@ function CandidateOnboardingInner() {
       return;
     }
 
-    const { error } = await updateMyProfile({
+    const supabase = createClient();
+    const { data: userData } = await supabase.auth.getUser();
+    if (!userData.user) { router.push("/auth"); return; }
+
+    // Базовый payload — только колонки которые точно есть
+    const payload: Record<string, unknown> = {
+      id: userData.user.id,
       full_name: fullName.trim() || null,
       headline: headline.trim() || null,
       city: city.trim() || null,
       about: about.trim() || null,
-      job_search_status: jobStatus as any,
-      salary_expectation: salaryFrom ? Number(salaryFrom.replace(/\D/g, "")) : null,
-      salary_currency: salaryCurrency as any,
-      phone: phone.trim() || null,
-      telegram: telegram.trim() || null,
       is_onboarded: true,
       role: "candidate",
-    });
+      updated_at: new Date().toISOString(),
+    };
+
+    // Добавляем дополнительные поля только если колонки существуют
+    if (hasExtraColumns) {
+      payload.job_search_status = jobStatus;
+      payload.salary_expectation = salaryFrom ? Number(salaryFrom.replace(/\D/g, "")) : null;
+      payload.salary_currency = salaryCurrency;
+      payload.phone = phone.trim() || null;
+      payload.telegram = telegram.trim() || null;
+    }
+
+    const { error } = await supabase
+      .from("profiles")
+      .upsert(payload, { onConflict: "id" });
 
     if (error) {
       setMsg(error.message);
@@ -106,7 +132,7 @@ function CandidateOnboardingInner() {
     );
   }
 
-  const inputCls = "mt-2 w-full rounded-2xl bg-black/20 border border-white/10 px-4 py-3 outline-none focus:border-violet-500/50 transition";
+  const inputCls = "mt-2 w-full rounded-2xl bg-black/20 border border-white/10 px-4 py-3 outline-none focus:border-violet-500/50 transition text-white";
   const labelCls = "text-sm text-white/70";
 
   return (
@@ -115,29 +141,27 @@ function CandidateOnboardingInner() {
 
         {/* Прогресс */}
         <div className="mb-6">
-          <div className="flex items-center gap-2 mb-3">
+          <div className="flex items-center gap-1 mb-3">
             {STEPS.map((s, i) => (
-              <div key={i} className="flex items-center gap-2">
+              <div key={i} className="flex items-center gap-1 flex-1">
                 <button
                   onClick={() => i < step && setStep(i)}
-                  className={`w-8 h-8 rounded-full text-sm font-bold transition-colors ${
-                    i === step
-                      ? "bg-violet-600 text-white"
-                      : i < step
-                      ? "bg-violet-600/30 text-violet-400 cursor-pointer"
-                      : "bg-white/10 text-white/30"
+                  className={`w-8 h-8 rounded-full text-sm font-bold shrink-0 transition-colors ${
+                    i === step ? "bg-violet-600 text-white" :
+                    i < step ? "bg-violet-600/40 text-violet-300 cursor-pointer" :
+                    "bg-white/10 text-white/30"
                   }`}
                 >
                   {i < step ? "✓" : i + 1}
                 </button>
-                <span className={`text-sm ${i === step ? "text-white" : "text-white/40"}`}>{s}</span>
-                {i < STEPS.length - 1 && <div className="w-8 h-px bg-white/10 mx-1" />}
+                <span className={`text-sm mr-2 ${i === step ? "text-white" : "text-white/40"}`}>{s}</span>
+                {i < STEPS.length - 1 && <div className="flex-1 h-px bg-white/10" />}
               </div>
             ))}
           </div>
           <div className="h-1 bg-white/10 rounded-full">
             <div
-              className="h-1 bg-violet-600 rounded-full transition-all"
+              className="h-1 bg-violet-600 rounded-full transition-all duration-300"
               style={{ width: `${((step + 1) / STEPS.length) * 100}%` }}
             />
           </div>
@@ -145,7 +169,7 @@ function CandidateOnboardingInner() {
 
         <div className="rounded-3xl border border-white/10 bg-white/5 p-8">
           <h1 className="text-xl font-semibold mb-1">
-            {isEditMode ? "Редактирование профиля" : "Создание профиля"} — {STEPS[step]}
+            {isEditMode ? "Редактирование" : "Создание профиля"} — {STEPS[step]}
           </h1>
           <p className="text-white/50 text-sm mb-6">Шаг {step + 1} из {STEPS.length}</p>
 
@@ -172,12 +196,12 @@ function CandidateOnboardingInner() {
               </div>
               <div>
                 <label className={labelCls}>О себе</label>
-                <textarea className={inputCls + " h-28"} value={about} onChange={(e) => setAbout(e.target.value)} placeholder="Расскажите о себе, своём опыте и целях..." />
+                <textarea className={inputCls + " h-28 resize-none"} value={about} onChange={(e) => setAbout(e.target.value)} placeholder="Расскажите о себе..." />
               </div>
             </div>
           )}
 
-          {/* Шаг 2: Статус и зарплата */}
+          {/* Шаг 2: Статус */}
           {step === 1 && (
             <div className="space-y-4">
               <div>
@@ -189,17 +213,17 @@ function CandidateOnboardingInner() {
                 </select>
               </div>
               <div>
-                <label className={labelCls}>Зарплатные ожидания</label>
+                <label className={labelCls}>Желаемая зарплата</label>
                 <div className="grid grid-cols-3 gap-3 mt-2">
                   <input
-                    className="col-span-2 rounded-2xl bg-black/20 border border-white/10 px-4 py-3 outline-none focus:border-violet-500/50"
+                    className="col-span-2 rounded-2xl bg-black/20 border border-white/10 px-4 py-3 outline-none focus:border-violet-500/50 text-white"
                     inputMode="numeric"
                     value={salaryFrom}
                     onChange={(e) => setSalaryFrom(fmt(e.target.value))}
-                    placeholder="Желаемая зарплата"
+                    placeholder="5 000 000"
                   />
                   <select
-                    className="rounded-2xl bg-black/20 border border-white/10 px-4 py-3 outline-none"
+                    className="rounded-2xl bg-black/20 border border-white/10 px-4 py-3 outline-none text-white"
                     value={salaryCurrency}
                     onChange={(e) => setSalaryCurrency(e.target.value)}
                   >
@@ -208,65 +232,57 @@ function CandidateOnboardingInner() {
                   </select>
                 </div>
               </div>
-              <div className="space-y-3">
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <div
-                    onClick={() => setIsVisible((v) => !v)}
-                    className={`relative w-11 h-6 rounded-full transition-colors ${isVisible ? "bg-violet-600" : "bg-white/20"}`}
-                  >
-                    <div className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${isVisible ? "translate-x-5" : "translate-x-0.5"}`} />
-                  </div>
-                  <div>
-                    <div className="text-sm text-white/80">Профиль виден работодателям</div>
-                    <div className="text-xs text-white/40">Работодатели смогут найти вас в поиске</div>
-                  </div>
-                </label>
-              </div>
             </div>
           )}
 
           {/* Шаг 3: Контакты */}
           {step === 2 && (
             <div className="space-y-4">
+              {!hasExtraColumns && (
+                <div className="rounded-xl bg-yellow-500/10 border border-yellow-500/20 px-4 py-3 text-sm text-yellow-300">
+                  ⚠️ Колонки phone/telegram отсутствуют в БД. Выполните SQL из файла <b>supabase-fixes.sql</b> в Supabase, затем обновите страницу.
+                </div>
+              )}
               <div>
                 <label className={labelCls}>Телефон</label>
-                <input className={inputCls} value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+998 90 123 45 67" type="tel" />
+                <input
+                  className={inputCls}
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="+998 90 123 45 67"
+                  type="tel"
+                  disabled={!hasExtraColumns}
+                />
               </div>
               <div>
                 <label className={labelCls}>Telegram</label>
-                <input className={inputCls} value={telegram} onChange={(e) => setTelegram(e.target.value)} placeholder="@username" />
+                <input
+                  className={inputCls}
+                  value={telegram}
+                  onChange={(e) => setTelegram(e.target.value)}
+                  placeholder="@username"
+                  disabled={!hasExtraColumns}
+                />
               </div>
-              <label className="flex items-center gap-3 cursor-pointer">
-                <div
-                  onClick={() => setShowContacts((v) => !v)}
-                  className={`relative w-11 h-6 rounded-full transition-colors ${showContacts ? "bg-violet-600" : "bg-white/20"}`}
-                >
-                  <div className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${showContacts ? "translate-x-5" : "translate-x-0.5"}`} />
-                </div>
-                <div>
-                  <div className="text-sm text-white/80">Показывать контакты</div>
-                  <div className="text-xs text-white/40">Работодатели увидят ваш телефон и Telegram</div>
-                </div>
-              </label>
+              <p className="text-xs text-white/40">
+                Контакты будут видны работодателям только если вы разрешите это в настройках профиля.
+              </p>
             </div>
           )}
 
-          {/* Кнопки навигации */}
+          {/* Кнопки */}
           <div className="flex justify-between mt-8">
             <button
-              onClick={() => step > 0 ? setStep(step - 1) : router.push("/resume")}
+              onClick={() => step > 0 ? setStep(step - 1) : router.push("/")}
               className="rounded-2xl bg-white/10 border border-white/10 px-5 py-2.5 hover:bg-white/15 transition"
             >
-              {step === 0 ? "Отмена" : "← Назад"}
+              {step === 0 ? "На главную" : "← Назад"}
             </button>
 
             {step < STEPS.length - 1 ? (
               <button
                 onClick={() => {
-                  if (step === 0 && !fullName.trim()) {
-                    setMsg("Введите ФИО");
-                    return;
-                  }
+                  if (step === 0 && !fullName.trim()) { setMsg("Введите ФИО"); return; }
                   setMsg(null);
                   setStep(step + 1);
                 }}
@@ -292,11 +308,7 @@ function CandidateOnboardingInner() {
 
 export default function CandidateOnboardingPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-[#0b1220] text-white flex items-center justify-center">
-        Загрузка...
-      </div>
-    }>
+    <Suspense fallback={<div className="min-h-screen bg-[#0b1220] text-white flex items-center justify-center">Загрузка...</div>}>
       <CandidateOnboardingInner />
     </Suspense>
   );
