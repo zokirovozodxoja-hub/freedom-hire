@@ -1,110 +1,167 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 
-export default function EmployerLandingPage() {
+type Company = {
+  id: string;
+  name: string | null;
+  verification_status: string | null;
+};
+
+type Stats = {
+  jobs: number;
+  activeJobs: number;
+  applications: number;
+};
+
+export default function EmployerDashboard() {
   const router = useRouter();
+  const supabase = useMemo(() => createClient(), []);
+
+  const [loading, setLoading] = useState(true);
+  const [company, setCompany] = useState<Company | null>(null);
+  const [stats, setStats] = useState<Stats>({ jobs: 0, activeJobs: 0, applications: 0 });
+
+  useEffect(() => {
+    (async () => {
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData.user) { router.replace("/auth"); return; }
+
+      const { data: comp } = await supabase
+        .from("companies")
+        .select("id,name,verification_status")
+        .eq("owner_id", userData.user.id)
+        .maybeSingle();
+
+      if (!comp) {
+        router.replace("/onboarding/employer");
+        return;
+      }
+
+      setCompany(comp);
+
+      const [jobsRes, activeRes, appsRes] = await Promise.all([
+        supabase.from("jobs").select("id", { count: "exact", head: true }).eq("company_id", comp.id),
+        supabase.from("jobs").select("id", { count: "exact", head: true }).eq("company_id", comp.id).eq("is_active", true),
+        supabase.from("applications").select("id", { count: "exact", head: true }),
+      ]);
+
+      setStats({
+        jobs: jobsRes.count ?? 0,
+        activeJobs: activeRes.count ?? 0,
+        applications: appsRes.count ?? 0,
+      });
+
+      setLoading(false);
+    })();
+  }, [router, supabase]);
+
+  async function handleLogout() {
+    await supabase.auth.signOut();
+    router.replace("/");
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#0b1220] text-white flex items-center justify-center">
+        Загрузка...
+      </div>
+    );
+  }
+
+  const verStatus = company?.verification_status;
+  const verBadge =
+    verStatus === "approved"
+      ? { label: "Верифицирована ✓", cls: "bg-emerald-500/20 text-emerald-400" }
+      : verStatus === "pending"
+      ? { label: "На проверке...", cls: "bg-yellow-500/20 text-yellow-400" }
+      : { label: "Не верифицирована", cls: "bg-white/10 text-white/50" };
 
   return (
-    <div className="min-h-screen bg-[#0b1220] text-white">
-      <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8 py-10 sm:py-14">
-        <section className="relative overflow-hidden rounded-3xl border border-white/10 bg-white/5 p-8 sm:p-10 shadow-[0_20px_60px_rgba(0,0,0,0.45)]">
-          {/* заголовок */}
-          <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight">
-            Работодателям
-          </h1>
-          <p className="mt-3 max-w-2xl text-white/70 leading-relaxed">
-            Создайте компанию, разместите вакансии и получайте отклики. Мы помогаем
-            нанимать быстрее и проще.
-          </p>
+    <div className="min-h-screen bg-[#0b1220] text-white p-6">
+      <div className="max-w-5xl mx-auto">
 
-          {/* преимущества */}
-          <div className="mt-8 grid gap-4 sm:grid-cols-3">
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-              <div className="text-white font-semibold">⚡ Быстрое размещение</div>
-              <p className="mt-2 text-sm text-white/60">
-                Создайте вакансию за пару минут и начните собирать отклики.
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-              <div className="text-white font-semibold">🎯 Кандидаты по Узбекистану</div>
-              <p className="mt-2 text-sm text-white/60">
-                Фокус на локальный рынок: Ташкент и другие города.
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-              <div className="text-white font-semibold">📊 Кабинет работодателя</div>
-              <p className="mt-2 text-sm text-white/60">
-                Управляйте вакансиями и откликами в одном месте.
-              </p>
+        {/* Шапка */}
+        <div className="flex items-start justify-between gap-4 mb-8">
+          <div>
+            <h1 className="text-2xl font-semibold">Кабинет работодателя</h1>
+            <div className="flex items-center gap-2 mt-2">
+              <span className="text-white/70">{company?.name}</span>
+              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${verBadge.cls}`}>
+                {verBadge.label}
+              </span>
             </div>
           </div>
+          <button
+            onClick={handleLogout}
+            className="text-sm text-white/50 hover:text-white transition px-4 py-2 rounded-xl hover:bg-white/5"
+          >
+            Выйти
+          </button>
+        </div>
 
-          {/* условия сотрудничества */}
-          <div className="mt-10">
-            <h2 className="text-xl font-semibold">Условия сотрудничества</h2>
-
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-                <div className="font-semibold">📌 Старт бесплатно</div>
-                <p className="mt-2 text-sm text-white/60">
-                  Первые вакансии можно разместить бесплатно (для теста платформы).
-                </p>
-              </div>
-
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-                <div className="font-semibold">⏱️ Модерация</div>
-                <p className="mt-2 text-sm text-white/60">
-                  Проверка вакансий — обычно до 24 часов.
-                </p>
-              </div>
-
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-                <div className="font-semibold">🤝 Поддержка</div>
-                <p className="mt-2 text-sm text-white/60">
-                  Помогаем с размещением и настройкой вакансий.
-                </p>
-              </div>
-
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-                <div className="font-semibold">🔒 Прозрачность</div>
-                <p className="mt-2 text-sm text-white/60">
-                  Без скрытых комиссий. Всё по правилам и понятно.
-                </p>
-              </div>
+        {/* Статистика */}
+        <div className="grid grid-cols-3 gap-4 mb-8">
+          {[
+            { label: "Всего вакансий", value: stats.jobs, color: "from-violet-600/20" },
+            { label: "Активных", value: stats.activeJobs, color: "from-emerald-600/20" },
+            { label: "Откликов", value: stats.applications, color: "from-blue-600/20" },
+          ].map((s) => (
+            <div key={s.label} className={`rounded-2xl border border-white/10 bg-gradient-to-br ${s.color} to-transparent p-5`}>
+              <div className="text-3xl font-bold">{s.value}</div>
+              <div className="text-sm text-white/60 mt-1">{s.label}</div>
             </div>
+          ))}
+        </div>
+
+        {/* Быстрые действия */}
+        <div className="grid md:grid-cols-2 gap-4">
+          <Link
+            href="/employer/jobs/new"
+            className="group rounded-2xl border border-white/10 bg-white/5 hover:bg-white/8 p-6 transition"
+          >
+            <div className="text-2xl mb-3">➕</div>
+            <div className="font-semibold text-lg">Создать вакансию</div>
+            <div className="text-sm text-white/50 mt-1">Разместите новую вакансию для поиска кандидатов</div>
+          </Link>
+
+          <Link
+            href="/employer/jobs"
+            className="group rounded-2xl border border-white/10 bg-white/5 hover:bg-white/8 p-6 transition"
+          >
+            <div className="text-2xl mb-3">💼</div>
+            <div className="font-semibold text-lg">Мои вакансии</div>
+            <div className="text-sm text-white/50 mt-1">
+              {stats.jobs > 0 ? `${stats.jobs} вакансий, ${stats.activeJobs} активных` : "Вакансий пока нет"}
+            </div>
+          </Link>
+
+          <Link
+            href="/employer/applications"
+            className="group rounded-2xl border border-white/10 bg-white/5 hover:bg-white/8 p-6 transition"
+          >
+            <div className="text-2xl mb-3">📬</div>
+            <div className="font-semibold text-lg">Отклики</div>
+            <div className="text-sm text-white/50 mt-1">
+              {stats.applications > 0 ? `${stats.applications} откликов` : "Откликов пока нет"}
+            </div>
+          </Link>
+
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-6 opacity-50">
+            <div className="text-2xl mb-3">🏢</div>
+            <div className="font-semibold text-lg">Профиль компании</div>
+            <div className="text-sm text-white/50 mt-1">Скоро: редактирование данных компании</div>
           </div>
+        </div>
 
-          {/* CTA */}
-          <div className="mt-10 flex flex-wrap gap-3">
-            {/* если хочешь — отправляй на регистрацию */}
-            <Link
-              href="/auth/register"
-              className="h-11 px-6 inline-flex items-center justify-center rounded-2xl bg-[#7c3aed] font-semibold text-white hover:bg-[#6d28d9] transition"
-            >
-              Зарегистрироваться и разместить вакансию
-            </Link>
-
-            {/* если пользователь уже зарегистрирован */}
-            <Link
-              href="/auth/login"
-              className="h-11 px-6 inline-flex items-center justify-center rounded-2xl border border-white/10 bg-white/5 font-semibold text-white/90 hover:bg-white/10 transition"
-            >
-              Войти в кабинет
-            </Link>
-
-            {/* оставить твою кнопку "Мои вакансии", но логичнее вести туда только после логина */}
-            <button
-              onClick={() => router.push("/employer/jobs")}
-              className="h-11 px-6 inline-flex items-center justify-center rounded-2xl border border-white/10 bg-white/5 font-semibold text-white/90 hover:bg-white/10 transition"
-            >
-              Мои вакансии
-            </button>
+        {verStatus === "pending" && (
+          <div className="mt-6 rounded-2xl border border-yellow-500/20 bg-yellow-500/5 p-4 text-sm text-yellow-300">
+            ⏳ Ваша компания находится на проверке. Это обычно занимает до 24 часов. После верификации вы сможете публиковать вакансии.
           </div>
-        </section>
+        )}
       </div>
     </div>
   );

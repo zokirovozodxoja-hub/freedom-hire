@@ -28,6 +28,8 @@ function AuthClientInner() {
   useEffect(() => {
     const qRole = getQueryParam("role");
     if (qRole === "candidate" || qRole === "employer") setRole(qRole as Role);
+    const qMode = getQueryParam("mode");
+    if (qMode === "signup") setMode("signup");
     const qNext = getQueryParam("next");
     if (qNext && qNext.startsWith("/")) setNextUrl(qNext);
   }, []);
@@ -47,7 +49,7 @@ function AuthClientInner() {
         const { error: signupError } = await supabase.auth.signUp({
           email: email.trim(),
           password,
-          options: { data: { role, onboarding_done: false } },
+          options: { data: { role } },
         });
         if (signupError) throw signupError;
       } else {
@@ -69,7 +71,6 @@ function AuthClientInner() {
       }
 
       const userEmail = data.user.email ?? "";
-      const userRole = (data.user.user_metadata?.role as Role | undefined) ?? role;
 
       // Admin — всегда на /admin
       if (ADMIN_EMAILS.includes(userEmail)) {
@@ -77,19 +78,36 @@ function AuthClientInner() {
         return;
       }
 
-      if (mode === "login") {
-        if (userRole === "employer") {
-          const { data: company } = await supabase
-            .from("companies").select("id").eq("owner_id", data.user.id).maybeSingle();
-          router.replace(nextUrl || (company ? "/employer" : "/onboarding/employer"));
-        } else {
-          router.replace(nextUrl || "/resume");
-        }
+      if (mode === "signup") {
+        // Создаём запись в profiles при регистрации
+        await supabase.from("profiles").upsert({
+          id: data.user.id,
+          email: userEmail,
+          role,
+          is_onboarded: false,
+        }, { onConflict: "id" });
+
+        router.replace(nextUrl || (role === "employer" ? "/onboarding/employer" : "/onboarding/candidate"));
         return;
       }
 
-      // При регистрации — на онбординг
-      router.replace(nextUrl || (userRole === "employer" ? "/onboarding/employer" : "/onboarding/candidate"));
+      // При логине — берём роль из profiles
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role, is_onboarded")
+        .eq("id", data.user.id)
+        .maybeSingle();
+
+      const userRole = (profile?.role as Role | null) ?? (data.user.user_metadata?.role as Role | null) ?? "candidate";
+
+      if (userRole === "employer") {
+        const { data: company } = await supabase
+          .from("companies").select("id").eq("owner_id", data.user.id).maybeSingle();
+        router.replace(nextUrl || (company ? "/employer" : "/onboarding/employer"));
+      } else {
+        router.replace(nextUrl || (profile?.is_onboarded ? "/resume" : "/onboarding/candidate"));
+      }
+
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Ошибка авторизации");
     } finally {
@@ -114,7 +132,6 @@ function AuthClientInner() {
           {mode === "login" ? "Войти" : "Создать аккаунт"}
         </h1>
 
-        {/* Переключатель режима */}
         <div className="mt-4 flex gap-2">
           <button className={modeBtn(mode === "login")} onClick={() => setMode("login")} disabled={loading}>
             Войти
@@ -124,7 +141,6 @@ function AuthClientInner() {
           </button>
         </div>
 
-        {/* Выбор роли — только при регистрации */}
         {mode === "signup" && (
           <div className="mt-3 flex gap-2">
             <button className={roleBtn(role === "candidate")} onClick={() => setRole("candidate")} disabled={loading}>
@@ -141,6 +157,7 @@ function AuthClientInner() {
           className="mt-1 w-full rounded-xl border border-white/20 bg-white/5 px-3 py-2.5 text-white placeholder-white/30 focus:outline-none focus:border-violet-500"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && submit()}
           placeholder="you@example.com"
           type="email"
           autoComplete="email"
@@ -151,6 +168,7 @@ function AuthClientInner() {
           className="mt-1 w-full rounded-xl border border-white/20 bg-white/5 px-3 py-2.5 text-white placeholder-white/30 focus:outline-none focus:border-violet-500"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && submit()}
           type="password"
           placeholder="••••••••"
           autoComplete={mode === "login" ? "current-password" : "new-password"}
@@ -164,8 +182,16 @@ function AuthClientInner() {
           {loading ? "Подождите..." : mode === "login" ? "Войти" : "Создать аккаунт"}
         </button>
 
-        {error && <p className="mt-3 text-sm text-red-300">{error}</p>}
-        {notice && <p className="mt-3 text-sm text-emerald-300">{notice}</p>}
+        {error && (
+          <div className="mt-3 rounded-xl bg-red-500/10 border border-red-500/20 px-4 py-3 text-sm text-red-300">
+            {error}
+          </div>
+        )}
+        {notice && (
+          <div className="mt-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 px-4 py-3 text-sm text-emerald-300">
+            {notice}
+          </div>
+        )}
       </div>
     </main>
   );
