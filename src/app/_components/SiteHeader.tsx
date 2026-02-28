@@ -18,12 +18,12 @@ type AuthUser = {
   email: string;
   role: "candidate" | "employer" | "admin" | null;
   fullName: string | null;
-} | null;
+};
 
 export default function SiteHeader() {
   const pathname = usePathname();
   const router = useRouter();
-  const [authUser, setAuthUser] = useState<AuthUser>(undefined as any);
+  const [authUser, setAuthUser] = useState<AuthUser | null | undefined>(undefined);
   const [menuOpen, setMenuOpen] = useState(false);
 
   const isHidden = HIDDEN_PREFIXES.some((p) => pathname.startsWith(p));
@@ -45,7 +45,7 @@ export default function SiteHeader() {
 
       setAuthUser({
         email: data.user.email ?? "",
-        role: (profile?.role as AuthUser extends null ? never : AuthUser["role"]) ?? null,
+        role: (profile?.role as "candidate" | "employer" | "admin" | null) ?? null,
         fullName: profile?.full_name ?? null,
       });
     }
