@@ -302,13 +302,41 @@ export default function ResumePage() {
         {/* HEADER */}
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-2xl bg-black/20 border border-white/10 overflow-hidden flex items-center justify-center">
-              {profile?.avatar_url ? (
-                <img src={profile.avatar_url} alt="avatar" className="w-full h-full object-cover" />
-              ) : (
-                <span className="text-white/40 text-sm">Avatar</span>
-              )}
-            </div>
+            <label className="relative cursor-pointer group">
+              <div className="w-16 h-16 rounded-2xl bg-black/20 border border-white/10 overflow-hidden flex items-center justify-center">
+                {profile?.avatar_url ? (
+                  <img src={profile.avatar_url} alt="avatar" className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-white/40 text-sm">Фото</span>
+                )}
+              </div>
+              <div className="absolute inset-0 rounded-2xl bg-black/60 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-xs text-white">
+                📷
+              </div>
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  const { createClient } = await import("@/lib/supabase/client");
+                  const supabase = createClient();
+                  const { data: userData } = await supabase.auth.getUser();
+                  if (!userData.user) return;
+                  const ext = file.name.split(".").pop();
+                  const path = `avatars/${userData.user.id}.${ext}`;
+                  const { error: uploadErr } = await supabase.storage
+                    .from("avatars")
+                    .upload(path, file, { upsert: true });
+                  if (uploadErr) { setMsg("Ошибка загрузки фото: " + uploadErr.message); return; }
+                  const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(path);
+                  await supabase.from("profiles").update({ avatar_url: urlData.publicUrl }).eq("id", userData.user.id);
+                  setProfile((p: any) => ({ ...p, avatar_url: urlData.publicUrl }));
+                  setMsg("Фото обновлено ✓");
+                }}
+              />
+            </label>
 
             <div>
               <h1 className="text-2xl font-semibold">{fullName || "Мой профиль"}</h1>
@@ -338,25 +366,32 @@ export default function ResumePage() {
 
           <div className="flex flex-wrap gap-2">
             <button
-              onClick={() => router.push("/jobs")}
-              className="rounded-2xl bg-white text-black px-5 py-2 font-semibold"
+              onClick={() => router.push("/applications")}
+              className="rounded-2xl bg-violet-600/20 border border-violet-500/30 text-violet-300 px-5 py-2 font-semibold hover:bg-violet-600/30 transition"
             >
-              Перейти к вакансиям
+              📬 Мои отклики
+            </button>
+
+            <button
+              onClick={() => router.push("/jobs")}
+              className="rounded-2xl bg-white text-black px-5 py-2 font-semibold hover:bg-white/90 transition"
+            >
+              Вакансии
             </button>
 
             <button
               onClick={() => window.open("/resume/print", "_blank")}
-              className="rounded-2xl bg-white/10 border border-white/10 px-5 py-2"
+              className="rounded-2xl bg-white/10 border border-white/10 px-5 py-2 hover:bg-white/15 transition"
             >
-              Скачать PDF
+              PDF
             </button>
 
             <button
               onClick={saveProfile}
               disabled={saving}
-              className="rounded-2xl bg-white/10 border border-white/10 px-5 py-2 disabled:opacity-60"
+              className="rounded-2xl bg-white/10 border border-white/10 px-5 py-2 disabled:opacity-60 hover:bg-white/15 transition"
             >
-              {saving ? "Сохраняю..." : "Сохранить профиль"}
+              {saving ? "Сохраняю..." : "Сохранить"}
             </button>
           </div>
         </div>
