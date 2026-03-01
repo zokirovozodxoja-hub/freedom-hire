@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
+type DocMeta = { path: string; name: string; size?: number; type?: string };
+
 type Company = {
   id: string;
   name: string | null;
@@ -12,7 +14,7 @@ type Company = {
   created_at: string;
   verification_status: string | null;
   is_verified: boolean;
-  doc_urls: { name: string; path: string }[] | null;
+  doc_urls: DocMeta[] | null;
   _jobCount?: number;
 };
 
@@ -20,9 +22,16 @@ function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("ru-RU", { day: "numeric", month: "short", year: "numeric" });
 }
 
+function formatSize(bytes?: number) {
+  if (!bytes) return "";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
 const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string }> = {
   approved: { label: "Верифицирована",    bg: "rgba(52,211,153,0.15)",  text: "#6ee7b7" },
-  pending:  { label: "На проверке",       bg: "rgba(201,168,76,0.15)",  text: "var(--gold)" },
+  pending:  { label: "На проверке",       bg: "rgba(201,168,76,0.15)",  text: "#C9A84C" },
   rejected: { label: "Отклонена",         bg: "rgba(239,68,68,0.15)",   text: "#f87171" },
   unknown:  { label: "Не верифицирована", bg: "rgba(255,255,255,0.06)", text: "rgba(255,255,255,0.4)" },
 };
@@ -31,6 +40,7 @@ export default function AdminCompaniesPage() {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string>("");
+  const [docLoading, setDocLoading] = useState<string | null>(null);
 
   async function load() {
     const supabase = createClient();
@@ -56,6 +66,22 @@ export default function AdminCompaniesPage() {
   }
 
   useEffect(() => { load(); }, []);
+
+  async function openDoc(path: string) {
+    setDocLoading(path);
+    const supabase = createClient();
+    const { data, error } = await supabase.storage
+      .from("company-docs")
+      .createSignedUrl(path, 60 * 5); // 5 минут
+
+    setDocLoading(null);
+
+    if (error || !data?.signedUrl) {
+      alert("Не удалось открыть документ: " + (error?.message ?? "неизвестная ошибка"));
+      return;
+    }
+    window.open(data.signedUrl, "_blank");
+  }
 
   async function setVerification(id: string, status: "approved" | "rejected") {
     const supabase = createClient();
@@ -85,7 +111,7 @@ export default function AdminCompaniesPage() {
         <div>
           <h1 className="text-2xl font-black">Компании</h1>
           {pendingCount > 0 && (
-            <div className="mt-1 text-sm" style={{ color: "var(--gold)" }}>
+            <div className="mt-1 text-sm" style={{ color: "#C9A84C" }}>
               ⏳ {pendingCount} ожидают проверки
             </div>
           )}
@@ -117,41 +143,65 @@ export default function AdminCompaniesPage() {
         <div className="space-y-4">
           {filtered.map((c) => {
             const st = STATUS_CONFIG[c.verification_status ?? "unknown"] ?? STATUS_CONFIG.unknown;
+            const docs = c.doc_urls ?? [];
             return (
               <div key={c.id} className="rounded-2xl border border-white/10 bg-white/5 p-5">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-3 flex-wrap">
-                      <div className="font-semibold text-white">{c.name ?? "Без названия"}</div>
+                    {/* Название + статус */}
+                    <div className="flex items-center gap-3 flex-wrap mb-2">
+                      <div className="font-semibold text-white text-lg">{c.name ?? "Без названия"}</div>
                       <span className="text-xs px-2.5 py-0.5 rounded-full font-medium"
                         style={{ background: st.bg, color: st.text }}>
                         {st.label}
                       </span>
                     </div>
 
-                    <div className="flex flex-wrap gap-3 mt-1.5 text-sm text-white/50">
+                    {/* Мета */}
+                    <div className="flex flex-wrap gap-3 text-sm text-white/50 mb-3">
                       {c.city && <span>📍 {c.city}</span>}
                       {c.inn && <span>ИНН: {c.inn}</span>}
-                      <span>{formatDate(c.created_at)}</span>
-                      <span>{c._jobCount} вакансий</span>
+                      <span>📅 {formatDate(c.created_at)}</span>
+                      <span>💼 {c._jobCount} вакансий</span>
                       {c.website && (
                         <a href={c.website} target="_blank" rel="noopener noreferrer"
                           className="text-violet-400 hover:underline">
-                          сайт ↗
+                          🌐 сайт ↗
                         </a>
                       )}
                     </div>
 
                     {/* Документы */}
-                    {c.doc_urls && c.doc_urls.length > 0 && (
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        {c.doc_urls.map((doc, i) => (
-                          <span key={i} className="text-xs px-2 py-1 rounded-lg"
-                            style={{ background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.5)" }}>
-                            📄 {doc.name}
-                          </span>
-                        ))}
+                    {docs.length > 0 ? (
+                      <div>
+                        <div className="text-xs text-white/30 mb-2 uppercase tracking-wider">
+                          Документы ({docs.length})
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {docs.map((doc, i) => (
+                            <button
+                              key={i}
+                              onClick={() => openDoc(doc.path)}
+                              disabled={docLoading === doc.path}
+                              className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm transition hover:bg-white/10 disabled:opacity-50"
+                              style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.7)" }}
+                            >
+                              {docLoading === doc.path ? (
+                                <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                              ) : (
+                                <span>📄</span>
+                              )}
+                              <span className="max-w-[140px] truncate">{doc.name}</span>
+                              {doc.size && (
+                                <span className="text-xs text-white/30">{formatSize(doc.size)}</span>
+                              )}
+                              <span className="text-xs text-violet-400">↗</span>
+                            </button>
+                          ))}
+                        </div>
                       </div>
+                    ) : (
+                      <div className="text-sm text-white/30 italic">Документы не прикреплены</div>
                     )}
                   </div>
 
@@ -177,7 +227,7 @@ export default function AdminCompaniesPage() {
                         Отозвать
                       </button>
                     )}
-                    {c.verification_status === "rejected" && (
+                    {(c.verification_status === "rejected" || !c.verification_status) && (
                       <button onClick={() => setVerification(c.id, "approved")}
                         className="px-3 py-1.5 rounded-xl text-xs transition bg-white/8 text-white/60 hover:bg-white/12">
                         Одобрить

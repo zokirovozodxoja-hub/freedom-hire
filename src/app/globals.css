@@ -17,16 +17,19 @@
 
 html, body {
   height: 100%;
+  min-height: 100vh;
   background: var(--bg);
   color: #fff;
   font-family: 'DM Sans', sans-serif;
 }
 
-.font-display  { font-family: 'Cormorant Garamond', serif; }
-.font-accent   { font-family: 'Syne', sans-serif; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; }
-.font-body     { font-family: 'DM Sans', sans-serif; }
+/* Типографика */
+.font-display { font-family: 'Cormorant Garamond', serif; }
+.font-accent  { font-family: 'Syne', sans-serif; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; }
+.font-body    { font-family: 'DM Sans', sans-serif; }
 
-.brand-grid {
+/* Сетка — только на нужных страницах, НЕ на body */
+.brand-grid-bg {
   background-image:
     linear-gradient(rgba(92,46,204,0.04) 1px, transparent 1px),
     linear-gradient(90deg, rgba(92,46,204,0.04) 1px, transparent 1px);
