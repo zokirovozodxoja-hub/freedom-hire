@@ -1,8 +1,8 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;0,700;1,600&family=DM+Sans:wght@300;400;500;700&family=Syne:wght@800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;0,700;1,600&family=DM+Sans:wght@300;400;500;700&family=Syne:wght@800&display=swap');
 
 :root {
   --brand-deep:   #3D14BB;
@@ -22,12 +22,10 @@ html, body {
   font-family: 'DM Sans', sans-serif;
 }
 
-/* Типографика брендбука */
 .font-display  { font-family: 'Cormorant Garamond', serif; }
 .font-accent   { font-family: 'Syne', sans-serif; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; }
 .font-body     { font-family: 'DM Sans', sans-serif; }
 
-/* Фоновая сетка */
 .brand-grid {
   background-image:
     linear-gradient(rgba(92,46,204,0.04) 1px, transparent 1px),
@@ -35,12 +33,10 @@ html, body {
   background-size: 48px 48px;
 }
 
-/* Свечение */
 .brand-glow {
   box-shadow: 0 0 60px rgba(92,46,204,0.25), 0 20px 60px rgba(0,0,0,0.5);
 }
 
-/* Кнопка primary */
 .btn-primary {
   background: linear-gradient(135deg, var(--brand-core), var(--brand-light));
   box-shadow: 0 8px 32px rgba(92,46,204,0.4);
@@ -51,14 +47,12 @@ html, body {
   box-shadow: 0 12px 40px rgba(92,46,204,0.55);
 }
 
-/* Карточка */
 .brand-card {
   background: rgba(255,255,255,0.04);
   border: 1px solid rgba(196,173,255,0.12);
   backdrop-filter: blur(12px);
 }
 
-/* Бейдж */
 .badge-new    { background: rgba(201,168,76,0.15); color: var(--gold); border: 1px solid rgba(201,168,76,0.3); }
 .badge-hot    { background: rgba(239,68,68,0.15);  color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
 .badge-active { background: rgba(52,211,153,0.15); color: #6ee7b7; border: 1px solid rgba(52,211,153,0.3); }
