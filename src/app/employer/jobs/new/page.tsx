@@ -21,9 +21,10 @@ const FORMATS = [
 
 const EXPERIENCE_LEVELS = [
   { value: "no_experience", label: "Без опыта" },
-  { value: "junior", label: "Junior (до 1 года)" },
-  { value: "middle", label: "Middle (1–3 года)" },
-  { value: "senior", label: "Senior (3+ года)" },
+  { value: "junior", label: "До 1 года опыта" },
+  { value: "middle", label: "1–3 года опыта" },
+  { value: "senior", label: "3–5 лет опыта" },
+  { value: "lead", label: "5+ лет опыта" },
 ];
 
 function fmt(value: string) {

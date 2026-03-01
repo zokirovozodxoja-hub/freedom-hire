@@ -17,7 +17,22 @@ type Job = {
   experience: string | null;
 };
 
-const CITIES = ["Все города", "Ташкент", "Самарканд", "Бухара", "Наманган", "Андижан"];
+const CITIES = [
+  "Все города",
+  "Ташкент",
+  "Самарканд",
+  "Бухара",
+  "Наманган",
+  "Андижан",
+  "Фергана",
+  "Нукус",
+  "Карши",
+  "Термез",
+  "Коканд",
+  "Ургенч",
+  "Навои",
+  "Джизак",
+];
 const FORMATS = [
   { value: "", label: "Любой формат" },
   { value: "office", label: "Офис" },
@@ -27,9 +42,10 @@ const FORMATS = [
 const EXPERIENCE_LEVELS = [
   { value: "", label: "Любой опыт" },
   { value: "no_experience", label: "Без опыта" },
-  { value: "junior", label: "Junior" },
-  { value: "middle", label: "Middle" },
-  { value: "senior", label: "Senior" },
+  { value: "junior", label: "До 1 года" },
+  { value: "middle", label: "1–3 года" },
+  { value: "senior", label: "3–5 лет" },
+  { value: "lead", label: "5+ лет" },
 ];
 
 function formatSalary(from: number | null, to: number | null) {
