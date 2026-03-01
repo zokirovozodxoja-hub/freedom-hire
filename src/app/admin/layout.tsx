@@ -5,15 +5,13 @@ import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 
-const ADMIN_EMAILS = ["zokirovozodxoja@gmail.com"]; // ← замени на свой email
+const ADMIN_EMAILS = ["zokirovozodxoja@gmail.com"];
 
 const NAV = [
   { href: "/admin", label: "📊 Статистика" },
   { href: "/admin/jobs", label: "💼 Вакансии" },
   { href: "/admin/companies", label: "🏢 Компании" },
   { href: "/admin/users", label: "👥 Пользователи" },
-  { href: "/admin/reports", label: "🚨 Жалобы" },
-  { href: "/admin/audit", label: "📋 Аудит" },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
