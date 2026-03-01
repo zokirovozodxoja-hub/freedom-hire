@@ -43,10 +43,28 @@ export default function EmployerDashboard() {
 
       setCompany(comp);
 
+      // Получаем ID всех вакансий компании
+      const { data: jobIds } = await supabase
+        .from("jobs")
+        .select("id")
+        .eq("company_id", comp.id);
+
+      const ids = (jobIds ?? []).map((j) => j.id);
+
       const [jobsRes, activeRes, appsRes] = await Promise.all([
-        supabase.from("jobs").select("id", { count: "exact", head: true }).eq("company_id", comp.id),
-        supabase.from("jobs").select("id", { count: "exact", head: true }).eq("company_id", comp.id).eq("is_active", true),
-        supabase.from("applications").select("id", { count: "exact", head: true }),
+        supabase.from("jobs")
+          .select("id", { count: "exact", head: true })
+          .eq("company_id", comp.id),
+        supabase.from("jobs")
+          .select("id", { count: "exact", head: true })
+          .eq("company_id", comp.id)
+          .eq("is_active", true),
+        // Считаем отклики только на вакансии этой компании
+        ids.length > 0
+          ? supabase.from("applications")
+              .select("id", { count: "exact", head: true })
+              .in("job_id", ids)
+          : Promise.resolve({ count: 0 }),
       ]);
 
       setStats({
