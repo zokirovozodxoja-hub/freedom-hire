@@ -4,11 +4,12 @@ import { createClient } from "@supabase/supabase-js";
 type Job = {
   id: string;
   title: string | null;
-  description: string | null;
-  created_at: string;
   city: string | null;
   salary_from: number | null;
   salary_to: number | null;
+  created_at: string;
+  employment_type: string | null;
+  format: string | null;
 };
 
 function supabaseServer() {
@@ -18,190 +19,233 @@ function supabaseServer() {
   return createClient(url, key, { auth: { persistSession: false } });
 }
 
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString("ru-RU");
-}
-
 function formatSalary(from: number | null, to: number | null) {
-  const fmt = (n: number) => n.toLocaleString("ru-RU");
-  if (!from && !to) return "Зарплата не указана";
-  if (from && to) return `${fmt(from)} — ${fmt(to)}`;
+  const fmt = (n: number) => {
+    if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+    if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K`;
+    return n.toLocaleString("ru-RU");
+  };
+  if (!from && !to) return null;
+  if (from && to) return `${fmt(from)} – ${fmt(to)}`;
   if (from) return `от ${fmt(from)}`;
   return `до ${fmt(to!)}`;
 }
 
-async function getCounts() {
-  const supabase = supabaseServer();
-  if (!supabase) return { jobs: 0, companies: 0, candidates: 0 };
+function daysSince(iso: string) {
+  const diff = Date.now() - new Date(iso).getTime();
+  const days = Math.floor(diff / 86_400_000);
+  if (days === 0) return "Сегодня";
+  if (days === 1) return "Вчера";
+  if (days < 7) return `${days} дня назад`;
+  return new Date(iso).toLocaleDateString("ru-RU", { day: "numeric", month: "short" });
+}
 
-  const [jobsRes, companiesRes, candidatesRes] = await Promise.all([
+function isNew(iso: string) {
+  return Date.now() - new Date(iso).getTime() < 3 * 86_400_000;
+}
+
+async function getData() {
+  const supabase = supabaseServer();
+  if (!supabase) return { counts: { jobs: 0, companies: 0, candidates: 0 }, jobs: [] };
+
+  const [jobsCount, companiesCount, candidatesCount, freshJobs] = await Promise.all([
     supabase.from("jobs").select("id", { count: "exact", head: true }).eq("is_active", true),
     supabase.from("companies").select("id", { count: "exact", head: true }),
     supabase.from("profiles").select("id", { count: "exact", head: true }).eq("role", "candidate"),
+    supabase.from("jobs")
+      .select("id,title,city,salary_from,salary_to,created_at,employment_type,format")
+      .eq("is_active", true)
+      .order("created_at", { ascending: false })
+      .limit(6),
   ]);
 
   return {
-    jobs: jobsRes.count ?? 0,
-    companies: companiesRes.count ?? 0,
-    candidates: candidatesRes.count ?? 0,
+    counts: {
+      jobs: jobsCount.count ?? 0,
+      companies: companiesCount.count ?? 0,
+      candidates: candidatesCount.count ?? 0,
+    },
+    jobs: (freshJobs.data ?? []) as Job[],
   };
 }
 
-async function getFreshJobs() {
-  const supabase = supabaseServer();
-  if (!supabase) return [];
-  const { data } = await supabase
-    .from("jobs")
-    .select("id,title,description,created_at,city,salary_from,salary_to")
-    .eq("is_active", true)
-    .order("created_at", { ascending: false })
-    .limit(4);
-  return (data ?? []) as Job[];
-}
-
 export default async function HomePage() {
-  const [counts, freshJobs] = await Promise.all([getCounts(), getFreshJobs()]);
+  const { counts, jobs } = await getData();
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#070A12] via-[#070A12] to-[#04060C]">
-      <div
-        className="pointer-events-none fixed inset-0 opacity-70"
-        style={{
-          background:
-            "radial-gradient(900px 420px at 50% -10%, rgba(124,58,237,0.22), transparent 60%), radial-gradient(700px 380px at 15% 15%, rgba(99,102,241,0.14), transparent 55%)",
-        }}
-      />
+    <div className="min-h-screen" style={{ background: "var(--bg)" }}>
 
-      <div className="relative mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8 py-10 sm:py-14 space-y-10">
+      {/* Фоновое свечение */}
+      <div className="pointer-events-none fixed inset-0 overflow-hidden">
+        <div className="absolute -top-40 left-1/2 -translate-x-1/2 w-[900px] h-[500px] rounded-full opacity-30"
+          style={{ background: "radial-gradient(ellipse, #5B2ECC 0%, transparent 70%)" }} />
+        <div className="absolute top-96 -left-40 w-[600px] h-[600px] rounded-full opacity-10"
+          style={{ background: "radial-gradient(ellipse, #3D14BB 0%, transparent 70%)" }} />
+      </div>
 
-        {/* HERO */}
-        <section className="rounded-3xl border border-white/10 bg-white/5 shadow-[0_20px_60px_rgba(0,0,0,0.45)] overflow-hidden">
-          <div className="p-7 sm:p-10">
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/70 mb-4">
-              FreedomHIRE • вакансии и кандидаты
-            </div>
-            <h1 className="text-3xl sm:text-5xl font-semibold tracking-tight text-white max-w-3xl">
-              Найди работу своей мечты в Узбекистане
-            </h1>
-            <p className="mt-4 text-sm sm:text-lg text-white/70 max-w-2xl leading-relaxed">
-              Вакансии от реальных работодателей. Быстрый отклик и удобный путь для кандидатов и компаний.
-            </p>
-            {/* Одна кнопка для работодателей */}
-            <div className="mt-7 flex flex-wrap gap-3">
-              <Link
-                href="/jobs"
-                className="h-11 px-6 inline-flex items-center justify-center rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-semibold shadow-[0_12px_30px_rgba(124,58,237,0.35)] transition"
-              >
-                Найти работу
-              </Link>
-              <Link
-                href="/auth?mode=signup&role=employer"
-                className="h-11 px-6 inline-flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/15 text-white font-semibold border border-white/10 transition"
-              >
-                Разместить вакансию
-              </Link>
-            </div>
+      <div className="relative mx-auto max-w-6xl px-4 sm:px-6 py-12 space-y-16">
+
+        {/* ═══ HERO ═══ */}
+        <section className="text-center max-w-4xl mx-auto pt-8">
+          <div className="inline-flex items-center gap-2 rounded-full px-4 py-1.5 mb-6 font-accent text-xs"
+            style={{ background: "rgba(196,173,255,0.1)", border: "1px solid rgba(196,173,255,0.2)", color: "var(--lavender)" }}>
+            ПЛАТФОРМА НАЙМА · УЗБЕКИСТАН
           </div>
-          <div className="h-px w-full bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-          <div className="px-7 sm:px-10 py-4 text-white/50 text-xs">
-            Подборка свежих вакансий обновляется автоматически
+
+          <h1 className="font-display text-5xl sm:text-7xl leading-[1.05] mb-4"
+            style={{ color: "var(--chalk)" }}>
+            Найди работу<br />
+            <em style={{ color: "var(--lavender)" }}>своей мечты</em>
+          </h1>
+
+          <p className="font-body text-lg text-white/50 max-w-xl mx-auto mb-8 leading-relaxed">
+            Тысячи вакансий от реальных работодателей.<br />
+            Профессионально. Быстро. Надёжно.
+          </p>
+
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <Link href="/jobs"
+              className="btn-primary inline-flex items-center gap-2 rounded-2xl px-7 py-3.5 font-body font-semibold text-white">
+              Найти работу
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+              </svg>
+            </Link>
+            <Link href="/auth?mode=signup&role=employer"
+              className="inline-flex items-center gap-2 rounded-2xl px-7 py-3.5 font-body font-semibold transition"
+              style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.85)" }}>
+              Разместить вакансию
+            </Link>
           </div>
         </section>
 
-        {/* STATS */}
-        <section className="grid gap-3 grid-cols-3">
-          <Stat title="Активных вакансий" value={counts.jobs} />
-          <Stat title="Компаний" value={counts.companies} />
-          <Stat title="Соискателей" value={counts.candidates} />
+        {/* ═══ STATS ═══ */}
+        <section className="grid grid-cols-3 gap-4">
+          {[
+            { value: counts.jobs, label: "АКТИВНЫХ ВАКАНСИЙ" },
+            { value: counts.companies, label: "КОМПАНИЙ" },
+            { value: counts.candidates, label: "СОИСКАТЕЛЕЙ" },
+          ].map((s) => (
+            <div key={s.label} className="brand-card rounded-2xl p-6 text-center">
+              <div className="font-display text-4xl sm:text-5xl mb-1" style={{ color: "var(--lavender)" }}>
+                {s.value.toLocaleString("ru-RU")}
+              </div>
+              <div className="font-accent text-xs" style={{ color: "rgba(255,255,255,0.35)" }}>
+                {s.label}
+              </div>
+            </div>
+          ))}
         </section>
 
-        {/* FRESH JOBS */}
+        {/* ═══ СВЕЖИЕ ВАКАНСИИ ═══ */}
         <section>
-          <div className="flex items-end justify-between gap-4 mb-4">
+          <div className="flex items-end justify-between mb-6">
             <div>
-              <h2 className="text-xl sm:text-2xl font-semibold text-white">Свежие вакансии</h2>
-              <p className="mt-1 text-white/60 text-sm">Последние активные вакансии на платформе</p>
+              <div className="font-accent text-xs mb-2" style={{ color: "var(--lavender)" }}>СВЕЖИЕ ВАКАНСИИ</div>
+              <h2 className="font-display text-3xl sm:text-4xl" style={{ color: "var(--chalk)" }}>
+                Последние предложения
+              </h2>
             </div>
-            <Link
-              href="/jobs"
-              className="hidden sm:inline-flex items-center h-10 px-4 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-white/80 transition text-sm"
-            >
+            <Link href="/jobs"
+              className="hidden sm:inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-body transition"
+              style={{ border: "1px solid rgba(196,173,255,0.2)", color: "var(--lavender)" }}>
               Все вакансии →
             </Link>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2">
-            {freshJobs.length === 0 ? (
-              <div className="col-span-2 rounded-2xl border border-white/10 bg-white/5 p-8 text-center">
-                <div className="text-3xl mb-3">📭</div>
-                <div className="text-white/50">Вакансий пока нет</div>
-                <Link href="/auth?mode=signup&role=employer" className="mt-3 inline-block text-sm text-violet-400 hover:underline">
-                  Разместить первую вакансию →
-                </Link>
-              </div>
-            ) : (
-              freshJobs.map((job) => (
-                <Link
-                  key={job.id}
-                  href={`/jobs/${job.id}`}
-                  className="group block rounded-2xl border border-white/10 bg-white/5 p-5 hover:bg-white/8 hover:border-white/15 transition shadow-[0_10px_30px_rgba(0,0,0,0.35)]"
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-white font-semibold text-base truncate">
+          {jobs.length === 0 ? (
+            <div className="brand-card rounded-3xl p-12 text-center">
+              <div className="text-4xl mb-3">📭</div>
+              <div className="font-body text-white/40">Вакансий пока нет</div>
+              <Link href="/auth?mode=signup&role=employer"
+                className="mt-4 inline-block text-sm font-body"
+                style={{ color: "var(--lavender)" }}>
+                Разместить первую →
+              </Link>
+            </div>
+          ) : (
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {jobs.map((job) => {
+                const salary = formatSalary(job.salary_from, job.salary_to);
+                const fresh = isNew(job.created_at);
+                return (
+                  <Link key={job.id} href={`/jobs/${job.id}`}
+                    className="brand-card rounded-2xl p-5 flex flex-col gap-3 group transition hover:border-[rgba(196,173,255,0.3)]"
+                    style={{ borderColor: "rgba(196,173,255,0.12)" }}>
+
+                    <div className="flex items-start justify-between gap-2">
+                      <h3 className="font-body font-semibold text-white leading-snug group-hover:text-[var(--lavender)] transition line-clamp-2">
                         {job.title ?? "Без названия"}
-                      </p>
-                      <p className="mt-1 text-sm text-white/60">
-                        {job.city ?? "Узбекистан"} · {formatDate(job.created_at)}
-                      </p>
-                      <p className="mt-1 text-sm text-violet-400 font-medium">
-                        {formatSalary(job.salary_from, job.salary_to)}
-                      </p>
+                      </h3>
+                      {fresh && (
+                        <span className="badge-new shrink-0 text-xs px-2 py-0.5 rounded-full font-accent">NEW</span>
+                      )}
                     </div>
-                    <span className="shrink-0 rounded-full border border-white/10 bg-black/20 px-3 py-1 text-xs text-white/60 group-hover:border-white/20 transition">
-                      Открыть →
-                    </span>
-                  </div>
-                </Link>
-              ))
-            )}
-          </div>
+
+                    <div className="flex flex-wrap gap-2 text-xs font-body">
+                      {job.city && (
+                        <span className="flex items-center gap-1 text-white/50">
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                          </svg>
+                          {job.city}
+                        </span>
+                      )}
+                      {job.format && (
+                        <span className="px-2 py-0.5 rounded-full" style={{ background: "rgba(196,173,255,0.08)", color: "var(--lavender)" }}>
+                          {job.format === "remote" ? "Удалённо" : job.format === "hybrid" ? "Гибрид" : "Офис"}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="mt-auto flex items-center justify-between">
+                      {salary ? (
+                        <span className="font-body font-semibold text-sm" style={{ color: "var(--gold)" }}>
+                          {salary} сум
+                        </span>
+                      ) : (
+                        <span className="text-xs text-white/30 font-body">Зарплата по договорённости</span>
+                      )}
+                      <span className="text-xs text-white/30 font-body">{daysSince(job.created_at)}</span>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          )}
 
           <div className="mt-4 sm:hidden">
-            <Link href="/jobs" className="flex w-full items-center justify-center h-11 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-white/80 transition">
+            <Link href="/jobs"
+              className="flex w-full items-center justify-center h-11 rounded-xl font-body text-sm transition"
+              style={{ border: "1px solid rgba(196,173,255,0.2)", color: "var(--lavender)" }}>
               Все вакансии →
             </Link>
           </div>
         </section>
 
-        {/* CTA для работодателей */}
-        <section className="rounded-3xl border border-white/10 bg-white/5 p-7 sm:p-10">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+        {/* ═══ CTA РАБОТОДАТЕЛЯМ ═══ */}
+        <section className="brand-card rounded-3xl p-8 sm:p-12 relative overflow-hidden">
+          <div className="absolute inset-0 opacity-30"
+            style={{ background: "radial-gradient(ellipse at 80% 50%, #5B2ECC, transparent 60%)" }} />
+          <div className="relative flex flex-col sm:flex-row items-start sm:items-center justify-between gap-8">
             <div>
-              <h2 className="text-xl sm:text-2xl font-semibold text-white">Вы работодатель?</h2>
-              <p className="mt-2 text-white/60 text-sm max-w-md">
-                Создайте компанию и публикуйте вакансии. Получайте отклики от кандидатов по всему Узбекистану.
+              <div className="font-accent text-xs mb-3" style={{ color: "var(--lavender)" }}>ДЛЯ РАБОТОДАТЕЛЕЙ</div>
+              <h2 className="font-display text-3xl sm:text-4xl mb-2" style={{ color: "var(--chalk)" }}>
+                Закройте вакансию<br /><em>за 24 часа</em>
+              </h2>
+              <p className="font-body text-white/50 text-sm max-w-sm leading-relaxed">
+                Создайте компанию и публикуйте вакансии. Получайте отклики от тысяч соискателей по всему Узбекистану.
               </p>
             </div>
-            <Link
-              href="/auth?mode=signup&role=employer"
-              className="shrink-0 h-11 px-6 inline-flex items-center justify-center rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-semibold transition"
-            >
+            <Link href="/auth?mode=signup&role=employer"
+              className="btn-primary shrink-0 inline-flex items-center gap-2 rounded-2xl px-7 py-3.5 font-body font-semibold text-white whitespace-nowrap">
               Разместить вакансию →
             </Link>
           </div>
         </section>
 
       </div>
-    </div>
-  );
-}
-
-function Stat({ title, value }: { title: string; value: number }) {
-  return (
-    <div className="rounded-2xl border border-white/10 bg-white/5 p-5 text-center">
-      <p className="text-2xl sm:text-3xl font-semibold text-white">{value.toLocaleString("ru-RU")}</p>
-      <p className="mt-1 text-xs sm:text-sm text-white/60">{title}</p>
     </div>
   );
 }

@@ -7,30 +7,40 @@ type Company = {
   id: string;
   name: string | null;
   city: string | null;
+  inn: string | null;
   website: string | null;
   created_at: string;
+  verification_status: string | null;
   is_verified: boolean;
+  doc_urls: { name: string; path: string }[] | null;
   _jobCount?: number;
 };
 
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString("ru-RU");
+  return new Date(iso).toLocaleDateString("ru-RU", { day: "numeric", month: "short", year: "numeric" });
 }
+
+const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string }> = {
+  approved: { label: "Верифицирована",    bg: "rgba(52,211,153,0.15)",  text: "#6ee7b7" },
+  pending:  { label: "На проверке",       bg: "rgba(201,168,76,0.15)",  text: "var(--gold)" },
+  rejected: { label: "Отклонена",         bg: "rgba(239,68,68,0.15)",   text: "#f87171" },
+  unknown:  { label: "Не верифицирована", bg: "rgba(255,255,255,0.06)", text: "rgba(255,255,255,0.4)" },
+};
 
 export default function AdminCompaniesPage() {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<string>("");
 
   async function load() {
     const supabase = createClient();
     const { data } = await supabase
       .from("companies")
-      .select("id,name,city,website,created_at,is_verified")
+      .select("id,name,city,inn,website,created_at,verification_status,is_verified,doc_urls")
       .order("created_at", { ascending: false });
 
     const list = (data ?? []) as Company[];
 
-    // Считаем вакансии на каждую компанию
     const withCounts = await Promise.all(
       list.map(async (c) => {
         const { count } = await supabase
@@ -47,11 +57,14 @@ export default function AdminCompaniesPage() {
 
   useEffect(() => { load(); }, []);
 
-  async function toggleVerified(id: string, current: boolean) {
+  async function setVerification(id: string, status: "approved" | "rejected") {
     const supabase = createClient();
-    await supabase.from("companies").update({ is_verified: !current }).eq("id", id);
+    await supabase.from("companies").update({
+      verification_status: status,
+      is_verified: status === "approved",
+    }).eq("id", id);
     setCompanies((prev) =>
-      prev.map((c) => c.id === id ? { ...c, is_verified: !current } : c)
+      prev.map((c) => c.id === id ? { ...c, verification_status: status, is_verified: status === "approved" } : c)
     );
   }
 
@@ -63,60 +76,123 @@ export default function AdminCompaniesPage() {
     setCompanies((prev) => prev.filter((c) => c.id !== id));
   }
 
+  const filtered = filter ? companies.filter((c) => (c.verification_status ?? "unknown") === filter) : companies;
+  const pendingCount = companies.filter((c) => c.verification_status === "pending").length;
+
   return (
     <div>
-      <h1 className="text-2xl font-black mb-6">Компании</h1>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-black">Компании</h1>
+          {pendingCount > 0 && (
+            <div className="mt-1 text-sm" style={{ color: "var(--gold)" }}>
+              ⏳ {pendingCount} ожидают проверки
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Фильтр */}
+      <div className="flex flex-wrap gap-2 mb-5">
+        {[
+          { value: "", label: `Все (${companies.length})` },
+          { value: "pending",  label: `На проверке (${companies.filter(c => c.verification_status === "pending").length})` },
+          { value: "approved", label: `Верифицированы (${companies.filter(c => c.verification_status === "approved").length})` },
+          { value: "rejected", label: `Отклонены (${companies.filter(c => c.verification_status === "rejected").length})` },
+        ].map((f) => (
+          <button key={f.value} onClick={() => setFilter(f.value)}
+            className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
+              filter === f.value ? "bg-[#7c3aed] text-white" : "bg-white/8 text-white/70 hover:text-white"
+            }`}>
+            {f.label}
+          </button>
+        ))}
+      </div>
 
       {loading ? (
         <p className="text-white/50">Загрузка...</p>
-      ) : companies.length === 0 ? (
+      ) : filtered.length === 0 ? (
         <p className="text-white/50">Нет компаний</p>
       ) : (
-        <div className="space-y-3">
-          {companies.map((c) => (
-            <div
-              key={c.id}
-              className="flex items-center gap-4 rounded-2xl border border-white/10 bg-white/5 px-5 py-4"
-            >
-              <div className="flex-1 min-w-0">
-                <div className="font-semibold truncate">{c.name ?? "Без названия"}</div>
-                <div className="text-sm text-white/50 mt-0.5">
-                  {c.city ?? "—"} · {formatDate(c.created_at)} · {c._jobCount} вак.
-                  {c.website && (
-                    <a
-                      href={c.website}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="ml-2 text-violet-400 hover:underline"
-                    >
-                      сайт ↗
-                    </a>
-                  )}
+        <div className="space-y-4">
+          {filtered.map((c) => {
+            const st = STATUS_CONFIG[c.verification_status ?? "unknown"] ?? STATUS_CONFIG.unknown;
+            return (
+              <div key={c.id} className="rounded-2xl border border-white/10 bg-white/5 p-5">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <div className="font-semibold text-white">{c.name ?? "Без названия"}</div>
+                      <span className="text-xs px-2.5 py-0.5 rounded-full font-medium"
+                        style={{ background: st.bg, color: st.text }}>
+                        {st.label}
+                      </span>
+                    </div>
+
+                    <div className="flex flex-wrap gap-3 mt-1.5 text-sm text-white/50">
+                      {c.city && <span>📍 {c.city}</span>}
+                      {c.inn && <span>ИНН: {c.inn}</span>}
+                      <span>{formatDate(c.created_at)}</span>
+                      <span>{c._jobCount} вакансий</span>
+                      {c.website && (
+                        <a href={c.website} target="_blank" rel="noopener noreferrer"
+                          className="text-violet-400 hover:underline">
+                          сайт ↗
+                        </a>
+                      )}
+                    </div>
+
+                    {/* Документы */}
+                    {c.doc_urls && c.doc_urls.length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {c.doc_urls.map((doc, i) => (
+                          <span key={i} className="text-xs px-2 py-1 rounded-lg"
+                            style={{ background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.5)" }}>
+                            📄 {doc.name}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Кнопки действий */}
+                  <div className="flex flex-col gap-2 shrink-0">
+                    {c.verification_status === "pending" && (
+                      <>
+                        <button onClick={() => setVerification(c.id, "approved")}
+                          className="px-4 py-2 rounded-xl text-sm font-medium transition"
+                          style={{ background: "rgba(52,211,153,0.2)", color: "#6ee7b7", border: "1px solid rgba(52,211,153,0.3)" }}>
+                          ✓ Одобрить
+                        </button>
+                        <button onClick={() => setVerification(c.id, "rejected")}
+                          className="px-4 py-2 rounded-xl text-sm font-medium transition"
+                          style={{ background: "rgba(239,68,68,0.15)", color: "#f87171", border: "1px solid rgba(239,68,68,0.3)" }}>
+                          ✕ Отклонить
+                        </button>
+                      </>
+                    )}
+                    {c.verification_status === "approved" && (
+                      <button onClick={() => setVerification(c.id, "rejected")}
+                        className="px-3 py-1.5 rounded-xl text-xs transition bg-white/8 text-white/60 hover:bg-white/12">
+                        Отозвать
+                      </button>
+                    )}
+                    {c.verification_status === "rejected" && (
+                      <button onClick={() => setVerification(c.id, "approved")}
+                        className="px-3 py-1.5 rounded-xl text-xs transition bg-white/8 text-white/60 hover:bg-white/12">
+                        Одобрить
+                      </button>
+                    )}
+                    <button onClick={() => deleteCompany(c.id)}
+                      className="px-3 py-1.5 rounded-xl text-xs transition"
+                      style={{ background: "rgba(239,68,68,0.12)", color: "#f87171" }}>
+                      Удалить
+                    </button>
+                  </div>
                 </div>
               </div>
-
-              <span className={`shrink-0 text-xs font-semibold px-3 py-1 rounded-full ${
-                c.is_verified ? "bg-emerald-500/20 text-emerald-400" : "bg-yellow-500/20 text-yellow-400"
-              }`}>
-                {c.is_verified ? "Верифицирована" : "Не верифицирована"}
-              </span>
-
-              <div className="flex gap-2 shrink-0">
-                <button
-                  onClick={() => toggleVerified(c.id, c.is_verified)}
-                  className="px-3 py-1.5 rounded-xl bg-white/8 text-sm hover:bg-white/15 transition-colors"
-                >
-                  {c.is_verified ? "Снять верификацию" : "Верифицировать"}
-                </button>
-                <button
-                  onClick={() => deleteCompany(c.id)}
-                  className="px-3 py-1.5 rounded-xl bg-red-500/20 text-red-400 text-sm hover:bg-red-500/30 transition-colors"
-                >
-                  Удалить
-                </button>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
