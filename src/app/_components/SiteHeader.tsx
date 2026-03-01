@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 const ADMIN_EMAILS = ["zokirovozodxoja@gmail.com"];
@@ -24,13 +24,14 @@ type AuthUser = {
 export default function SiteHeader() {
   const pathname = usePathname();
   const router = useRouter();
+  const supabaseRef = useRef(createClient()); // один инстанс на весь компонент
   const [authUser, setAuthUser] = useState<AuthUser | null | undefined>(undefined);
   const [menuOpen, setMenuOpen] = useState(false);
 
   const isHidden = HIDDEN_PREFIXES.some((p) => pathname.startsWith(p));
 
   useEffect(() => {
-    const supabase = createClient();
+    const supabase = supabaseRef.current;
 
     async function loadUser() {
       const { data } = await supabase.auth.getUser();
@@ -38,7 +39,6 @@ export default function SiteHeader() {
 
       const email = data.user.email ?? "";
 
-      // Если admin — не смотрим в profiles
       if (ADMIN_EMAILS.includes(email)) {
         setAuthUser({ email, role: "admin", fullName: null });
         return;
@@ -51,25 +51,28 @@ export default function SiteHeader() {
         .maybeSingle();
 
       const role = (profile?.role as "candidate" | "employer" | null) ?? "candidate";
-
-      setAuthUser({
-        email,
-        role,
-        fullName: profile?.full_name ?? null,
-      });
+      setAuthUser({ email, role, fullName: profile?.full_name ?? null });
     }
 
     loadUser();
 
-    const { data: listener } = supabase.auth.onAuthStateChange(() => loadUser());
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!session) {
+        setAuthUser(null);
+      } else {
+        loadUser();
+      }
+    });
+
     return () => listener.subscription.unsubscribe();
   }, []);
 
   async function handleLogout() {
-    const supabase = createClient();
-    await supabase.auth.signOut();
+    setMenuOpen(false);
+    await supabaseRef.current.auth.signOut();
     setAuthUser(null);
     router.replace("/");
+    router.refresh();
   }
 
   function getDashboardLink() {
@@ -88,44 +91,53 @@ export default function SiteHeader() {
   const initials = displayName ? displayName[0].toUpperCase() : "?";
 
   const roleBadge = {
-    admin: { label: "Администратор", cls: "bg-red-600/30 text-red-300" },
-    employer: { label: "Работодатель", cls: "bg-blue-600/30 text-blue-300" },
-    candidate: { label: "Соискатель", cls: "bg-violet-600/30 text-violet-300" },
+    admin:     { label: "Администратор", cls: "bg-red-600/30 text-red-300" },
+    employer:  { label: "Работодатель",  cls: "bg-blue-600/30 text-blue-300" },
+    candidate: { label: "Соискатель",    cls: "bg-violet-600/30 text-violet-300" },
   };
 
   return (
-    <header className="sticky top-0 z-50 border-b border-white/10 bg-[#0b1220]/80 backdrop-blur">
-      <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4">
+    <header className="sticky top-0 z-50 border-b border-white/10 backdrop-blur"
+      style={{ background: "rgba(7,6,15,0.85)" }}>
+      <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
+
+        {/* ЛОГОТИП */}
         <Link href="/" className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/10 font-bold">
-            FH
+          <div className="relative flex h-10 w-10 items-center justify-center rounded-xl overflow-hidden shrink-0"
+            style={{ background: "linear-gradient(135deg, #3D14BB, #7C4AE8)", boxShadow: "0 4px 16px rgba(92,46,204,0.5)" }}>
+            <span style={{ fontFamily: "'Syne', sans-serif", fontWeight: 800, fontSize: "13px", color: "#fff", letterSpacing: "0.05em" }}>FH</span>
           </div>
           <div className="leading-tight">
-            <div className="font-semibold">FreedomHIRE</div>
-            <div className="text-xs text-white/60">freedomhire.uz</div>
+            <div className="font-semibold text-white text-sm">
+              Freedom<span style={{ color: "#C4ADFF" }}>HIRE</span>
+            </div>
+            <div className="text-xs text-white/40">freedomhire.uz</div>
           </div>
         </Link>
 
-        <nav className="hidden items-center gap-6 text-white/80 md:flex">
+        {/* НАВ */}
+        <nav className="hidden items-center gap-6 text-sm text-white/70 md:flex">
           {navItems.map((item) => (
             <Link
               key={item.href}
               href={item.href}
-              className={isActive(item.href) ? "text-white font-medium" : "hover:text-white transition"}
+              className={`transition ${isActive(item.href) ? "text-white font-medium" : "hover:text-white"}`}
             >
               {item.label}
             </Link>
           ))}
         </nav>
 
+        {/* ПОЛЬЗОВАТЕЛЬ */}
         <div className="flex items-center gap-2">
           {authUser === undefined ? (
-            <div className="h-10 w-24 rounded-2xl bg-white/5 animate-pulse" />
+            <div className="h-9 w-24 rounded-2xl animate-pulse" style={{ background: "rgba(255,255,255,0.06)" }} />
           ) : authUser ? (
             <div className="relative">
               <button
                 onClick={() => setMenuOpen((v) => !v)}
-                className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-3 py-2 hover:bg-white/10 transition"
+                className="flex items-center gap-2 rounded-2xl px-3 py-2 transition hover:bg-white/8"
+                style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}
               >
                 <div className={`flex h-7 w-7 items-center justify-center rounded-full text-sm font-bold ${
                   authUser.role === "admin" ? "bg-red-600" : "bg-violet-600"
@@ -135,53 +147,55 @@ export default function SiteHeader() {
                 <span className="hidden sm:block text-sm text-white/80 max-w-[120px] truncate">
                   {displayName}
                 </span>
-                <svg className="h-4 w-4 text-white/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="h-4 w-4 text-white/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
               </button>
 
               {menuOpen && (
-                <div className="absolute right-0 top-full mt-2 w-52 rounded-2xl border border-white/10 bg-[#0f1929] shadow-xl z-50">
-                  <div className="border-b border-white/10 px-4 py-3">
-                    <div className="text-sm font-semibold truncate">{displayName}</div>
-                    <div className="text-xs text-white/50 mt-0.5 truncate">{authUser.email}</div>
-                    <div className={`mt-1 inline-block text-xs px-2 py-0.5 rounded-full ${roleBadge[authUser.role].cls}`}>
-                      {roleBadge[authUser.role].label}
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
+                  <div className="absolute right-0 top-full mt-2 w-52 rounded-2xl shadow-2xl z-50 overflow-hidden"
+                    style={{ background: "#0f1929", border: "1px solid rgba(255,255,255,0.1)" }}>
+                    <div className="px-4 py-3" style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+                      <div className="text-sm font-semibold text-white truncate">{displayName}</div>
+                      <div className="text-xs text-white/40 mt-0.5 truncate">{authUser.email}</div>
+                      <div className={`mt-1.5 inline-block text-xs px-2 py-0.5 rounded-full ${roleBadge[authUser.role].cls}`}>
+                        {roleBadge[authUser.role].label}
+                      </div>
+                    </div>
+                    <div className="p-2 space-y-0.5">
+                      <Link
+                        href={getDashboardLink()}
+                        onClick={() => setMenuOpen(false)}
+                        className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm text-white/70 transition hover:bg-white/8 hover:text-white"
+                      >
+                        {authUser.role === "admin" ? "⚙️ Админ-панель" : "🏠 Личный кабинет"}
+                      </Link>
+                      <button
+                        onClick={handleLogout}
+                        className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-sm text-red-400 transition hover:bg-red-500/10"
+                      >
+                        🚪 Выйти
+                      </button>
                     </div>
                   </div>
-                  <div className="p-2 space-y-0.5">
-                    <Link
-                      href={getDashboardLink()}
-                      onClick={() => setMenuOpen(false)}
-                      className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-white/70 hover:bg-white/8 hover:text-white transition"
-                    >
-                      {authUser.role === "admin" ? "⚙️ Админ-панель" : "🏠 Личный кабинет"}
-                    </Link>
-                    <button
-                      onClick={() => { setMenuOpen(false); handleLogout(); }}
-                      className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm text-red-400 hover:bg-red-500/10 transition"
-                    >
-                      🚪 Выйти
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {menuOpen && (
-                <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
+                </>
               )}
             </div>
           ) : (
             <>
               <Link
                 href="/auth"
-                className="rounded-2xl border border-white/10 bg-white/5 px-5 py-2 font-semibold text-white/90 hover:bg-white/10 transition"
+                className="rounded-2xl px-5 py-2 text-sm font-semibold text-white/80 transition hover:text-white"
+                style={{ border: "1px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.04)" }}
               >
                 Войти
               </Link>
               <Link
                 href="/auth?mode=signup"
-                className="rounded-2xl bg-[#7c3aed] px-5 py-2 font-semibold text-white hover:bg-[#6d28d9] transition"
+                className="rounded-2xl px-5 py-2 text-sm font-semibold text-white transition"
+                style={{ background: "linear-gradient(135deg, #5B2ECC, #7C4AE8)", boxShadow: "0 4px 16px rgba(92,46,204,0.4)" }}
               >
                 Регистрация
               </Link>
