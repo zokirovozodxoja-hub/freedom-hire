@@ -75,7 +75,7 @@ export default function AdminUserDetailPage() {
       setProfile(prof);
       setExperiences(exp ?? []);
       setSkills(sk ?? []);
-      setApplications((apps ?? []) as Application[]);
+      setApplications((apps ?? []) as unknown as Application[]);
       setLoading(false);
     }
     load();
