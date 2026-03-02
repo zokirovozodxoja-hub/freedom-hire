@@ -8,6 +8,7 @@ const ADMIN_EMAILS = ["zokirovozodxoja@gmail.com"];
 
 type Role = "candidate" | "employer";
 type Mode = "login" | "signup";
+type LoginMethod = "password" | "otp";
 
 function getQueryParam(name: string): string | null {
   if (typeof window === "undefined") return null;
@@ -18,10 +19,12 @@ function AuthClientInner() {
   const router = useRouter();
   const [mode, setMode] = useState<Mode>("login");
   const [role, setRole] = useState<Role>("candidate");
-  const [step, setStep] = useState<"role" | "form">("form");
+  const [step, setStep] = useState<"role" | "form" | "otp">("form");
+  const [loginMethod, setLoginMethod] = useState<LoginMethod>("password");
   const [nextUrl, setNextUrl] = useState<string | null>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [otpCode, setOtpCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -30,90 +33,86 @@ function AuthClientInner() {
     const qRole = getQueryParam("role");
     if (qRole === "candidate" || qRole === "employer") setRole(qRole as Role);
     const qMode = getQueryParam("mode");
-    if (qMode === "signup") {
-      setMode("signup");
-      setStep("role"); // сначала выбор роли
-    }
+    if (qMode === "signup") { setMode("signup"); setStep("role"); }
     const qNext = getQueryParam("next");
     if (qNext && qNext.startsWith("/")) setNextUrl(qNext);
+    // Показываем сообщение о блокировке
+    const qError = getQueryParam("error");
+    if (qError === "blocked") {
+      setError("🚫 Ваш аккаунт заблокирован. Обратитесь в поддержку: support@freedomhire.uz");
+    }
   }, []);
 
   function handleModeSwitch(m: Mode) {
     setMode(m);
     setError(null);
     setNotice(null);
+    setOtpCode("");
     setStep(m === "signup" ? "role" : "form");
   }
 
-  async function submit() {
+  async function sendOtp() {
     setLoading(true);
     setError(null);
-    setNotice(null);
+    try {
+      if (!email.trim()) throw new Error("Введите email.");
+      const supabase = createClient();
+      const { error } = await supabase.auth.signInWithOtp({
+        email: email.trim(),
+        options: {
+          shouldCreateUser: mode === "signup",
+          data: mode === "signup" ? { role } : undefined,
+        },
+      });
+      if (error) throw error;
+      setStep("otp");
+      setNotice(`Код отправлен на ${email}`);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Ошибка отправки кода");
+    } finally {
+      setLoading(false);
+    }
+  }
 
+  async function verifyOtp() {
+    setLoading(true);
+    setError(null);
+    try {
+      if (otpCode.length < 6) throw new Error("Введите 6-значный код.");
+      const supabase = createClient();
+      const { error } = await supabase.auth.verifyOtp({
+        email: email.trim(),
+        token: otpCode.trim(),
+        type: "email",
+      });
+      if (error) throw error;
+      await afterLogin(supabase);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Неверный код");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function submitPassword() {
+    setLoading(true);
+    setError(null);
     try {
       const supabase = createClient();
       if (!email.trim()) throw new Error("Введите email.");
       if (password.trim().length < 6) throw new Error("Пароль минимум 6 символов.");
 
       if (mode === "signup") {
-        const { error: signupError } = await supabase.auth.signUp({
-          email: email.trim(),
-          password,
+        const { error } = await supabase.auth.signUp({
+          email: email.trim(), password,
           options: { data: { role } },
         });
-        if (signupError) throw signupError;
+        if (error) throw error;
       } else {
-        const { error: signinError } = await supabase.auth.signInWithPassword({
-          email: email.trim(),
-          password,
-        });
-        if (signinError) throw signinError;
+        const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+        if (error) throw error;
       }
-
-      const { data } = await supabase.auth.getUser();
-      if (!data.user) {
-        if (mode === "signup") {
-          setNotice("Проверьте почту и подтвердите email, затем войдите.");
-          setMode("login");
-          setStep("form");
-          return;
-        }
-        throw new Error("Не удалось получить сессию. Попробуйте снова.");
-      }
-
-      const userEmail = data.user.email ?? "";
-
-      if (ADMIN_EMAILS.includes(userEmail)) {
-        router.replace("/admin");
-        return;
-      }
-
-      if (mode === "signup") {
-        await supabase.from("profiles").upsert({
-          id: data.user.id,
-          email: userEmail,
-          role,
-          is_onboarded: false,
-        }, { onConflict: "id" });
-        router.replace(nextUrl || (role === "employer" ? "/onboarding/employer" : "/onboarding/candidate"));
-        return;
-      }
-
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("role, is_onboarded")
-        .eq("id", data.user.id)
-        .maybeSingle();
-
-      const userRole = (profile?.role as Role | null) ?? "candidate";
-
-      if (userRole === "employer") {
-        const { data: company } = await supabase
-          .from("companies").select("id").eq("owner_id", data.user.id).maybeSingle();
-        router.replace(nextUrl || (company ? "/employer" : "/onboarding/employer"));
-      } else {
-        router.replace(nextUrl || (profile?.is_onboarded ? "/resume" : "/onboarding/candidate"));
-      }
+      await afterLogin(supabase);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Ошибка авторизации");
     } finally {
@@ -121,125 +120,222 @@ function AuthClientInner() {
     }
   }
 
+  async function afterLogin(supabase: ReturnType<typeof createClient>) {
+    const { data } = await supabase.auth.getUser();
+    if (!data.user) {
+      if (mode === "signup") {
+        setNotice("Проверьте почту и подтвердите email, затем войдите.");
+        setMode("login"); setStep("form"); return;
+      }
+      throw new Error("Не удалось получить сессию.");
+    }
+    const userEmail = data.user.email ?? "";
+    if (ADMIN_EMAILS.includes(userEmail)) { router.replace("/admin"); return; }
+
+    if (mode === "signup") {
+      await supabase.from("profiles").upsert({
+        id: data.user.id, email: userEmail, role, is_onboarded: false,
+      }, { onConflict: "id" });
+      router.replace(nextUrl || (role === "employer" ? "/onboarding/employer" : "/onboarding/candidate"));
+      return;
+    }
+
+    const { data: profile } = await supabase
+      .from("profiles").select("role, is_onboarded").eq("id", data.user.id).maybeSingle();
+    const userRole = (profile?.role as Role | null) ?? "candidate";
+    if (userRole === "employer") {
+      const { data: company } = await supabase.from("companies").select("id").eq("owner_id", data.user.id).maybeSingle();
+      router.replace(nextUrl || (company ? "/employer" : "/onboarding/employer"));
+    } else {
+      router.replace(nextUrl || (profile?.is_onboarded ? "/resume" : "/onboarding/candidate"));
+    }
+  }
+
+  // ═══ ШАГ OTP ═══
+  if (step === "otp") {
+    return (
+      <main className="mx-auto grid min-h-screen max-w-md place-items-center p-6">
+        <div className="w-full rounded-3xl p-8" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(196,173,255,0.12)" }}>
+          <button onClick={() => { setStep("form"); setOtpCode(""); setError(null); setNotice(null); }}
+            className="text-sm mb-6 flex items-center gap-1" style={{ color: "#C4ADFF" }}>
+            ← Назад
+          </button>
+          <div className="text-4xl mb-4 text-center">📬</div>
+          <h1 className="text-xl font-bold text-center mb-2">Проверьте почту</h1>
+          <p className="text-sm text-center mb-6" style={{ color: "rgba(255,255,255,0.5)" }}>
+            Код отправлен на<br />
+            <span className="text-white font-medium">{email}</span>
+          </p>
+
+          <label className="block text-sm mb-1" style={{ color: "rgba(255,255,255,0.6)" }}>Код из письма</label>
+          <input
+            className="w-full rounded-xl px-3 py-3 text-white text-center text-2xl tracking-[0.5em] focus:outline-none transition"
+            style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(196,173,255,0.2)" }}
+            value={otpCode}
+            onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+            onKeyDown={(e) => e.key === "Enter" && verifyOtp()}
+            placeholder="000000"
+            maxLength={6}
+            autoFocus
+          />
+
+          <button onClick={verifyOtp} disabled={loading || otpCode.length < 6}
+            className="mt-4 w-full rounded-xl py-3 font-semibold text-white transition disabled:opacity-50"
+            style={{ background: "linear-gradient(135deg, #5B2ECC, #7C4AE8)" }}>
+            {loading ? "Проверяем..." : "Подтвердить →"}
+          </button>
+
+          <button onClick={sendOtp} disabled={loading}
+            className="mt-3 w-full text-sm py-2 rounded-xl transition"
+            style={{ color: "rgba(255,255,255,0.35)" }}>
+            Отправить код повторно
+          </button>
+
+          {error && (
+            <div className="mt-3 px-4 py-3 rounded-xl text-sm"
+              style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", color: "#f87171" }}>
+              {error}
+            </div>
+          )}
+          {notice && (
+            <div className="mt-3 px-4 py-3 rounded-xl text-sm"
+              style={{ background: "rgba(52,211,153,0.1)", border: "1px solid rgba(52,211,153,0.2)", color: "#6ee7b7" }}>
+              {notice}
+            </div>
+          )}
+        </div>
+      </main>
+    );
+  }
+
+  // ═══ ОСНОВНАЯ ФОРМА ═══
   return (
     <main className="mx-auto grid min-h-screen max-w-md place-items-center p-6">
-      <div className="w-full rounded-3xl border border-white/10 bg-white/5 p-8">
+      <div className="w-full rounded-3xl p-8" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(196,173,255,0.12)" }}>
 
-        {/* Переключатель Войти / Регистрация */}
+        {/* Войти / Регистрация */}
         <div className="flex gap-2 mb-6">
-          <button
-            onClick={() => handleModeSwitch("login")}
-            className={`flex-1 rounded-xl py-2.5 font-semibold text-sm transition-colors ${
-              mode === "login"
-                ? "bg-white text-black"
-                : "border border-white/20 text-white/70 hover:text-white hover:bg-white/8"
-            }`}
-          >
-            Войти
-          </button>
-          <button
-            onClick={() => handleModeSwitch("signup")}
-            className={`flex-1 rounded-xl py-2.5 font-semibold text-sm transition-colors ${
-              mode === "signup"
-                ? "bg-white text-black"
-                : "border border-white/20 text-white/70 hover:text-white hover:bg-white/8"
-            }`}
-          >
-            Регистрация
-          </button>
+          {(["login", "signup"] as Mode[]).map((m) => (
+            <button key={m} onClick={() => handleModeSwitch(m)}
+              className="flex-1 rounded-xl py-2.5 font-semibold text-sm transition-colors"
+              style={{
+                background: mode === m ? "#fff" : "rgba(255,255,255,0.05)",
+                color: mode === m ? "#000" : "rgba(255,255,255,0.6)",
+                border: mode === m ? "none" : "1px solid rgba(255,255,255,0.1)",
+              }}>
+              {m === "login" ? "Войти" : "Регистрация"}
+            </button>
+          ))}
         </div>
 
-        {/* ШАГ 1: Выбор роли при регистрации */}
-        {mode === "signup" && step === "role" && (
+        {/* Выбор роли при регистрации */}
+        {mode === "signup" && step === "role" ? (
           <>
-            <h1 className="text-xl font-black mb-2">Кто вы?</h1>
-            <p className="text-sm text-white/50 mb-6">Выберите роль — от этого зависит ваш личный кабинет</p>
-
+            <h1 className="text-xl font-bold mb-2">Кто вы?</h1>
+            <p className="text-sm mb-6" style={{ color: "rgba(255,255,255,0.4)" }}>Выберите роль</p>
             <div className="grid grid-cols-2 gap-3">
-              <button
-                onClick={() => { setRole("candidate"); setStep("form"); }}
-                className="flex flex-col items-center gap-3 rounded-2xl border border-white/15 bg-white/5 p-6 hover:border-violet-500 hover:bg-violet-500/10 transition group"
-              >
-                <span className="text-4xl">👤</span>
-                <div className="text-center">
-                  <div className="font-semibold">Соискатель</div>
-                  <div className="text-xs text-white/50 mt-1">Ищу работу</div>
-                </div>
-              </button>
-
-              <button
-                onClick={() => { setRole("employer"); setStep("form"); }}
-                className="flex flex-col items-center gap-3 rounded-2xl border border-white/15 bg-white/5 p-6 hover:border-violet-500 hover:bg-violet-500/10 transition group"
-              >
-                <span className="text-4xl">🏢</span>
-                <div className="text-center">
-                  <div className="font-semibold">Работодатель</div>
-                  <div className="text-xs text-white/50 mt-1">Ищу сотрудников</div>
-                </div>
-              </button>
+              {([
+                { value: "candidate" as Role, icon: "👤", label: "Соискатель", desc: "Ищу работу" },
+                { value: "employer" as Role,  icon: "🏢", label: "Работодатель", desc: "Ищу сотрудников" },
+              ]).map((r) => (
+                <button key={r.value} onClick={() => { setRole(r.value); setStep("form"); }}
+                  className="flex flex-col items-center gap-3 rounded-2xl p-6 transition hover:border-violet-500"
+                  style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)" }}>
+                  <span className="text-4xl">{r.icon}</span>
+                  <div className="text-center">
+                    <div className="font-semibold text-sm">{r.label}</div>
+                    <div className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.4)" }}>{r.desc}</div>
+                  </div>
+                </button>
+              ))}
             </div>
           </>
-        )}
-
-        {/* ШАГ 2: Форма */}
-        {(mode === "login" || step === "form") && (
+        ) : (
           <>
+            {/* Выбранная роль */}
             {mode === "signup" && (
-              <div className="flex items-center gap-3 mb-6 p-3 rounded-xl bg-white/5 border border-white/10">
-                <span className="text-2xl">{role === "employer" ? "🏢" : "👤"}</span>
-                <div className="flex-1">
-                  <div className="text-sm font-semibold">{role === "employer" ? "Работодатель" : "Соискатель"}</div>
-                </div>
-                <button
-                  onClick={() => setStep("role")}
-                  className="text-xs text-violet-400 hover:text-violet-300"
-                >
-                  Изменить
-                </button>
+              <div className="flex items-center gap-3 mb-5 p-3 rounded-xl"
+                style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                <span className="text-xl">{role === "employer" ? "🏢" : "👤"}</span>
+                <div className="flex-1 text-sm font-medium">{role === "employer" ? "Работодатель" : "Соискатель"}</div>
+                <button onClick={() => setStep("role")} className="text-xs" style={{ color: "#C4ADFF" }}>Изменить</button>
               </div>
             )}
 
-            <h1 className="text-xl font-black mb-5">
+            <h1 className="text-xl font-bold mb-5">
               {mode === "login" ? "Добро пожаловать" : "Создать аккаунт"}
             </h1>
 
-            <label className="block text-sm text-white/70 mb-1">Email</label>
+            {/* Способ входа (только login) */}
+            {mode === "login" && (
+              <div className="flex gap-2 mb-5">
+                {([
+                  { value: "password" as LoginMethod, label: "🔑 Пароль" },
+                  { value: "otp" as LoginMethod,      label: "✉️ Код на email" },
+                ]).map((m) => (
+                  <button key={m.value} onClick={() => { setLoginMethod(m.value); setError(null); }}
+                    className="flex-1 py-2 rounded-xl text-sm transition"
+                    style={{
+                      background: loginMethod === m.value ? "rgba(92,46,204,0.4)" : "rgba(255,255,255,0.04)",
+                      border: loginMethod === m.value ? "1px solid rgba(196,173,255,0.4)" : "1px solid rgba(255,255,255,0.08)",
+                      color: loginMethod === m.value ? "#C4ADFF" : "rgba(255,255,255,0.5)",
+                    }}>
+                    {m.label}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Email */}
+            <label className="block text-sm mb-1" style={{ color: "rgba(255,255,255,0.6)" }}>Email</label>
             <input
-              className="w-full rounded-xl border border-white/20 bg-white/5 px-3 py-2.5 text-white placeholder-white/30 focus:outline-none focus:border-violet-500 transition"
+              className="w-full rounded-xl px-3 py-2.5 text-white placeholder-white/25 focus:outline-none transition"
+              style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(196,173,255,0.12)" }}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && submit()}
+              onKeyDown={(e) => e.key === "Enter" && (loginMethod === "otp" && mode === "login" ? sendOtp() : submitPassword())}
               placeholder="you@example.com"
               type="email"
               autoComplete="email"
             />
 
-            <label className="block text-sm text-white/70 mt-4 mb-1">Пароль</label>
-            <input
-              className="w-full rounded-xl border border-white/20 bg-white/5 px-3 py-2.5 text-white placeholder-white/30 focus:outline-none focus:border-violet-500 transition"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && submit()}
-              type="password"
-              placeholder="••••••••"
-              autoComplete={mode === "login" ? "current-password" : "new-password"}
-            />
+            {/* Пароль */}
+            {(mode === "signup" || loginMethod === "password") && (
+              <>
+                <label className="block text-sm mt-4 mb-1" style={{ color: "rgba(255,255,255,0.6)" }}>Пароль</label>
+                <input
+                  className="w-full rounded-xl px-3 py-2.5 text-white placeholder-white/25 focus:outline-none transition"
+                  style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(196,173,255,0.12)" }}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && submitPassword()}
+                  type="password"
+                  placeholder="••••••••"
+                  autoComplete={mode === "login" ? "current-password" : "new-password"}
+                />
+              </>
+            )}
 
+            {/* Кнопка */}
             <button
-              className="mt-5 w-full rounded-xl bg-[#7c3aed] px-4 py-3 font-semibold hover:bg-[#6d28d9] transition disabled:opacity-60"
-              onClick={submit}
+              onClick={loginMethod === "otp" && mode === "login" ? sendOtp : submitPassword}
               disabled={loading}
-            >
-              {loading ? "Подождите..." : mode === "login" ? "Войти" : "Создать аккаунт"}
+              className="mt-5 w-full rounded-xl py-3 font-semibold text-white transition disabled:opacity-60"
+              style={{ background: "linear-gradient(135deg, #5B2ECC, #7C4AE8)", boxShadow: "0 4px 16px rgba(92,46,204,0.4)" }}>
+              {loading ? "Подождите..." :
+               loginMethod === "otp" && mode === "login" ? "Получить код →" :
+               mode === "login" ? "Войти" : "Создать аккаунт"}
             </button>
 
             {error && (
-              <div className="mt-3 rounded-xl bg-red-500/10 border border-red-500/20 px-4 py-3 text-sm text-red-300">
+              <div className="mt-3 px-4 py-3 rounded-xl text-sm"
+                style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", color: "#f87171" }}>
                 {error}
               </div>
             )}
             {notice && (
-              <div className="mt-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 px-4 py-3 text-sm text-emerald-300">
+              <div className="mt-3 px-4 py-3 rounded-xl text-sm"
+                style={{ background: "rgba(52,211,153,0.1)", border: "1px solid rgba(52,211,153,0.2)", color: "#6ee7b7" }}>
                 {notice}
               </div>
             )}
@@ -253,7 +349,7 @@ function AuthClientInner() {
 export default function AuthClient() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-[#0b1220] text-white flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center" style={{ background: "#07060F", color: "#fff" }}>
         Загрузка...
       </div>
     }>
