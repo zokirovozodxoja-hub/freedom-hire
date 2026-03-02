@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 
 type Profile = {
@@ -144,7 +145,7 @@ export default function AdminUsersPage() {
 
               <div className="flex-1 min-w-0">
                 <div className="font-semibold truncate flex items-center gap-2">
-                  {u.full_name ?? "Без имени"}
+                  <Link href={`/admin/users/${u.id}`} className="hover:text-violet-400 transition">{u.full_name ?? "Без имени"}</Link>
                   {u.is_blocked && <span className="text-xs text-red-400 font-normal">🚫 заблокирован</span>}
                 </div>
                 <div className="text-sm text-white/50 mt-0.5 truncate">
