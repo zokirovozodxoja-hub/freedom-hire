@@ -64,7 +64,7 @@ export default function AdminUserDetailPage() {
       const [{ data: prof }, { data: exp }, { data: sk }, { data: apps }] = await Promise.all([
         supabase.from("profiles").select("*").eq("id", id).maybeSingle(),
         supabase.from("candidate_experiences").select("*").eq("profile_id", id).order("start_date", { ascending: false }),
-        supabase.from("candidate_skills").select("*").eq("profile_id", id),
+        supabase.from("candidate_skills").select("*").eq("user_id", id),
         supabase.from("applications")
           .select("id, created_at, status, job:jobs(title, company:companies(name))")
           .eq("user_id", id)
