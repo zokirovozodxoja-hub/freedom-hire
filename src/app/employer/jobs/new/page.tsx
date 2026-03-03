@@ -56,7 +56,6 @@ export default function NewJobPage() {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [companyId, setCompanyId] = useState("");
 
-  // Поля вакансии
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [requirements, setRequirements] = useState("");
@@ -119,7 +118,6 @@ export default function NewJobPage() {
       title: title.trim(),
       description: description.trim() || null,
       requirements: requirements.trim() || null,
-      benefits: benefits.trim() || null,
       city: city.trim(),
       work_format: format,
       employment_type: employmentType,
@@ -138,7 +136,6 @@ export default function NewJobPage() {
     });
 
     setSaving(false);
-
     if (error) { setMsg(error.message); return; }
     router.replace("/employer/jobs");
   }
@@ -158,24 +155,18 @@ export default function NewJobPage() {
     <div className="min-h-screen bg-[#0b1220] text-white p-6">
       <div className="max-w-4xl mx-auto">
 
-        {/* Шапка */}
         <div className="flex items-center justify-between gap-3 mb-6">
           <div>
             <h1 className="text-2xl font-semibold">Новая вакансия</h1>
             <p className="text-white/50 text-sm mt-1">Заполните все обязательные поля</p>
           </div>
           <div className="flex gap-2">
-            <button
-              onClick={() => router.push("/employer/jobs")}
-              className="rounded-2xl bg-white/10 border border-white/10 px-5 py-2 hover:bg-white/15 transition"
-            >
+            <button onClick={() => router.push("/employer/jobs")}
+              className="rounded-2xl bg-white/10 border border-white/10 px-5 py-2 hover:bg-white/15 transition">
               Отмена
             </button>
-            <button
-              onClick={onCreate}
-              disabled={saving || !companyId}
-              className="rounded-2xl bg-[#7c3aed] px-5 py-2 font-semibold hover:bg-[#6d28d9] transition disabled:opacity-50"
-            >
+            <button onClick={onCreate} disabled={saving || !companyId}
+              className="rounded-2xl bg-[#7c3aed] px-5 py-2 font-semibold hover:bg-[#6d28d9] transition disabled:opacity-50">
               {saving ? "Сохраняю..." : "Опубликовать"}
             </button>
           </div>
@@ -196,30 +187,20 @@ export default function NewJobPage() {
 
               <div>
                 <label className={labelCls}>Название вакансии *</label>
-                <input
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="Например: Frontend разработчик"
-                  className={inputCls}
-                />
+                <input value={title} onChange={(e) => setTitle(e.target.value)}
+                  placeholder="Например: Frontend разработчик" className={inputCls} />
               </div>
 
               <div>
                 <label className={labelCls}>Компания *</label>
-                <select
-                  value={companyId}
-                  onChange={(e) => setCompanyId(e.target.value)}
-                  className={inputCls}
-                >
+                <select value={companyId} onChange={(e) => setCompanyId(e.target.value)} className={inputCls}>
                   {companies.map((c) => (
                     <option key={c.id} value={c.id}>{c.name || c.id}</option>
                   ))}
                 </select>
                 {!companies.length && (
-                  <button
-                    onClick={() => router.push("/onboarding/employer")}
-                    className="mt-2 text-sm text-violet-400 hover:underline"
-                  >
+                  <button onClick={() => router.push("/onboarding/employer")}
+                    className="mt-2 text-sm text-violet-400 hover:underline">
                     + Создать компанию
                   </button>
                 )}
@@ -227,57 +208,37 @@ export default function NewJobPage() {
 
               <div>
                 <label className={labelCls}>Описание вакансии</label>
-                <textarea
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
+                <textarea value={description} onChange={(e) => setDescription(e.target.value)}
                   placeholder="Чем предстоит заниматься, о команде и проекте..."
-                  rows={5}
-                  className={inputCls}
-                />
+                  rows={5} className={inputCls} />
               </div>
 
               <div>
                 <label className={labelCls}>Требования к кандидату</label>
-                <textarea
-                  value={requirements}
-                  onChange={(e) => setRequirements(e.target.value)}
+                <textarea value={requirements} onChange={(e) => setRequirements(e.target.value)}
                   placeholder="Опыт, навыки, образование..."
-                  rows={4}
-                  className={inputCls}
-                />
+                  rows={4} className={inputCls} />
               </div>
 
               <div>
                 <label className={labelCls}>Условия и бенефиты</label>
-                <textarea
-                  value={benefits}
-                  onChange={(e) => setBenefits(e.target.value)}
+                <textarea value={benefits} onChange={(e) => setBenefits(e.target.value)}
                   placeholder="Зарплата, ДМС, обучение, офис..."
-                  rows={3}
-                  className={inputCls}
-                />
+                  rows={3} className={inputCls} />
               </div>
 
               <div>
                 <label className={labelCls}>Обязанности (каждая с новой строки)</label>
-                <textarea
-                  value={responsibilities}
-                  onChange={(e) => setResponsibilities(e.target.value)}
+                <textarea value={responsibilities} onChange={(e) => setResponsibilities(e.target.value)}
                   placeholder={"— Разработка новых функций\n— Code review\n— Участие в планировании"}
-                  rows={4}
-                  className={inputCls}
-                />
+                  rows={4} className={inputCls} />
               </div>
 
               <div>
                 <label className={labelCls}>Что предлагает компания</label>
-                <textarea
-                  value={companyOffers}
-                  onChange={(e) => setCompanyOffers(e.target.value)}
+                <textarea value={companyOffers} onChange={(e) => setCompanyOffers(e.target.value)}
                   placeholder={"— Конкурентная зарплата\n— Гибкий график\n— ДМС для сотрудника и семьи"}
-                  rows={4}
-                  className={inputCls}
-                />
+                  rows={4} className={inputCls} />
               </div>
             </div>
           </div>
@@ -289,12 +250,8 @@ export default function NewJobPage() {
 
               <div>
                 <label className={labelCls}>Город *</label>
-                <input
-                  value={city}
-                  onChange={(e) => setCity(e.target.value)}
-                  placeholder="Ташкент"
-                  className={inputCls}
-                />
+                <input value={city} onChange={(e) => setCity(e.target.value)}
+                  placeholder="Ташкент" className={inputCls} />
               </div>
 
               <div>
@@ -330,38 +287,24 @@ export default function NewJobPage() {
           {/* Зарплата */}
           <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
             <h2 className="text-sm font-semibold text-white/70 mb-4">Зарплата</h2>
-
             <label className="flex items-center gap-2 cursor-pointer mb-4">
-              <input
-                type="checkbox"
-                checked={salaryNegotiable}
-                onChange={(e) => setSalaryNegotiable(e.target.checked)}
-                className="rounded"
-              />
+              <input type="checkbox" checked={salaryNegotiable}
+                onChange={(e) => setSalaryNegotiable(e.target.checked)} className="rounded" />
               <span className="text-sm text-white/70">По договорённости</span>
             </label>
-
             {!salaryNegotiable && (
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
                   <label className={labelCls}>От (сум)</label>
-                  <input
-                    inputMode="numeric"
-                    value={salaryFromText}
+                  <input inputMode="numeric" value={salaryFromText}
                     onChange={(e) => setSalaryFromText(fmt(e.target.value))}
-                    placeholder="3 000 000"
-                    className={inputCls}
-                  />
+                    placeholder="3 000 000" className={inputCls} />
                 </div>
                 <div>
                   <label className={labelCls}>До (сум)</label>
-                  <input
-                    inputMode="numeric"
-                    value={salaryToText}
+                  <input inputMode="numeric" value={salaryToText}
                     onChange={(e) => setSalaryToText(fmt(e.target.value))}
-                    placeholder="5 000 000"
-                    className={inputCls}
-                  />
+                    placeholder="5 000 000" className={inputCls} />
                 </div>
               </div>
             )}
@@ -370,16 +313,11 @@ export default function NewJobPage() {
           {/* Теги и публикация */}
           <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
             <h2 className="text-sm font-semibold text-white/70 mb-4">Навыки и публикация</h2>
-
             <div className="space-y-4">
               <div>
                 <label className={labelCls}>Теги/навыки (через запятую)</label>
-                <input
-                  value={tagsText}
-                  onChange={(e) => setTagsText(e.target.value)}
-                  placeholder="React, TypeScript, Node.js"
-                  className={inputCls}
-                />
+                <input value={tagsText} onChange={(e) => setTagsText(e.target.value)}
+                  placeholder="React, TypeScript, Node.js" className={inputCls} />
                 {tagsText && (
                   <div className="mt-2 flex flex-wrap gap-2">
                     {tagsText.split(",").map((t) => t.trim()).filter(Boolean).map((tag) => (
@@ -390,12 +328,9 @@ export default function NewJobPage() {
                   </div>
                 )}
               </div>
-
               <label className="flex items-center gap-3 cursor-pointer">
-                <div
-                  onClick={() => setIsActive((v) => !v)}
-                  className={`relative w-11 h-6 rounded-full transition-colors ${isActive ? "bg-violet-600" : "bg-white/20"}`}
-                >
+                <div onClick={() => setIsActive((v) => !v)}
+                  className={`relative w-11 h-6 rounded-full transition-colors ${isActive ? "bg-violet-600" : "bg-white/20"}`}>
                   <div className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${isActive ? "translate-x-5" : "translate-x-0.5"}`} />
                 </div>
                 <span className="text-sm text-white/70">
@@ -407,19 +342,13 @@ export default function NewJobPage() {
 
         </div>
 
-        {/* Кнопка снизу */}
         <div className="mt-6 flex justify-end gap-3">
-          <button
-            onClick={() => router.push("/employer/jobs")}
-            className="rounded-2xl bg-white/10 border border-white/10 px-6 py-3 hover:bg-white/15 transition"
-          >
+          <button onClick={() => router.push("/employer/jobs")}
+            className="rounded-2xl bg-white/10 border border-white/10 px-6 py-3 hover:bg-white/15 transition">
             Отмена
           </button>
-          <button
-            onClick={onCreate}
-            disabled={saving || !companyId}
-            className="rounded-2xl bg-[#7c3aed] px-6 py-3 font-semibold hover:bg-[#6d28d9] transition disabled:opacity-50"
-          >
+          <button onClick={onCreate} disabled={saving || !companyId}
+            className="rounded-2xl bg-[#7c3aed] px-6 py-3 font-semibold hover:bg-[#6d28d9] transition disabled:opacity-50">
             {saving ? "Сохраняю..." : "Опубликовать вакансию"}
           </button>
         </div>
