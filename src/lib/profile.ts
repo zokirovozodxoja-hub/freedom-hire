@@ -3,6 +3,7 @@ import { createClient } from "./supabase/client";
 export type Status =
   | "actively_looking"
   | "open_to_offers"
+  | "starting_new_job"
   | "not_looking";
 
 export type Currency = "UZS" | "USD";

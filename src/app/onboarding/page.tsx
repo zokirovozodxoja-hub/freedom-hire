@@ -3,9 +3,11 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { useI18n } from "@/i18n/context";
 
 export default function OnboardingPage() {
   const router = useRouter();
+  const { t } = useI18n();
 
   useEffect(() => {
     (async () => {
@@ -35,7 +37,7 @@ export default function OnboardingPage() {
 
   return (
     <div className="min-h-screen bg-[#0b1220] text-white flex items-center justify-center">
-      <div className="text-white/50 text-sm">Определяем ваш профиль...</div>
+      <div className="text-white/50 text-sm">{t.onboarding.detectingProfile}</div>
     </div>
   );
 }

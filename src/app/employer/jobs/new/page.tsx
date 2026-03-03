@@ -27,6 +27,15 @@ const EXPERIENCE_LEVELS = [
   { value: "lead", label: "5+ лет опыта" },
 ];
 
+const EDUCATION_LEVELS = [
+  { value: "", label: "Не важно" },
+  { value: "school", label: "Среднее" },
+  { value: "college", label: "Среднее специальное" },
+  { value: "bachelor", label: "Бакалавр" },
+  { value: "master", label: "Магистр" },
+  { value: "phd", label: "PhD / Доктор наук" },
+];
+
 function fmt(value: string) {
   const d = value.replace(/\D/g, "");
   if (!d) return "";
@@ -61,6 +70,9 @@ export default function NewJobPage() {
   const [salaryNegotiable, setSalaryNegotiable] = useState(false);
   const [tagsText, setTagsText] = useState("");
   const [isActive, setIsActive] = useState(true);
+  const [responsibilities, setResponsibilities] = useState("");
+  const [educationLevel, setEducationLevel] = useState("");
+  const [companyOffers, setCompanyOffers] = useState("");
 
   const salaryFrom = useMemo(() => parse(salaryFromText), [salaryFromText]);
   const salaryTo = useMemo(() => parse(salaryToText), [salaryToText]);
@@ -109,7 +121,7 @@ export default function NewJobPage() {
       requirements: requirements.trim() || null,
       benefits: benefits.trim() || null,
       city: city.trim(),
-      format,
+      work_format: format,
       employment_type: employmentType,
       experience_level: experience,
       salary_from: salaryNegotiable ? null : salaryFrom,
@@ -117,6 +129,12 @@ export default function NewJobPage() {
       salary_negotiable: salaryNegotiable,
       tags: tags.length ? tags : null,
       is_active: isActive,
+      responsibilities: responsibilities.trim() || null,
+      education_level: educationLevel || null,
+      benefits: [
+        benefits.trim(),
+        companyOffers.trim() ? `Что предлагает компания:\n${companyOffers.trim()}` : ""
+      ].filter(Boolean).join("\n\n") || null,
     });
 
     setSaving(false);
@@ -239,6 +257,28 @@ export default function NewJobPage() {
                   className={inputCls}
                 />
               </div>
+
+              <div>
+                <label className={labelCls}>Обязанности (каждая с новой строки)</label>
+                <textarea
+                  value={responsibilities}
+                  onChange={(e) => setResponsibilities(e.target.value)}
+                  placeholder={"— Разработка новых функций\n— Code review\n— Участие в планировании"}
+                  rows={4}
+                  className={inputCls}
+                />
+              </div>
+
+              <div>
+                <label className={labelCls}>Что предлагает компания</label>
+                <textarea
+                  value={companyOffers}
+                  onChange={(e) => setCompanyOffers(e.target.value)}
+                  placeholder={"— Конкурентная зарплата\n— Гибкий график\n— ДМС для сотрудника и семьи"}
+                  rows={4}
+                  className={inputCls}
+                />
+              </div>
             </div>
           </div>
 
@@ -275,6 +315,13 @@ export default function NewJobPage() {
                 <label className={labelCls}>Опыт работы</label>
                 <select value={experience} onChange={(e) => setExperience(e.target.value)} className={inputCls}>
                   {EXPERIENCE_LEVELS.map((l) => <option key={l.value} value={l.value}>{l.label}</option>)}
+                </select>
+              </div>
+
+              <div>
+                <label className={labelCls}>Уровень образования</label>
+                <select value={educationLevel} onChange={(e) => setEducationLevel(e.target.value)} className={inputCls}>
+                  {EDUCATION_LEVELS.map((l) => <option key={l.value} value={l.value}>{l.label}</option>)}
                 </select>
               </div>
             </div>

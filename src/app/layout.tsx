@@ -1,6 +1,7 @@
 import "./globals.css";
 import type { Metadata } from "next";
 import SiteHeader from "./_components/SiteHeader";
+import { I18nProvider } from "@/i18n/context";
 
 export const metadata: Metadata = {
   title: "Freedom HIRE — Платформа найма в Узбекистане",
@@ -20,8 +21,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       </head>
       <body>
-        <SiteHeader />
-        <main>{children}</main>
+        <I18nProvider>
+          <SiteHeader />
+          <main>{children}</main>
+        </I18nProvider>
       </body>
     </html>
   );

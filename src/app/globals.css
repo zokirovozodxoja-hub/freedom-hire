@@ -59,3 +59,36 @@ html, body {
 .badge-new    { background: rgba(201,168,76,0.15); color: var(--gold); border: 1px solid rgba(201,168,76,0.3); }
 .badge-hot    { background: rgba(239,68,68,0.15);  color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
 .badge-active { background: rgba(52,211,153,0.15); color: #6ee7b7; border: 1px solid rgba(52,211,153,0.3); }
+/* ── КОРПОРАТИВНЫЙ ФОН ── */
+body {
+  position: relative;
+  isolation: isolate;
+  background: #07060F;
+}
+
+/* Основные световые пятна */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 70% 60% at -5% 10%, rgba(92, 46, 204, 0.35) 0%, transparent 55%),
+    radial-gradient(ellipse 50% 45% at 105% 85%, rgba(124, 74, 232, 0.28) 0%, transparent 50%),
+    radial-gradient(ellipse 35% 30% at 55% 50%, rgba(61, 20, 187, 0.12) 0%, transparent 45%);
+}
+
+/* Сетка поверх пятен */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(196, 173, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(196, 173, 255, 0.04) 1px, transparent 1px);
+  background-size: 60px 60px;
+  mask-image: linear-gradient(to bottom, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.3) 50%, rgba(0,0,0,0.05) 100%);
+}

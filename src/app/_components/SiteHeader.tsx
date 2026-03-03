@@ -4,15 +4,9 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useI18n, type Lang } from "@/i18n/context";
 
 const ADMIN_EMAILS = ["zokirovozodxoja@gmail.com"];
-
-const navItems = [
-  { href: "/jobs", label: "Вакансии" },
-  { href: "/employers", label: "Работодателям" },
-  { href: "/about", label: "О нас" },
-];
-
 const HIDDEN_PREFIXES = ["/admin", "/onboarding"];
 
 type AuthUser = {
@@ -24,9 +18,16 @@ type AuthUser = {
 export default function SiteHeader() {
   const pathname = usePathname();
   const router = useRouter();
-  const supabaseRef = useRef(createClient()); // один инстанс на весь компонент
+  const { t, lang, setLang } = useI18n();
+  const supabaseRef = useRef(createClient());
   const [authUser, setAuthUser] = useState<AuthUser | null | undefined>(undefined);
   const [menuOpen, setMenuOpen] = useState(false);
+
+  const navItems = [
+    { href: "/jobs", label: t.nav.jobs },
+    { href: "/employers", label: t.nav.employers },
+    { href: "/about", label: t.nav.about },
+  ];
 
   const isHidden = HIDDEN_PREFIXES.some((p) => pathname.startsWith(p));
 
@@ -38,7 +39,6 @@ export default function SiteHeader() {
       if (!data.user) { setAuthUser(null); return; }
 
       const email = data.user.email ?? "";
-
       if (ADMIN_EMAILS.includes(email)) {
         setAuthUser({ email, role: "admin", fullName: null });
         return;
@@ -57,11 +57,8 @@ export default function SiteHeader() {
     loadUser();
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!session) {
-        setAuthUser(null);
-      } else {
-        loadUser();
-      }
+      if (!session) setAuthUser(null);
+      else loadUser();
     });
 
     return () => listener.subscription.unsubscribe();
@@ -91,20 +88,24 @@ export default function SiteHeader() {
   const initials = displayName ? displayName[0].toUpperCase() : "?";
 
   const roleBadge = {
-    admin:     { label: "Администратор", cls: "bg-red-600/30 text-red-300" },
-    employer:  { label: "Работодатель",  cls: "bg-blue-600/30 text-blue-300" },
-    candidate: { label: "Соискатель",    cls: "bg-violet-600/30 text-violet-300" },
+    admin:     { label: t.roles.admin,     cls: "bg-red-600/30 text-red-300" },
+    employer:  { label: t.roles.employer,  cls: "bg-blue-600/30 text-blue-300" },
+    candidate: { label: t.roles.candidate, cls: "bg-violet-600/30 text-violet-300" },
   };
 
   return (
-    <header className="sticky top-0 z-50 border-b border-white/10 backdrop-blur"
-      style={{ background: "rgba(7,6,15,0.85)" }}>
+    <header
+      className="sticky top-0 z-50 border-b border-white/10 backdrop-blur"
+      style={{ background: "rgba(7,6,15,0.85)" }}
+    >
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
 
-        {/* ЛОГОТИП */}
+        {/* LOGO */}
         <Link href="/" className="flex items-center gap-3">
-          <div className="relative flex h-10 w-10 items-center justify-center rounded-xl overflow-hidden shrink-0"
-            style={{ background: "linear-gradient(135deg, #3D14BB, #7C4AE8)", boxShadow: "0 4px 16px rgba(92,46,204,0.5)" }}>
+          <div
+            className="relative flex h-10 w-10 items-center justify-center rounded-xl overflow-hidden shrink-0"
+            style={{ background: "linear-gradient(135deg, #3D14BB, #7C4AE8)", boxShadow: "0 4px 16px rgba(92,46,204,0.5)" }}
+          >
             <span style={{ fontFamily: "'Syne', sans-serif", fontWeight: 800, fontSize: "13px", color: "#fff", letterSpacing: "0.05em" }}>FH</span>
           </div>
           <div className="leading-tight">
@@ -115,7 +116,7 @@ export default function SiteHeader() {
           </div>
         </Link>
 
-        {/* НАВ */}
+        {/* NAV */}
         <nav className="hidden items-center gap-6 text-sm text-white/70 md:flex">
           {navItems.map((item) => (
             <Link
@@ -128,8 +129,31 @@ export default function SiteHeader() {
           ))}
         </nav>
 
-        {/* ПОЛЬЗОВАТЕЛЬ */}
+        {/* RIGHT: LANG SWITCHER + USER */}
         <div className="flex items-center gap-2">
+
+          {/* Language Switcher */}
+          <div
+            className="flex items-center rounded-xl overflow-hidden shrink-0"
+            style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}
+          >
+            {(["ru", "uz"] as Lang[]).map((l) => (
+              <button
+                key={l}
+                onClick={() => setLang(l)}
+                className="px-3 py-1.5 text-xs font-semibold transition"
+                style={{
+                  background: lang === l ? "rgba(92,46,204,0.5)" : "transparent",
+                  color: lang === l ? "#fff" : "rgba(255,255,255,0.45)",
+                  borderRight: l === "ru" ? "1px solid rgba(255,255,255,0.1)" : undefined,
+                }}
+              >
+                {l.toUpperCase()}
+              </button>
+            ))}
+          </div>
+
+          {/* User */}
           {authUser === undefined ? (
             <div className="h-9 w-24 rounded-2xl animate-pulse" style={{ background: "rgba(255,255,255,0.06)" }} />
           ) : authUser ? (
@@ -155,8 +179,10 @@ export default function SiteHeader() {
               {menuOpen && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
-                  <div className="absolute right-0 top-full mt-2 w-52 rounded-2xl shadow-2xl z-50 overflow-hidden"
-                    style={{ background: "#0f1929", border: "1px solid rgba(255,255,255,0.1)" }}>
+                  <div
+                    className="absolute right-0 top-full mt-2 w-52 rounded-2xl shadow-2xl z-50 overflow-hidden"
+                    style={{ background: "#0f1929", border: "1px solid rgba(255,255,255,0.1)" }}
+                  >
                     <div className="px-4 py-3" style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
                       <div className="text-sm font-semibold text-white truncate">{displayName}</div>
                       <div className="text-xs text-white/40 mt-0.5 truncate">{authUser.email}</div>
@@ -170,13 +196,13 @@ export default function SiteHeader() {
                         onClick={() => setMenuOpen(false)}
                         className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm text-white/70 transition hover:bg-white/8 hover:text-white"
                       >
-                        {authUser.role === "admin" ? "⚙️ Админ-панель" : "🏠 Личный кабинет"}
+                        {authUser.role === "admin" ? `⚙️ ${t.nav.adminPanel}` : `🏠 ${t.nav.dashboard}`}
                       </Link>
                       <button
                         onClick={handleLogout}
                         className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-sm text-red-400 transition hover:bg-red-500/10"
                       >
-                        🚪 Выйти
+                        🚪 {t.nav.logout}
                       </button>
                     </div>
                   </div>
@@ -190,14 +216,14 @@ export default function SiteHeader() {
                 className="rounded-2xl px-5 py-2 text-sm font-semibold text-white/80 transition hover:text-white"
                 style={{ border: "1px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.04)" }}
               >
-                Войти
+                {t.nav.login}
               </Link>
               <Link
                 href="/auth?mode=signup"
                 className="rounded-2xl px-5 py-2 text-sm font-semibold text-white transition"
                 style={{ background: "linear-gradient(135deg, #5B2ECC, #7C4AE8)", boxShadow: "0 4px 16px rgba(92,46,204,0.4)" }}
               >
-                Регистрация
+                {t.nav.register}
               </Link>
             </>
           )}

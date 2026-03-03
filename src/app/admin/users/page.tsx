@@ -24,6 +24,8 @@ export default function AdminUsersPage() {
   const [filter, setFilter] = useState<"all" | "candidate" | "employer">("all");
   const [search, setSearch] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmId, setConfirmId] = useState<string | null>(null);
 
   async function load() {
     setLoading(true);
@@ -46,6 +48,31 @@ export default function AdminUsersPage() {
     const { error: err } = await supabase.from("profiles").update({ is_blocked: next }).eq("id", id);
     if (err) { setError(err.message); return; }
     setUsers((prev) => prev.map((u) => u.id === id ? { ...u, is_blocked: next } : u));
+  }
+
+  async function deleteUser(id: string) {
+    setDeletingId(id);
+    setError(null);
+    const supabase = createClient();
+
+    // Delete related data
+    await Promise.all([
+      supabase.from("candidate_experiences").delete().eq("profile_id", id),
+      supabase.from("candidate_skills").delete().eq("user_id", id),
+      supabase.from("applications").delete().eq("user_id", id),
+      supabase.from("saved_jobs").delete().eq("user_id", id),
+    ]);
+
+    const { error: err } = await supabase.from("profiles").delete().eq("id", id);
+    if (err) {
+      setError("Ошибка удаления: " + err.message);
+      setDeletingId(null);
+      return;
+    }
+
+    setUsers((prev) => prev.filter((u) => u.id !== id));
+    setConfirmId(null);
+    setDeletingId(null);
   }
 
   const filtered = users.filter((u) => {
@@ -106,12 +133,13 @@ export default function AdminUsersPage() {
                 u.is_blocked ? "border-red-500/30 bg-red-500/5" : "border-white/10 bg-white/5"
               }`}>
 
-              {/* Аватар */}
-              <div className="w-9 h-9 rounded-full bg-violet-600/30 flex items-center justify-center text-sm font-bold shrink-0">
+              {/* Avatar */}
+              <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold shrink-0"
+                style={{ background: u.role === "employer" ? "rgba(59,130,246,0.3)" : "rgba(124,58,237,0.3)" }}>
                 {((u.full_name ?? u.email ?? "?")[0] ?? "?").toUpperCase()}
               </div>
 
-              {/* Инфо */}
+              {/* Info */}
               <div className="flex-1 min-w-0">
                 <div className="font-semibold truncate flex items-center gap-2">
                   <span>{u.full_name ?? "Без имени"}</span>
@@ -123,7 +151,7 @@ export default function AdminUsersPage() {
                 </div>
               </div>
 
-              {/* Кнопки */}
+              {/* Buttons */}
               <div className="shrink-0 flex items-center gap-2 flex-wrap justify-end">
                 <span className={`text-xs px-2 py-1 rounded-full font-medium ${
                   u.role === "employer" ? "bg-blue-500/20 text-blue-400" :
@@ -146,6 +174,29 @@ export default function AdminUsersPage() {
                   }`}>
                   {u.is_blocked ? "Разблокировать" : "Заблокировать"}
                 </button>
+
+                {confirmId === u.id ? (
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => deleteUser(u.id)}
+                      disabled={deletingId === u.id}
+                      className="px-3 py-1.5 rounded-xl text-xs font-semibold transition"
+                      style={{ background: "rgba(239,68,68,0.25)", color: "#f87171" }}>
+                      {deletingId === u.id ? "..." : "Подтвердить"}
+                    </button>
+                    <button onClick={() => setConfirmId(null)}
+                      className="px-3 py-1.5 rounded-xl text-xs transition"
+                      style={{ background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.5)" }}>
+                      Отмена
+                    </button>
+                  </div>
+                ) : (
+                  <button onClick={() => setConfirmId(u.id)}
+                    className="px-3 py-1.5 rounded-xl text-sm transition"
+                    style={{ background: "rgba(239,68,68,0.1)", color: "#f87171", border: "1px solid rgba(239,68,68,0.2)" }}>
+                    🗑 Удалить
+                  </button>
+                )}
               </div>
             </div>
           ))}

@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { useI18n } from "@/i18n/context";
 
 type Job = {
   id: string;
@@ -13,56 +14,38 @@ type Job = {
   salary_from: number | null;
   salary_to: number | null;
   employment_type: string | null;
-  format: string | null;
-  experience: string | null;
+  work_format: string | null;
+  experience_level: string | null;
+  tags: string[] | null;
+  company: { name: string | null }[] | null;
 };
 
-const CITIES = [
-  "Все города",
-  "Ташкент",
-  "Самарканд",
-  "Бухара",
-  "Наманган",
-  "Андижан",
-  "Фергана",
-  "Нукус",
-  "Карши",
-  "Термез",
-  "Коканд",
-  "Ургенч",
-  "Навои",
-  "Джизак",
-];
-const FORMATS = [
-  { value: "", label: "Любой формат" },
-  { value: "office", label: "Офис" },
-  { value: "remote", label: "Удалённо" },
-  { value: "hybrid", label: "Гибрид" },
-];
-const EXPERIENCE_LEVELS = [
-  { value: "", label: "Любой опыт" },
-  { value: "no_experience", label: "Без опыта" },
-  { value: "junior", label: "До 1 года" },
-  { value: "middle", label: "1–3 года" },
-  { value: "senior", label: "3–5 лет" },
-  { value: "lead", label: "5+ лет" },
-];
-
-function formatSalary(from: number | null, to: number | null) {
+function formatSalary(
+  from: number | null,
+  to: number | null,
+  fromFn: (v: string) => string,
+  toFn: (v: string) => string
+) {
   const fmt = (n: number) => n.toLocaleString("ru-RU");
   if (!from && !to) return null;
   if (from && to) return `${fmt(from)} – ${fmt(to)}`;
-  if (from) return `от ${fmt(from)}`;
-  return `до ${fmt(to!)}`;
+  if (from) return fromFn(fmt(from));
+  return toFn(fmt(to!));
 }
 
-function daysSince(iso: string) {
+function daysSince(
+  iso: string,
+  todayStr: string,
+  yesterdayStr: string,
+  daysAgoFn: (d: number) => string,
+  locale: string
+) {
   const diff = Date.now() - new Date(iso).getTime();
   const days = Math.floor(diff / 86_400_000);
-  if (days === 0) return "Сегодня";
-  if (days === 1) return "Вчера";
-  if (days < 7) return `${days} дн. назад`;
-  return new Date(iso).toLocaleDateString("ru-RU", { day: "numeric", month: "short" });
+  if (days === 0) return todayStr;
+  if (days === 1) return yesterdayStr;
+  if (days < 7) return daysAgoFn(days);
+  return new Date(iso).toLocaleDateString(locale, { day: "numeric", month: "short" });
 }
 
 function isNew(iso: string) {
@@ -70,28 +53,50 @@ function isNew(iso: string) {
 }
 
 export default function JobsPage() {
+  const { t, lang } = useI18n();
   const [jobs, setJobs] = useState<Job[]>([]);
+  const [dbError, setDbError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [city, setCity] = useState("");
   const [format, setFormat] = useState("");
   const [experience, setExperience] = useState("");
 
+  const locale = lang === "uz" ? "uz-UZ" : "ru-RU";
+
+  const formats = [
+    { value: "", label: t.jobs.formats.any },
+    { value: "office", label: t.jobs.formats.office },
+    { value: "remote", label: t.jobs.formats.remote },
+    { value: "hybrid", label: t.jobs.formats.hybrid },
+  ];
+
+  const experienceLevels = [
+    { value: "", label: t.jobs.experienceLevels.any },
+    { value: "no_experience", label: t.jobs.experienceLevels.no_experience },
+    { value: "junior", label: t.jobs.experienceLevels.junior },
+    { value: "middle", label: t.jobs.experienceLevels.middle },
+    { value: "senior", label: t.jobs.experienceLevels.senior },
+    { value: "lead", label: t.jobs.experienceLevels.lead },
+  ];
+
   const load = useCallback(async () => {
     setLoading(true);
     const supabase = createClient();
     let q = supabase
       .from("jobs")
-      .select("id,title,city,description,created_at,salary_from,salary_to,employment_type,format,experience")
+      .select("id,title,city,description,created_at,salary_from,salary_to,employment_type,work_format,experience_level,tags,company:companies(name)")
       .eq("is_active", true)
       .order("created_at", { ascending: false });
 
     if (city) q = q.ilike("city", `%${city}%`);
-    if (format) q = q.eq("format", format);
-    if (experience) q = q.eq("experience", experience);
+    if (format) q = q.eq("work_format", format);
+    if (experience) q = q.eq("experience_level", experience);
 
-    const { data } = await q;
-    let list = (data ?? []) as Job[];
+    const { data, error: dbErr } = await q;
+    if (dbErr) { setDbError(dbErr.message); setLoading(false); return; }
+    setDbError(null);
+    let list = (data ?? []) as unknown as Job[];
 
     if (search.trim()) {
       const s = search.toLowerCase();
@@ -105,8 +110,8 @@ export default function JobsPage() {
   }, [search, city, format, experience]);
 
   useEffect(() => {
-    const t = setTimeout(load, 300);
-    return () => clearTimeout(t);
+    const timeout = setTimeout(load, 300);
+    return () => clearTimeout(timeout);
   }, [load]);
 
   return (
@@ -114,12 +119,12 @@ export default function JobsPage() {
 
       <div className="border-b" style={{ borderColor: "rgba(196,173,255,0.08)" }}>
         <div className="mx-auto max-w-6xl px-4 sm:px-6 py-8">
-          <div className="font-accent text-xs mb-2" style={{ color: "var(--lavender)" }}>ВАКАНСИИ</div>
+          <div className="font-accent text-xs mb-2" style={{ color: "var(--lavender)" }}>{t.jobs.title}</div>
           <h1 className="font-display text-4xl sm:text-5xl" style={{ color: "var(--chalk)" }}>
-            Все предложения
+            {t.jobs.allOffers}
           </h1>
           <p className="font-body text-white/40 mt-2 text-sm">
-            {loading ? "Загружаем..." : `${jobs.length} вакансий`}
+            {loading ? t.jobs.loading : t.jobs.jobsCount(jobs.length)}
           </p>
         </div>
       </div>
@@ -127,10 +132,10 @@ export default function JobsPage() {
       <div className="mx-auto max-w-6xl px-4 sm:px-6 py-8">
         <div className="flex flex-col lg:flex-row gap-8">
 
-          {/* ═══ ФИЛЬТРЫ ═══ */}
+          {/* ═══ FILTERS ═══ */}
           <aside className="lg:w-56 shrink-0 space-y-5">
             <div>
-              <div className="font-accent text-xs mb-2" style={{ color: "rgba(255,255,255,0.3)" }}>ПОИСК</div>
+              <div className="font-accent text-xs mb-2" style={{ color: "rgba(255,255,255,0.3)" }}>{t.jobs.search}</div>
               <div className="relative">
                 <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -138,7 +143,7 @@ export default function JobsPage() {
                 <input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Должность, навык..."
+                  placeholder={t.jobs.searchPlaceholder}
                   className="w-full pl-9 pr-3 py-2.5 rounded-xl font-body text-sm text-white placeholder-white/25 focus:outline-none transition"
                   style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(196,173,255,0.12)" }}
                 />
@@ -146,12 +151,13 @@ export default function JobsPage() {
             </div>
 
             <div>
-              <div className="font-accent text-xs mb-2" style={{ color: "rgba(255,255,255,0.3)" }}>ГОРОД</div>
+              <div className="font-accent text-xs mb-2" style={{ color: "rgba(255,255,255,0.3)" }}>{t.jobs.city}</div>
               <div className="flex flex-wrap gap-2">
-                {CITIES.map((c) => {
-                  const active = (c === "Все города" && !city) || city === c;
+                {t.common.cities.map((c) => {
+                  const allCitiesLabel = t.common.cities[0];
+                  const active = (c === allCitiesLabel && !city) || city === c;
                   return (
-                    <button key={c} onClick={() => setCity(c === "Все города" ? "" : c)}
+                    <button key={c} onClick={() => setCity(c === allCitiesLabel ? "" : c)}
                       className="px-3 py-1.5 rounded-xl text-xs font-body transition"
                       style={{
                         background: active ? "rgba(92,46,204,0.4)" : "rgba(255,255,255,0.05)",
@@ -166,9 +172,9 @@ export default function JobsPage() {
             </div>
 
             <div>
-              <div className="font-accent text-xs mb-2" style={{ color: "rgba(255,255,255,0.3)" }}>ФОРМАТ</div>
+              <div className="font-accent text-xs mb-2" style={{ color: "rgba(255,255,255,0.3)" }}>{t.jobs.format}</div>
               <div className="space-y-1">
-                {FORMATS.map((f) => (
+                {formats.map((f) => (
                   <button key={f.value} onClick={() => setFormat(f.value)}
                     className="w-full text-left px-3 py-2 rounded-xl text-sm font-body transition"
                     style={{
@@ -182,9 +188,9 @@ export default function JobsPage() {
             </div>
 
             <div>
-              <div className="font-accent text-xs mb-2" style={{ color: "rgba(255,255,255,0.3)" }}>ОПЫТ</div>
+              <div className="font-accent text-xs mb-2" style={{ color: "rgba(255,255,255,0.3)" }}>{t.jobs.experience}</div>
               <div className="space-y-1">
-                {EXPERIENCE_LEVELS.map((e) => (
+                {experienceLevels.map((e) => (
                   <button key={e.value} onClick={() => setExperience(e.value)}
                     className="w-full text-left px-3 py-2 rounded-xl text-sm font-body transition"
                     style={{
@@ -201,12 +207,12 @@ export default function JobsPage() {
               <button onClick={() => { setSearch(""); setCity(""); setFormat(""); setExperience(""); }}
                 className="w-full py-2 rounded-xl text-xs font-accent transition"
                 style={{ border: "1px solid rgba(239,68,68,0.3)", color: "#f87171" }}>
-                СБРОСИТЬ ФИЛЬТРЫ
+                {t.jobs.resetFilters}
               </button>
             )}
           </aside>
 
-          {/* ═══ СПИСОК ═══ */}
+          {/* ═══ JOB LIST ═══ */}
           <div className="flex-1">
             {loading ? (
               <div className="space-y-3">
@@ -217,12 +223,16 @@ export default function JobsPage() {
             ) : jobs.length === 0 ? (
               <div className="brand-card rounded-2xl p-12 text-center">
                 <div className="text-4xl mb-3">🔍</div>
-                <div className="font-body text-white/40">Ничего не найдено</div>
+                <div className="font-body text-white/40">{t.jobs.notFound}</div>
               </div>
             ) : (
               <div className="space-y-3">
                 {jobs.map((job) => {
-                  const salary = formatSalary(job.salary_from, job.salary_to);
+                  const salary = formatSalary(job.salary_from, job.salary_to, t.common.salary.from, t.common.salary.to);
+                  const empType = t.jobs.employmentTypes[job.employment_type as keyof typeof t.jobs.employmentTypes];
+                  const expLevel = t.jobs.experienceLevels[job.experience_level as keyof typeof t.jobs.experienceLevels];
+                  const wFormat = t.jobs.formats[job.work_format as keyof typeof t.jobs.formats];
+                  const dateStr = daysSince(job.created_at, t.jobs.today, t.jobs.yesterday, t.jobs.daysAgo, locale);
                   return (
                     <Link key={job.id} href={`/jobs/${job.id}`}
                       className="brand-card rounded-2xl p-5 flex gap-4 items-start group transition-all hover:border-[rgba(196,173,255,0.25)] block">
@@ -233,31 +243,59 @@ export default function JobsPage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-3">
                           <h2 className="font-body font-semibold text-white group-hover:text-[var(--lavender)] transition line-clamp-1">
-                            {job.title ?? "Без названия"}
+                            {job.title ?? t.jobs.noTitle}
                           </h2>
                           <div className="flex items-center gap-2 shrink-0">
                             {isNew(job.created_at) && (
-                              <span className="badge-new text-xs px-2 py-0.5 rounded-full font-accent">NEW</span>
+                              <span className="badge-new text-xs px-2 py-0.5 rounded-full font-accent">{t.common.new}</span>
                             )}
-                            <span className="text-xs text-white/30 font-body">{daysSince(job.created_at)}</span>
+                            <span className="text-xs text-white/30 font-body">{dateStr}</span>
                           </div>
                         </div>
+                        {(job.company as any)?.[0]?.name && (
+                          <div className="text-xs mt-0.5 font-medium" style={{ color: "var(--lavender)" }}>
+                            {(job.company as any)[0]?.name}
+                          </div>
+                        )}
                         <div className="flex flex-wrap items-center gap-2 mt-1.5">
-                          {job.city && (
-                            <span className="text-xs text-white/40 font-body">{job.city}</span>
-                          )}
-                          {job.format && (
+                          {job.city && <span className="text-xs text-white/40 font-body">📍 {job.city}</span>}
+                          {job.work_format && (
                             <span className="text-xs px-2 py-0.5 rounded-full font-body"
                               style={{ background: "rgba(196,173,255,0.08)", color: "var(--lavender)" }}>
-                              {job.format === "remote" ? "Удалённо" : job.format === "hybrid" ? "Гибрид" : "Офис"}
+                              {wFormat ?? job.work_format}
+                            </span>
+                          )}
+                          {job.employment_type && (
+                            <span className="text-xs px-2 py-0.5 rounded-full font-body"
+                              style={{ background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.5)" }}>
+                              {empType ?? job.employment_type}
+                            </span>
+                          )}
+                          {job.experience_level && (
+                            <span className="text-xs px-2 py-0.5 rounded-full font-body"
+                              style={{ background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.5)" }}>
+                              🎯 {expLevel ?? job.experience_level}
                             </span>
                           )}
                           {salary && (
                             <span className="text-xs font-semibold font-body" style={{ color: "var(--gold)" }}>
-                              {salary} сум
+                              💰 {salary} {t.jobs.sum}
                             </span>
                           )}
                         </div>
+                        {job.tags && job.tags.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5 mt-2">
+                            {job.tags.slice(0, 4).map((tag) => (
+                              <span key={tag} className="text-xs px-2 py-0.5 rounded-full"
+                                style={{ background: "rgba(124,58,237,0.12)", color: "#C4ADFF", border: "1px solid rgba(124,58,237,0.2)" }}>
+                                {tag}
+                              </span>
+                            ))}
+                            {job.tags.length > 4 && (
+                              <span className="text-xs text-white/30">+{job.tags.length - 4}</span>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </Link>
                   );
