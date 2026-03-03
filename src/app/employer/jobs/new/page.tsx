@@ -101,6 +101,7 @@ export default function NewJobPage() {
  setMsg(null);
  if (!title.trim()) { setMsg("Введите название вакансии."); return; }
  if (!companyId) { setMsg("Выберите компанию."); return; }
+ if (!description.trim()) { setMsg("Введите описание вакансии."); return; }
  if (!city.trim()) { setMsg("Введите город."); return; }
  if (!salaryNegotiable && salaryFrom && salaryTo && salaryFrom > salaryTo) {
  setMsg("Зарплата 'от' не может быть больше 'до'."); return;
@@ -116,7 +117,7 @@ export default function NewJobPage() {
  const { error } = await supabase.from("jobs").insert({
  company_id: companyId,
  title: title.trim(),
- description: description.trim() || null,
+ description: description.trim(),
  requirements: requirements.trim() || null,
  city: city.trim(),
  work_format: format,
@@ -207,7 +208,7 @@ export default function NewJobPage() {
  </div>
 
  <div>
- <label className={labelCls}>Описание вакансии</label>
+ <label className={labelCls}>Описание вакансии *</label>
  <textarea value={description} onChange={(e) => setDescription(e.target.value)}
  placeholder="Чем предстоит заниматься, о команде и проекте..."
  rows={5} className={inputCls} />
