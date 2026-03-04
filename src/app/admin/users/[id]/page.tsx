@@ -224,7 +224,7 @@ export default function AdminUserDetailPage() {
  const steps = [
  { label: "Аккаунт создан", done: true },
  { label: "Компания создана", done: !!company },
- { label: "Верификация", done: company?.verification_status === "approved" },
+ { label: "Верификация", done: company?.verification_status === "approved" || company?.verification_status === "verified" },
  { label: "Вакансии добавлены", done: false }, // can't easily check here
  ];
  const done = steps.filter((s) => s.done).length;
