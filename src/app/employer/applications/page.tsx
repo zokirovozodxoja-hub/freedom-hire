@@ -18,8 +18,14 @@ type Application = {
     email: string | null;
     phone: string | null;
     city: string | null;
+    headline: string | null;
     desired_position: string | null;
+    job_search_status: string | null;
+    salary_expectation: number | null;
+    experience_years: number | null;
   };
+  skills?: { name: string; level: string }[];
+  lastExperience?: { company: string | null; position: string | null };
 };
 
 const STATUSES = [
@@ -78,11 +84,38 @@ export default function EmployerApplicationsPage() {
 
     const candidateIds = [...new Set((data ?? []).map((a) => a.candidate_id))];
     const { data: profiles } = await supabase.from("profiles")
-      .select("id,full_name,email,phone,city,desired_position")
+      .select("id,full_name,email,phone,city,headline,desired_position,job_search_status,salary_expectation,experience_years")
       .in("id", candidateIds);
     const profilesMap = new Map((profiles ?? []).map((p) => [p.id, p]));
 
-    setApps((data ?? []).map((a) => ({ ...a, candidate: profilesMap.get(a.candidate_id) })) as unknown as Application[]);
+    // Загружаем навыки кандидатов
+    const { data: allSkills } = await supabase.from("candidate_skills")
+      .select("user_id,name,level")
+      .in("user_id", candidateIds);
+    const skillsMap = new Map<string, { name: string; level: string }[]>();
+    (allSkills ?? []).forEach((s: any) => {
+      if (!skillsMap.has(s.user_id)) skillsMap.set(s.user_id, []);
+      skillsMap.get(s.user_id)!.push({ name: s.name, level: s.level });
+    });
+
+    // Загружаем последний опыт работы
+    const { data: allExp } = await supabase.from("candidate_experiences")
+      .select("profile_id,company,position,start_date")
+      .in("profile_id", candidateIds)
+      .order("start_date", { ascending: false });
+    const expMap = new Map<string, { company: string | null; position: string | null }>();
+    (allExp ?? []).forEach((e: any) => {
+      if (!expMap.has(e.profile_id)) {
+        expMap.set(e.profile_id, { company: e.company, position: e.position });
+      }
+    });
+
+    setApps((data ?? []).map((a) => ({
+      ...a,
+      candidate: profilesMap.get(a.candidate_id),
+      skills: skillsMap.get(a.candidate_id) ?? [],
+      lastExperience: expMap.get(a.candidate_id),
+    })) as unknown as Application[]);
     setLoading(false);
   }
 
@@ -93,6 +126,71 @@ export default function EmployerApplicationsPage() {
     setShowModal(true);
   }
 
+  async function openChat(app: Application) {
+    const supabase = createClient();
+    const { data: userData } = await supabase.auth.getUser();
+    if (!userData.user) return;
+
+    // Ищем существующий диалог по employer + candidate + job
+    const { data: existingConv } = await supabase
+      .from("conversations")
+      .select("id")
+      .eq("employer_id", userData.user.id)
+      .eq("candidate_id", app.candidate_id)
+      .eq("job_id", app.job_id)
+      .maybeSingle();
+
+    if (existingConv) {
+      router.push(`/chat/${existingConv.id}`);
+      return;
+    }
+
+    // Fallback: ищем по application_id (диалог мог быть создан через смену статуса)
+    const { data: convByApp } = await supabase
+      .from("conversations")
+      .select("id")
+      .eq("application_id", app.id)
+      .maybeSingle();
+
+    if (convByApp) {
+      router.push(`/chat/${convByApp.id}`);
+      return;
+    }
+
+    // Fallback: ищем любой диалог между этим работодателем и кандидатом
+    const { data: convByPair } = await supabase
+      .from("conversations")
+      .select("id")
+      .eq("employer_id", userData.user.id)
+      .eq("candidate_id", app.candidate_id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (convByPair) {
+      router.push(`/chat/${convByPair.id}`);
+      return;
+    }
+
+    // Создаём новый диалог
+    const { data: newConv, error: insertError } = await supabase
+      .from("conversations")
+      .insert({
+        employer_id: userData.user.id,
+        candidate_id: app.candidate_id,
+        job_id: app.job_id,
+        application_id: app.id,
+      })
+      .select("id")
+      .single();
+
+    if (newConv) {
+      router.push(`/chat/${newConv.id}`);
+    } else {
+      console.error("Ошибка создания диалога:", insertError);
+    }
+  }
+
   async function sendAndUpdate() {
     if (!selectedApp) return;
     setSending(true);
@@ -101,12 +199,40 @@ export default function EmployerApplicationsPage() {
     if (!userData.user) { setSending(false); return; }
 
     if (messageText.trim()) {
-      await supabase.from("messages").insert({
-        application_id: selectedApp.id,
-        sender_id: userData.user.id,
-        receiver_id: selectedApp.candidate_id,
-        message: messageText,
-      });
+      // Ищем или создаём conversation
+      const { data: existingConv } = await supabase
+        .from("conversations")
+        .select("id")
+        .eq("employer_id", userData.user.id)
+        .eq("candidate_id", selectedApp.candidate_id)
+        .eq("job_id", selectedApp.job_id)
+        .maybeSingle();
+
+      let conversationId = existingConv?.id;
+
+      if (!conversationId) {
+        // Создаём новый диалог
+        const { data: newConv } = await supabase
+          .from("conversations")
+          .insert({
+            employer_id: userData.user.id,
+            candidate_id: selectedApp.candidate_id,
+            job_id: selectedApp.job_id,
+            application_id: selectedApp.id,
+          })
+          .select("id")
+          .single();
+        conversationId = newConv?.id;
+      }
+
+      if (conversationId) {
+        // Отправляем сообщение
+        await supabase.from("messages").insert({
+          conversation_id: conversationId,
+          sender_id: userData.user.id,
+          content: messageText.trim(),
+        });
+      }
     }
 
     await supabase.from("applications").update({ status: newStatus }).eq("id", selectedApp.id);
@@ -187,34 +313,91 @@ export default function EmployerApplicationsPage() {
           <div className="space-y-3">
             {filtered.map((app) => {
               const name = app.candidate?.full_name || app.candidate?.email || "Кандидат";
+              const statusLabels: Record<string, { label: string; color: string }> = {
+                actively_looking: { label: "Активно ищет", color: "#4ade80" },
+                open_to_offers: { label: "Открыт к предложениям", color: "#C4ADFF" },
+                not_looking: { label: "Не ищет", color: "#6b7280" },
+              };
+              const searchStatus = statusLabels[app.candidate?.job_search_status ?? ""];
               return (
                 <div key={app.id} className="brand-card rounded-2xl p-5">
                   <div className="flex items-start gap-4">
 
                     {/* Avatar */}
-                    <div className="w-12 h-12 rounded-xl flex items-center justify-center text-lg font-bold shrink-0"
+                    <div className="w-14 h-14 rounded-xl flex items-center justify-center text-xl font-bold shrink-0"
                       style={{ background: "rgba(92,46,204,0.25)", color: "var(--lavender)", border: "1px solid rgba(92,46,204,0.3)" }}>
                       {name[0].toUpperCase()}
                     </div>
 
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-3 mb-1">
-                        <h3 className="font-body font-semibold text-white">{name}</h3>
+                        <div>
+                          <h3 className="font-body font-semibold text-white text-lg">{name}</h3>
+                          {(app.candidate?.headline || app.candidate?.desired_position) && (
+                            <div className="text-sm" style={{ color: "var(--lavender)" }}>
+                              {app.candidate.headline || app.candidate.desired_position}
+                            </div>
+                          )}
+                        </div>
                         <StatusBadge status={app.status} />
                       </div>
 
-                      {app.candidate?.desired_position && (
-                        <div className="text-sm mb-1" style={{ color: "var(--lavender)" }}>
-                          {app.candidate.desired_position}
+                      {/* Meta info row */}
+                      <div className="flex flex-wrap items-center gap-2 mt-2 mb-3">
+                        {app.candidate?.city && (
+                          <span className="text-xs px-2 py-1 rounded-lg font-body"
+                            style={{ background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.6)" }}>
+                            📍 {app.candidate.city}
+                          </span>
+                        )}
+                        {app.candidate?.experience_years && (
+                          <span className="text-xs px-2 py-1 rounded-lg font-body"
+                            style={{ background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.6)" }}>
+                            💼 {app.candidate.experience_years} лет опыта
+                          </span>
+                        )}
+                        {app.candidate?.salary_expectation && (
+                          <span className="text-xs px-2 py-1 rounded-lg font-body"
+                            style={{ background: "rgba(201,168,76,0.15)", color: "var(--gold)" }}>
+                            💰 {app.candidate.salary_expectation.toLocaleString("ru-RU")} сум
+                          </span>
+                        )}
+                        {searchStatus && (
+                          <span className="text-xs px-2 py-1 rounded-lg font-body"
+                            style={{ background: "rgba(255,255,255,0.05)", color: searchStatus.color }}>
+                            ● {searchStatus.label}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Last experience */}
+                      {app.lastExperience?.position && (
+                        <div className="text-sm mb-2" style={{ color: "rgba(255,255,255,0.5)" }}>
+                          <span style={{ color: "rgba(255,255,255,0.7)" }}>{app.lastExperience.position}</span>
+                          {app.lastExperience.company && (
+                            <span> в {app.lastExperience.company}</span>
+                          )}
                         </div>
                       )}
 
-                      <div className="flex flex-wrap gap-3 text-xs mb-2" style={{ color: "rgba(255,255,255,0.4)" }}>
-                        {app.candidate?.email && <span>{app.candidate.email}</span>}
-                        {app.candidate?.phone && <span>· {app.candidate.phone}</span>}
-                        {app.candidate?.city && <span>· {app.candidate.city}</span>}
-                      </div>
+                      {/* Skills */}
+                      {app.skills && app.skills.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 mb-3">
+                          {app.skills.slice(0, 5).map((skill, i) => (
+                            <span key={i} className="text-xs px-2 py-0.5 rounded-full"
+                              style={{ background: "rgba(124,58,237,0.12)", color: "#C4ADFF", border: "1px solid rgba(124,58,237,0.2)" }}>
+                              {skill.name}
+                            </span>
+                          ))}
+                          {app.skills.length > 5 && (
+                            <span className="text-xs px-2 py-0.5" style={{ color: "rgba(255,255,255,0.3)" }}>
+                              +{app.skills.length - 5}
+                            </span>
+                          )}
+                        </div>
+                      )}
 
+                      {/* Job & date */}
                       <div className="text-xs mb-3" style={{ color: "rgba(255,255,255,0.3)" }}>
                         На вакансию: <span className="text-white/60">{app.jobs?.title ?? "—"}</span>
                         {" · "}
@@ -228,17 +411,24 @@ export default function EmployerApplicationsPage() {
                         </div>
                       )}
 
+                      {/* Contacts */}
+                      <div className="flex flex-wrap gap-3 text-xs mb-3" style={{ color: "rgba(255,255,255,0.4)" }}>
+                        {app.candidate?.email && <span>✉️ {app.candidate.email}</span>}
+                        {app.candidate?.phone && <span>📞 {app.candidate.phone}</span>}
+                      </div>
+
                       {/* Actions */}
                       <div className="flex flex-wrap items-center gap-2">
                         <Link href={`/candidates/${app.candidate_id}`}
                           className="btn-primary inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold text-white">
-                          Профиль →
+                          Полный профиль →
                         </Link>
-                        <Link href={`/chat/${app.id}`}
+                        <button
+                          onClick={() => openChat(app)}
                           className="inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-body transition"
                           style={{ border: "1px solid rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.7)", background: "rgba(255,255,255,0.04)" }}>
-                          Написать
-                        </Link>
+                          💬 Написать
+                        </button>
 
                         <div className="ml-auto flex flex-wrap gap-1.5">
                           {STATUSES.filter((s) => s.key !== app.status).map((s) => (
