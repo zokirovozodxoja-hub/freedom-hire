@@ -1,14 +1,26 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { getMyProfile, updateMyProfile, type Status } from "@/lib/profile";
 import { listMyExperiences, addExperience, updateExperience, deleteExperience, type Experience } from "@/lib/experiences";
 import { listMySkills, addSkill, deleteSkill, type Skill, type SkillLevel } from "@/lib/skills";
 
-function fmtNum(v: string) { const d = v.replace(/\D/g, ""); return d ? d.replace(/\B(?=(\d{3})+(?!\d))/g, " ") : ""; }
-function parseNum(v: string) { const d = v.replace(/\D/g, ""); return d ? Number(d) : null; }
+/* ═══════════════════════════════════════════════════════════════════ */
+/* HELPERS */
+/* ═══════════════════════════════════════════════════════════════════ */
+function fmtNum(v: string) { 
+  const d = v.replace(/\D/g, ""); 
+  return d ? d.replace(/\B(?=(\d{3})+(?!\d))/g, " ") : ""; 
+}
+function parseNum(v: string) { 
+  const d = v.replace(/\D/g, ""); 
+  return d ? Number(d) : null; 
+}
+
 function totalExpMonths(items: Experience[]) {
-  let m = 0; const now = new Date();
+  let m = 0;
+  const now = new Date();
   for (const e of items) {
     if (!e.start_date) continue;
     const s = new Date(e.start_date);
@@ -18,82 +30,282 @@ function totalExpMonths(items: Experience[]) {
   }
   return m;
 }
+
 function fmtDate(d: string | null) {
-  if (!d) return "наст. время";
-  return new Date(d).toLocaleDateString("ru-RU", { month: "short", year: "numeric" });
+  if (!d) return "по настоящее время";
+  return new Date(d).toLocaleDateString("ru-RU", { month: "long", year: "numeric" });
 }
+
 function calcDuration(s: string | null, e: string | null) {
   if (!s) return "";
   const sd = new Date(s), ed = e ? new Date(e) : new Date();
   const m = (ed.getFullYear() - sd.getFullYear()) * 12 + (ed.getMonth() - sd.getMonth());
   if (m <= 0) return "";
   const y = Math.floor(m / 12), mo = m % 12;
-  return [y ? `${y} г` : "", mo ? `${mo} мес` : ""].filter(Boolean).join(" ");
+  return [y ? `${y} г.` : "", mo ? `${mo} мес.` : ""].filter(Boolean).join(" ");
 }
 
-const STATUS_META: Record<Status, { label: string; color: string; bg: string; border: string }> = {
-  actively_looking: { label: "Активно ищу работу",        color: "#4ade80", bg: "rgba(74,222,128,0.1)",  border: "rgba(74,222,128,0.25)"  },
-  open_to_offers:   { label: "Рассматриваю предложения",  color: "#C4ADFF", bg: "rgba(196,173,255,0.1)", border: "rgba(196,173,255,0.25)" },
-  starting_new_job: { label: "Выхожу на новое место",     color: "#fbbf24", bg: "rgba(251,191,36,0.1)",  border: "rgba(251,191,36,0.25)"  },
-  not_looking:      { label: "Не ищу работу",             color: "#6b7280", bg: "rgba(107,114,128,0.1)", border: "rgba(107,114,128,0.25)" },
-};
-const LEVEL_LABELS: Record<SkillLevel, string> = {
-  beginner: "Начинающий", junior: "Джуниор",
-  intermediate: "Средний", advanced: "Продвинутый", expert: "Эксперт",
-};
-const LEVEL_PCT: Record<SkillLevel, number> = {
-  beginner: 20, junior: 40, intermediate: 60, advanced: 80, expert: 100,
-};
-const LEVEL_COLORS: Record<SkillLevel, string> = {
-  beginner: "#6b7280", junior: "#C4ADFF", intermediate: "#818cf8",
-  advanced: "#5B2ECC", expert: "#C9A84C",
+/* ═══════════════════════════════════════════════════════════════════ */
+/* CONSTANTS */
+/* ═══════════════════════════════════════════════════════════════════ */
+const STATUS_OPTIONS: { value: Status; label: string; color: string }[] = [
+  { value: "actively_looking", label: "Активно ищу работу", color: "#22c55e" },
+  { value: "open_to_offers", label: "Рассматриваю предложения", color: "#C4ADFF" },
+  { value: "starting_new_job", label: "Выхожу на новое место", color: "#fbbf24" },
+  { value: "not_looking", label: "Не ищу работу", color: "#6b7280" },
+];
+
+const LEVEL_OPTIONS: { value: SkillLevel; label: string; color: string }[] = [
+  { value: "beginner", label: "Начальный", color: "#6b7280" },
+  { value: "junior", label: "Базовый", color: "#60a5fa" },
+  { value: "intermediate", label: "Средний", color: "#C4ADFF" },
+  { value: "advanced", label: "Продвинутый", color: "#5B2ECC" },
+  { value: "expert", label: "Эксперт", color: "#C9A84C" },
+];
+
+const POPULAR_SKILLS = [
+  "MS Office", "Excel", "1C", "Продажи", "Переговоры", "Управление командой",
+  "Английский язык", "Русский язык", "Узбекский язык", "Водительские права",
+  "CRM", "Коммуникабельность", "Аналитика", "Презентации"
+];
+
+/* ═══════════════════════════════════════════════════════════════════ */
+/* ICONS */
+/* ═══════════════════════════════════════════════════════════════════ */
+const Icons = {
+  user: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />,
+  briefcase: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />,
+  star: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />,
+  phone: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />,
+  camera: <><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></>,
+  x: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />,
+  pencil: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />,
+  trash: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />,
+  plus: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />,
+  check: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />,
+  ai: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />,
+  doc: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />,
+  heart: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />,
+  download: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />,
 };
 
-function SectionCard({ children }: { children: React.ReactNode }) {
+function Icon({ name, className = "w-5 h-5" }: { name: keyof typeof Icons; className?: string }) {
   return (
-    <div className="brand-card rounded-2xl p-6" style={{ border: "1px solid rgba(196,173,255,0.1)" }}>
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      {Icons[name]}
+    </svg>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════════ */
+/* COMPONENTS */
+/* ═══════════════════════════════════════════════════════════════════ */
+
+function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+  return (
+    <div className={`rounded-2xl p-5 sm:p-6 ${className}`}
+      style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(196,173,255,0.1)" }}>
       {children}
     </div>
   );
 }
 
-function SectionTitle({ children, action }: { children: React.ReactNode; action?: React.ReactNode }) {
+function SectionHeader({ icon, title, subtitle, action }: { 
+  icon: keyof typeof Icons; 
+  title: string; 
+  subtitle?: string;
+  action?: React.ReactNode;
+}) {
   return (
-    <div className="flex items-center justify-between mb-5">
-      <h2 className="font-display text-xl" style={{ color: "var(--chalk)" }}>{children}</h2>
+    <div className="flex items-start justify-between gap-4 mb-5">
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+          style={{ background: "rgba(92,46,204,0.15)", border: "1px solid rgba(92,46,204,0.25)", color: "var(--lavender)" }}>
+          <Icon name={icon} />
+        </div>
+        <div>
+          <h2 className="font-semibold text-white">{title}</h2>
+          {subtitle && <p className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.4)" }}>{subtitle}</p>}
+        </div>
+      </div>
       {action}
     </div>
   );
 }
 
-function InputField({ label, children }: { label: string; children: React.ReactNode }) {
+function Input({ label, value, onChange, placeholder, type = "text", aiButton, onAi }: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  type?: string;
+  aiButton?: boolean;
+  onAi?: () => void;
+}) {
   return (
-    <div className="flex flex-col gap-1.5">
-      <label className="font-accent text-xs" style={{ color: "rgba(255,255,255,0.35)" }}>{label}</label>
-      {children}
+    <div>
+      <div className="flex items-center justify-between mb-1.5">
+        <label className="text-xs font-medium" style={{ color: "rgba(255,255,255,0.5)" }}>{label}</label>
+        {aiButton && (
+          <button onClick={onAi} className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-lg transition hover:scale-105"
+            style={{ background: "linear-gradient(135deg, rgba(92,46,204,0.3), rgba(124,74,232,0.3))", color: "var(--lavender)" }}>
+            <Icon name="ai" className="w-3 h-3" /> AI
+          </button>
+        )}
+      </div>
+      <input
+        type={type}
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="w-full rounded-xl px-4 py-3 text-sm text-white placeholder-white/25 transition outline-none focus:ring-2 focus:ring-violet-500/30"
+        style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(196,173,255,0.12)" }}
+      />
     </div>
   );
 }
 
-const inputStyle: React.CSSProperties = {
-  background: "rgba(255,255,255,0.05)",
-  border: "1px solid rgba(196,173,255,0.12)",
-  borderRadius: 12,
-  padding: "10px 14px",
-  color: "#fff",
-  fontSize: 14,
-  fontFamily: "'DM Sans', sans-serif",
-  width: "100%",
-  outline: "none",
-  transition: "border-color 0.2s",
-};
+function TextArea({ label, value, onChange, placeholder, rows = 3, aiButton, onAi }: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  rows?: number;
+  aiButton?: boolean;
+  onAi?: () => void;
+}) {
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-1.5">
+        <label className="text-xs font-medium" style={{ color: "rgba(255,255,255,0.5)" }}>{label}</label>
+        {aiButton && (
+          <button onClick={onAi} className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-lg transition hover:scale-105"
+            style={{ background: "linear-gradient(135deg, rgba(92,46,204,0.3), rgba(124,74,232,0.3))", color: "var(--lavender)" }}>
+            <Icon name="ai" className="w-3 h-3" /> AI помощник
+          </button>
+        )}
+      </div>
+      <textarea
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        placeholder={placeholder}
+        rows={rows}
+        className="w-full rounded-xl px-4 py-3 text-sm text-white placeholder-white/25 transition outline-none resize-none focus:ring-2 focus:ring-violet-500/30"
+        style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(196,173,255,0.12)" }}
+      />
+    </div>
+  );
+}
 
+function Select({ label, value, onChange, options }: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  options: { value: string; label: string }[];
+}) {
+  return (
+    <div>
+      <label className="block text-xs font-medium mb-1.5" style={{ color: "rgba(255,255,255,0.5)" }}>{label}</label>
+      <select
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        className="w-full rounded-xl px-4 py-3 text-sm text-white transition outline-none cursor-pointer"
+        style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(196,173,255,0.12)" }}
+      >
+        {options.map(o => (
+          <option key={o.value} value={o.value} style={{ background: "#0A0618" }}>{o.label}</option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+function Button({ children, onClick, variant = "primary", size = "md", disabled = false, loading = false }: {
+  children: React.ReactNode;
+  onClick?: () => void;
+  variant?: "primary" | "secondary" | "ghost" | "danger";
+  size?: "sm" | "md";
+  disabled?: boolean;
+  loading?: boolean;
+}) {
+  const base = "rounded-xl font-medium transition inline-flex items-center justify-center gap-2 disabled:opacity-50";
+  const sizes = { sm: "px-3 py-2 text-xs", md: "px-5 py-2.5 text-sm" };
+  const variants: Record<string, string> = {
+    primary: "btn-primary text-white",
+    secondary: "text-white",
+    ghost: "text-white/60 hover:text-white hover:bg-white/5",
+    danger: "text-red-400 hover:bg-red-500/10",
+  };
+  const secondaryStyle = variant === "secondary" ? { background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" } : {};
+  
+  return (
+    <button onClick={onClick} disabled={disabled || loading} className={`${base} ${sizes[size]} ${variants[variant]}`} style={secondaryStyle}>
+      {loading && <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
+      {children}
+    </button>
+  );
+}
+
+function SkillTag({ skill, onRemove }: { skill: Skill; onRemove: () => void }) {
+  const level = LEVEL_OPTIONS.find(l => l.value === skill.level);
+  return (
+    <div className="group flex items-center gap-2 rounded-xl px-3 py-2 transition"
+      style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
+      <span className="w-2 h-2 rounded-full shrink-0" style={{ background: level?.color ?? "#6b7280" }} />
+      <span className="text-sm" style={{ color: "rgba(255,255,255,0.85)" }}>{skill.name}</span>
+      <span className="text-xs" style={{ color: "rgba(255,255,255,0.35)" }}>{level?.label}</span>
+      <button onClick={onRemove} className="opacity-0 group-hover:opacity-100 ml-1 transition text-red-400">
+        <Icon name="x" className="w-3.5 h-3.5" />
+      </button>
+    </div>
+  );
+}
+
+function ExperienceCard({ exp, onEdit, onDelete }: { exp: Experience; onEdit: () => void; onDelete: () => void }) {
+  const duration = calcDuration(exp.start_date, exp.end_date);
+  return (
+    <div className="rounded-xl p-4 transition group" style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
+      <div className="flex gap-3">
+        <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 text-sm font-bold"
+          style={{ background: "rgba(92,46,204,0.2)", color: "var(--lavender)", border: "1px solid rgba(92,46,204,0.3)" }}>
+          {(exp.company ?? "?")[0].toUpperCase()}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <h4 className="font-semibold text-white">{exp.position || "Должность"}</h4>
+              <p className="text-sm" style={{ color: "var(--lavender)" }}>{exp.company || "Компания"}</p>
+            </div>
+            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition">
+              <button onClick={onEdit} className="p-1.5 rounded-lg hover:bg-white/10 transition" style={{ color: "rgba(255,255,255,0.5)" }}>
+                <Icon name="pencil" className="w-4 h-4" />
+              </button>
+              <button onClick={onDelete} className="p-1.5 rounded-lg hover:bg-red-500/20 transition text-red-400">
+                <Icon name="trash" className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 mt-2 text-xs" style={{ color: "rgba(255,255,255,0.4)" }}>
+            <span>{fmtDate(exp.start_date)} — {fmtDate(exp.end_date)}</span>
+            {duration && <span className="px-2 py-0.5 rounded-full" style={{ background: "rgba(255,255,255,0.06)" }}>{duration}</span>}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════════ */
+/* MAIN PAGE */
+/* ═══════════════════════════════════════════════════════════════════ */
 export default function ResumePage() {
   const router = useRouter();
+  
   const [loading, setLoading] = useState(true);
-  const [savingProfile, setSavingProfile] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ msg: string; type: "ok" | "err" } | null>(null);
-
+  
+  // Profile
   const [profile, setProfile] = useState<any>(null);
   const [fullName, setFullName] = useState("");
   const [headline, setHeadline] = useState("");
@@ -102,64 +314,71 @@ export default function ResumePage() {
   const [status, setStatus] = useState<Status>("actively_looking");
   const [salaryText, setSalaryText] = useState("");
   const [currency, setCurrency] = useState<"UZS" | "USD">("UZS");
-
+  
+  // Experience
   const [experiences, setExperiences] = useState<Experience[]>([]);
-  const [addingExp, setAddingExp] = useState(false);
-  const [editingExpId, setEditingExpId] = useState<string | null>(null);
-  const [nCo, setNCo] = useState(""); const [nPos, setNPos] = useState("");
-  const [nS, setNS] = useState(""); const [nE, setNE] = useState("");
-  const [savingExpId, setSavingExpId] = useState<string | null>(null);
-
+  const [showExpForm, setShowExpForm] = useState(false);
+  const [editingExp, setEditingExp] = useState<Experience | null>(null);
+  const [expCompany, setExpCompany] = useState("");
+  const [expPosition, setExpPosition] = useState("");
+  const [expStart, setExpStart] = useState("");
+  const [expEnd, setExpEnd] = useState("");
+  const [expCurrent, setExpCurrent] = useState(false);
+  
+  // Skills
   const [skills, setSkills] = useState<Skill[]>([]);
-  const [addingSkill, setAddingSkill] = useState(false);
-  const [sName, setSName] = useState("");
-  const [sLevel, setSLevel] = useState<SkillLevel>("intermediate");
+  const [showSkillForm, setShowSkillForm] = useState(false);
+  const [skillName, setSkillName] = useState("");
+  const [skillLevel, setSkillLevel] = useState<SkillLevel>("intermediate");
 
-  function notify(msg: string, type: "ok" | "err" = "ok") {
+  const notify = useCallback((msg: string, type: "ok" | "err" = "ok") => {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 3000);
-  }
+  }, []);
 
   useEffect(() => {
     (async () => {
-      const { profile, user, error } = await getMyProfile();
+      const { profile: p, user, error } = await getMyProfile();
       if (!user) { router.replace("/auth?role=candidate"); return; }
       if (error) { notify(error.message, "err"); setLoading(false); return; }
-      if (!profile?.is_onboarded) { router.replace("/onboarding/candidate"); return; }
-      setProfile(profile);
-      setFullName(profile.full_name ?? "");
-      setHeadline(profile.headline ?? "");
-      setCity(profile.city ?? "");
-      setAbout(profile.about ?? "");
-      setStatus((profile.job_search_status as Status) ?? "actively_looking");
-      const sn = profile.salary_expectation ?? null;
-      setSalaryText(sn ? fmtNum(String(sn)) : "");
-      setCurrency((profile.salary_currency as "UZS" | "USD") ?? "UZS");
+      if (!p?.is_onboarded) { router.replace("/onboarding/candidate"); return; }
+      
+      setProfile(p);
+      setFullName(p.full_name ?? "");
+      setHeadline(p.headline ?? "");
+      setCity(p.city ?? "");
+      setAbout(p.about ?? "");
+      setStatus((p.job_search_status as Status) ?? "actively_looking");
+      setSalaryText(p.salary_expectation ? fmtNum(String(p.salary_expectation)) : "");
+      setCurrency((p.salary_currency as "UZS" | "USD") ?? "UZS");
+      
       const ex = await listMyExperiences(); setExperiences(ex.items ?? []);
       const sk = await listMySkills(); setSkills(sk.items ?? []);
       setLoading(false);
     })();
-  }, [router]);
+  }, [router, notify]);
 
+  // Computed
   const salaryNum = useMemo(() => parseNum(salaryText), [salaryText]);
   const totalM = useMemo(() => totalExpMonths(experiences), [experiences]);
-  const expYears = Math.floor(totalM / 12), expMonths = totalM % 12;
-  const statusMeta = STATUS_META[status] ?? STATUS_META.actively_looking;
+  const expYears = Math.floor(totalM / 12);
+  const expMonths = totalM % 12;
   const initials = fullName ? fullName.split(" ").map(w => w[0]).slice(0, 2).join("").toUpperCase() : "?";
+  const currentStatus = STATUS_OPTIONS.find(s => s.value === status) ?? STATUS_OPTIONS[0];
 
   const completeness = useMemo(() => {
-    if (!profile) return 0;
-    let done = 0, total = 5;
+    let done = 0;
     if (fullName.trim()) done++;
     if (headline.trim()) done++;
     if (about.trim()) done++;
     if (experiences.length) done++;
     if (skills.length) done++;
-    return Math.round(done / total * 100);
-  }, [profile, fullName, headline, about, experiences.length, skills.length]);
+    return Math.round(done / 5 * 100);
+  }, [fullName, headline, about, experiences.length, skills.length]);
 
+  // Actions
   async function saveProfile() {
-    setSavingProfile(true);
+    setSaving(true);
     const { error } = await updateMyProfile({
       full_name: fullName.trim() || null,
       headline: headline.trim() || null,
@@ -168,447 +387,294 @@ export default function ResumePage() {
       job_search_status: status,
       salary_expectation: salaryNum,
       salary_currency: currency,
-      role: (profile?.role ?? "candidate") as "candidate" | "employer",
+      role: "candidate",
     });
-    setSavingProfile(false);
+    setSaving(false);
     if (error) { notify(error.message, "err"); return; }
-    setProfile((p: any) => ({ ...p, full_name: fullName, headline, city, about, job_search_status: status }));
-    notify("Профиль сохранён");
+    notify("✓ Сохранено");
   }
 
-  async function addExp() {
-    if (!nCo.trim() || !nPos.trim() || !nS) { notify("Заполните компанию, должность и дату начала", "err"); return; }
-    const { error } = await addExperience({ company: nCo.trim(), position: nPos.trim(), start_date: nS, end_date: nE || null });
-    if (error) { notify(error.message, "err"); return; }
+  async function handleAvatarUpload(file: File) {
+    const { createClient } = await import("@/lib/supabase/client");
+    const sb = createClient();
+    const { data: ud } = await sb.auth.getUser();
+    if (!ud.user) return;
+    
+    const ext = file.name.split(".").pop();
+    const path = `avatars/${ud.user.id}_${Date.now()}.${ext}`;
+    const { error: ue } = await sb.storage.from("avatars").upload(path, file, { upsert: true });
+    if (ue) { notify("Ошибка: " + ue.message, "err"); return; }
+    
+    const { data: url } = sb.storage.from("avatars").getPublicUrl(path);
+    await sb.from("profiles").update({ avatar_url: url.publicUrl }).eq("id", ud.user.id);
+    setProfile((p: any) => ({ ...p, avatar_url: url.publicUrl }));
+    notify("Фото обновлено");
+  }
+
+  async function handleAvatarDelete() {
+    if (!confirm("Удалить фото?")) return;
+    const { createClient } = await import("@/lib/supabase/client");
+    const sb = createClient();
+    const { data: ud } = await sb.auth.getUser();
+    if (!ud.user) return;
+    await sb.from("profiles").update({ avatar_url: null }).eq("id", ud.user.id);
+    setProfile((p: any) => ({ ...p, avatar_url: null }));
+    notify("Фото удалено");
+  }
+
+  async function saveExperience() {
+    if (!expCompany.trim() || !expPosition.trim() || !expStart) {
+      notify("Заполните обязательные поля", "err"); return;
+    }
+    if (editingExp) {
+      await updateExperience(editingExp.id, { company: expCompany.trim(), position: expPosition.trim(), start_date: expStart, end_date: expCurrent ? null : expEnd || null });
+    } else {
+      await addExperience({ company: expCompany.trim(), position: expPosition.trim(), start_date: expStart, end_date: expCurrent ? null : expEnd || null });
+    }
     const ex = await listMyExperiences(); setExperiences(ex.items ?? []);
-    setNCo(""); setNPos(""); setNS(""); setNE("");
-    setAddingExp(false);
-    notify("Опыт добавлен");
+    resetExpForm();
+    notify(editingExp ? "Обновлено" : "Добавлено");
   }
 
-  async function saveExp(x: Experience) {
-    setSavingExpId(x.id);
-    const { error } = await updateExperience(x.id, { company: x.company, position: x.position, start_date: x.start_date, end_date: x.end_date });
-    setSavingExpId(null);
-    if (error) { notify(error.message, "err"); return; }
-    setEditingExpId(null);
-    notify("Сохранено");
+  function resetExpForm() {
+    setShowExpForm(false); setEditingExp(null);
+    setExpCompany(""); setExpPosition(""); setExpStart(""); setExpEnd(""); setExpCurrent(false);
   }
 
-  async function delExp(id: string) {
+  function startEditExp(exp: Experience) {
+    setEditingExp(exp); setExpCompany(exp.company ?? ""); setExpPosition(exp.position ?? "");
+    setExpStart(exp.start_date ?? ""); setExpEnd(exp.end_date ?? ""); setExpCurrent(!exp.end_date); setShowExpForm(true);
+  }
+
+  async function deleteExp(id: string) {
+    if (!confirm("Удалить?")) return;
     await deleteExperience(id);
     setExperiences(prev => prev.filter(e => e.id !== id));
-    notify("Удалено");
   }
 
-  async function addSk() {
-    if (!sName.trim()) { notify("Введите название навыка", "err"); return; }
-    const { error } = await addSkill(sName.trim(), sLevel);
-    if (error) { notify(error.message, "err"); return; }
+  async function saveSkill() {
+    if (!skillName.trim()) { notify("Введите навык", "err"); return; }
+    await addSkill(skillName.trim(), skillLevel);
     const sk = await listMySkills(); setSkills(sk.items ?? []);
-    setSName(""); setAddingSkill(false);
-    notify("Навык добавлен");
+    setSkillName(""); setShowSkillForm(false);
   }
 
-  async function delSk(id: string) {
+  async function removeSkill(id: string) {
     await deleteSkill(id);
     setSkills(prev => prev.filter(s => s.id !== id));
   }
 
+  function aiNotReady() { notify("AI-помощник скоро будет доступен"); }
+
   if (loading) {
     return (
-      <div className="min-h-screen p-6">
-        <div className="max-w-3xl mx-auto space-y-4 pt-4">
-          {[1, 2, 3].map(i => <div key={i} className="brand-card rounded-2xl animate-pulse" style={{ height: i === 1 ? 140 : 200 }} />)}
-        </div>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="w-10 h-10 rounded-full border-2 animate-spin" style={{ borderColor: "rgba(196,173,255,0.2)", borderTopColor: "var(--lavender)" }} />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen pb-16">
-
+    <div className="min-h-screen pb-20">
       {/* Toast */}
       {toast && (
-        <div className="fixed top-5 right-5 z-50 text-sm px-4 py-3 rounded-2xl font-body animate-fade-up"
-          style={{
-            background: toast.type === "ok" ? "rgba(74,222,128,0.12)" : "rgba(239,68,68,0.12)",
-            border: `1px solid ${toast.type === "ok" ? "rgba(74,222,128,0.3)" : "rgba(239,68,68,0.3)"}`,
-            color: toast.type === "ok" ? "#4ade80" : "#f87171",
-            backdropFilter: "blur(12px)",
-          }}>
+        <div className="fixed top-5 right-5 z-50 px-4 py-3 rounded-xl text-sm font-medium"
+          style={{ background: toast.type === "ok" ? "rgba(34,197,94,0.15)" : "rgba(239,68,68,0.15)", border: `1px solid ${toast.type === "ok" ? "rgba(34,197,94,0.3)" : "rgba(239,68,68,0.3)"}`, color: toast.type === "ok" ? "#22c55e" : "#ef4444", backdropFilter: "blur(12px)" }}>
           {toast.msg}
         </div>
       )}
 
-      <div className="max-w-3xl mx-auto px-4 py-8 space-y-5">
-
-        {/* ── ШАПКА ПРОФИЛЯ ── */}
-        <SectionCard>
-          <div className="flex items-start gap-5 flex-wrap">
-
-            {/* Аватар */}
-            <label className="relative cursor-pointer shrink-0 group">
-              <div className="w-20 h-20 rounded-2xl flex items-center justify-center overflow-hidden"
-                style={{ background: "linear-gradient(135deg, #3D14BB, #7C4AE8)", border: "2px solid rgba(92,46,204,0.4)" }}>
-                {profile?.avatar_url
-                  ? <img src={profile.avatar_url} alt="av" className="w-full h-full object-cover" />
-                  : <span className="font-display text-2xl" style={{ color: "var(--lavender)" }}>{initials}</span>
-                }
+      <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
+        
+        {/* HEADER CARD */}
+        <Card>
+          <div className="flex flex-col sm:flex-row gap-5">
+            {/* Avatar */}
+            <div className="relative shrink-0 self-start">
+              <div className="w-24 h-24 rounded-2xl overflow-hidden" style={{ background: "linear-gradient(145deg, #1A0044, #4A1FCC, #7C3AED)", border: "3px solid rgba(92,46,204,0.4)" }}>
+                {profile?.avatar_url ? (
+                  <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <span className="font-display text-3xl text-white/80">{initials}</span>
+                  </div>
+                )}
               </div>
-              <div className="absolute inset-0 rounded-2xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition"
-                style={{ background: "rgba(0,0,0,0.6)" }}>
-                <svg className="w-5 h-5" style={{color:"rgba(255,255,255,0.7)"}} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+              <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
+                <label className="w-7 h-7 rounded-lg flex items-center justify-center cursor-pointer transition hover:scale-110" style={{ background: "var(--brand-core)", border: "2px solid var(--ink)" }}>
+                  <Icon name="camera" className="w-3.5 h-3.5 text-white" />
+                  <input type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) handleAvatarUpload(f); }} />
+                </label>
+                {profile?.avatar_url && (
+                  <button onClick={handleAvatarDelete} className="w-7 h-7 rounded-lg flex items-center justify-center transition hover:scale-110" style={{ background: "#ef4444", border: "2px solid var(--ink)" }}>
+                    <Icon name="x" className="w-3.5 h-3.5 text-white" />
+                  </button>
+                )}
               </div>
-              <input type="file" accept="image/*" className="hidden" onChange={async (e) => {
-                const file = e.target.files?.[0]; if (!file) return;
-                const { createClient } = await import("@/lib/supabase/client");
-                const sb = createClient();
-                const { data: ud } = await sb.auth.getUser(); if (!ud.user) return;
-                const ext = file.name.split(".").pop();
-                const path = `avatars/${ud.user.id}.${ext}`;
-                const { error: ue } = await sb.storage.from("avatars").upload(path, file, { upsert: true });
-                if (ue) { notify("Ошибка загрузки: " + ue.message, "err"); return; }
-                const { data: url } = sb.storage.from("avatars").getPublicUrl(path);
-                await sb.from("profiles").update({ avatar_url: url.publicUrl }).eq("id", ud.user.id);
-                setProfile((p: any) => ({ ...p, avatar_url: url.publicUrl }));
-                notify("Фото обновлено");
-              }} />
-            </label>
+            </div>
 
-            {/* Имя и статус */}
+            {/* Info */}
             <div className="flex-1 min-w-0">
-              <h1 className="font-display text-2xl mb-1" style={{ color: "var(--chalk)" }}>
-                {fullName || "Мой профиль"}
-              </h1>
-              <div className="text-sm mb-3" style={{ color: "rgba(255,255,255,0.45)" }}>
-                {headline}{headline && city ? " · " : ""}{city && `${city}`}
-              </div>
-
+              <h1 className="text-2xl sm:text-3xl font-bold mb-1" style={{ color: "var(--chalk)" }}>{fullName || "Ваше имя"}</h1>
+              <p className="text-sm mb-3" style={{ color: "rgba(255,255,255,0.5)" }}>{headline || "Желаемая должность"}{city && ` · ${city}`}</p>
+              
               <div className="flex flex-wrap gap-2">
-                {/* Статус */}
-                <span className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full font-body"
-                  style={{ background: statusMeta.bg, color: statusMeta.color, border: `1px solid ${statusMeta.border}` }}>
-                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: statusMeta.color, boxShadow: `0 0 5px ${statusMeta.color}` }} />
-                  {statusMeta.label}
+                <span className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full" style={{ background: `${currentStatus.color}15`, color: currentStatus.color, border: `1px solid ${currentStatus.color}30` }}>
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: currentStatus.color }} />
+                  {currentStatus.label}
                 </span>
-
-                {/* Стаж */}
                 {(expYears > 0 || expMonths > 0) && (
-                  <span className="text-xs px-3 py-1.5 rounded-full font-body"
-                    style={{ background: "rgba(196,173,255,0.1)", color: "var(--lavender)", border: "1px solid rgba(196,173,255,0.2)" }}>
-                    Стаж {expYears > 0 ? `${expYears} г ` : ""}{expMonths > 0 ? `${expMonths} мес` : ""}
+                  <span className="text-xs px-3 py-1.5 rounded-full" style={{ background: "rgba(196,173,255,0.1)", color: "var(--lavender)", border: "1px solid rgba(196,173,255,0.2)" }}>
+                    Стаж: {expYears > 0 && `${expYears} г. `}{expMonths > 0 && `${expMonths} мес.`}
                   </span>
                 )}
-
-                {/* Зарплата */}
                 {salaryNum && (
-                  <span className="text-xs px-3 py-1.5 rounded-full font-body font-semibold"
-                    style={{ background: "rgba(201,168,76,0.1)", color: "var(--gold)", border: "1px solid rgba(201,168,76,0.2)" }}>
+                  <span className="text-xs px-3 py-1.5 rounded-full font-medium" style={{ background: "rgba(201,168,76,0.1)", color: "var(--gold)", border: "1px solid rgba(201,168,76,0.2)" }}>
                     {fmtNum(String(salaryNum))} {currency}
                   </span>
                 )}
               </div>
             </div>
 
-            {/* Кнопки действий */}
-            <div className="flex gap-2 flex-wrap">
-              <button onClick={() => router.push("/applications")}
-                className="rounded-xl px-3 py-2 text-xs font-body transition"
-                style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.6)" }}>
-                Отклики
-              </button>
-              <button onClick={() => router.push("/saved-jobs")}
-                className="rounded-xl px-3 py-2 text-xs font-body transition"
-                style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.6)" }}>
-                Сохранённые
-              </button>
-              <button onClick={() => window.open("/resume/print", "_blank")}
-                className="rounded-xl px-3 py-2 text-xs font-body transition"
-                style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.6)" }}>
-                PDF
+            {/* Actions */}
+            <div className="flex sm:flex-col gap-2 shrink-0">
+              <Link href="/applications" className="flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-xs transition" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.7)" }}>
+                <Icon name="doc" className="w-4 h-4" /> Отклики
+              </Link>
+              <Link href="/saved-jobs" className="flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-xs transition" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.7)" }}>
+                <Icon name="heart" className="w-4 h-4" /> Избранное
+              </Link>
+              <button onClick={() => window.open("/resume/print", "_blank")} className="flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-xs transition" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.7)" }}>
+                <Icon name="download" className="w-4 h-4" /> PDF
               </button>
             </div>
           </div>
 
-          {/* Прогресс заполненности */}
+          {/* Progress */}
           <div className="mt-5 pt-4" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
             <div className="flex justify-between items-center mb-2">
-              <span className="font-accent text-xs" style={{ color: "rgba(255,255,255,0.3)" }}>Заполненность профиля</span>
-              <span className="font-accent text-xs font-bold"
-                style={{ color: completeness === 100 ? "#4ade80" : "var(--lavender)" }}>
-                {completeness}%
-              </span>
+              <span className="text-xs" style={{ color: "rgba(255,255,255,0.4)" }}>Заполненность профиля</span>
+              <span className="text-xs font-bold" style={{ color: completeness === 100 ? "#22c55e" : "var(--lavender)" }}>{completeness}%</span>
             </div>
             <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.06)" }}>
-              <div className="h-full rounded-full transition-all duration-700"
-                style={{
-                  width: `${completeness}%`,
-                  background: completeness === 100
-                    ? "linear-gradient(90deg, #22c55e, #4ade80)"
-                    : "linear-gradient(90deg, var(--brand-core), var(--lavender))"
-                }} />
+              <div className="h-full rounded-full transition-all duration-500" style={{ width: `${completeness}%`, background: completeness === 100 ? "linear-gradient(90deg, #22c55e, #4ade80)" : "linear-gradient(90deg, var(--brand-core), var(--lavender))" }} />
             </div>
             {completeness < 100 && (
-              <div className="mt-2 text-xs" style={{ color: "rgba(255,255,255,0.25)" }}>
-                {!headline.trim() && "Добавьте должность. "}
-                {!about.trim() && "Заполните «О себе». "}
-                {!experiences.length && "Добавьте опыт работы. "}
-                {!skills.length && "Укажите навыки."}
-              </div>
+              <p className="mt-2 text-xs" style={{ color: "rgba(255,255,255,0.3)" }}>
+                {!fullName && "Добавьте имя · "}{!headline && "Укажите должность · "}{!about && "Заполните «О себе» · "}{!experiences.length && "Добавьте опыт · "}{!skills.length && "Укажите навыки"}
+              </p>
             )}
           </div>
-        </SectionCard>
+        </Card>
 
-        {/* ── ОСНОВНАЯ ИНФОРМАЦИЯ ── */}
-        <SectionCard>
-          <SectionTitle>Основная информация</SectionTitle>
-
+        {/* ОСНОВНАЯ ИНФОРМАЦИЯ */}
+        <Card>
+          <SectionHeader icon="user" title="Основная информация" subtitle="Базовые данные для работодателей" />
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <InputField label="ФИО">
-              <input value={fullName} onChange={e => setFullName(e.target.value)}
-                placeholder="Иванов Иван Иванович" style={inputStyle} />
-            </InputField>
-
-            <InputField label="Должность / Заголовок">
-              <input value={headline} onChange={e => setHeadline(e.target.value)}
-                placeholder="Напр. Руководитель отдела продаж" style={inputStyle} />
-            </InputField>
-
-            <InputField label="Город">
-              <input value={city} onChange={e => setCity(e.target.value)}
-                placeholder="Ташкент" style={inputStyle} />
-            </InputField>
-
-            <InputField label="Статус поиска">
-              <select value={status} onChange={e => setStatus(e.target.value as Status)}
-                style={{ ...inputStyle, cursor: "pointer" }}>
-                {Object.entries(STATUS_META).map(([v, m]) => (
-                  <option key={v} value={v} style={{ background: "#0A0618" }}>{m.label}</option>
-                ))}
-              </select>
-            </InputField>
-
-            <InputField label="О себе">
-              <textarea value={about} onChange={e => setAbout(e.target.value)}
-                placeholder="Кратко о своём опыте, целях и сильных сторонах..."
-                rows={3} style={{ ...inputStyle, resize: "none" }} />
-            </InputField>
-
-            <InputField label="Желаемая зарплата">
+            <Input label="ФИО" value={fullName} onChange={setFullName} placeholder="Иванов Иван Иванович" />
+            <Input label="Желаемая должность" value={headline} onChange={setHeadline} placeholder="Менеджер по продажам" aiButton onAi={aiNotReady} />
+            <Input label="Город" value={city} onChange={setCity} placeholder="Ташкент" />
+            <Select label="Статус поиска" value={status} onChange={v => setStatus(v as Status)} options={STATUS_OPTIONS.map(s => ({ value: s.value, label: s.label }))} />
+            <div className="sm:col-span-2">
+              <TextArea label="О себе" value={about} onChange={setAbout} placeholder="Расскажите о своём опыте, навыках и целях..." rows={4} aiButton onAi={aiNotReady} />
+            </div>
+            <div>
+              <label className="block text-xs font-medium mb-1.5" style={{ color: "rgba(255,255,255,0.5)" }}>Желаемая зарплата</label>
               <div className="flex gap-2">
-                <input inputMode="numeric" placeholder="15 000 000"
-                  value={salaryText} onChange={e => setSalaryText(fmtNum(e.target.value))}
-                  style={{ ...inputStyle, flex: 1 }} />
+                <input value={salaryText} onChange={e => setSalaryText(fmtNum(e.target.value))} placeholder="15 000 000" inputMode="numeric"
+                  className="flex-1 rounded-xl px-4 py-3 text-sm text-white placeholder-white/25" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(196,173,255,0.12)" }} />
                 <select value={currency} onChange={e => setCurrency(e.target.value as "UZS" | "USD")}
-                  style={{ ...inputStyle, width: 80, cursor: "pointer" }}>
+                  className="rounded-xl px-3 py-3 text-sm" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(196,173,255,0.12)", color: "white" }}>
                   <option value="UZS" style={{ background: "#0A0618" }}>UZS</option>
                   <option value="USD" style={{ background: "#0A0618" }}>USD</option>
                 </select>
               </div>
-            </InputField>
+            </div>
           </div>
-
           <div className="mt-5 flex justify-end">
-            <button onClick={saveProfile} disabled={savingProfile}
-              className="btn-primary rounded-xl px-6 py-2.5 text-sm font-semibold text-white disabled:opacity-60">
-              {savingProfile ? "Сохраняю..." : "Сохранить изменения"}
-            </button>
+            <Button onClick={saveProfile} loading={saving}>Сохранить изменения</Button>
           </div>
-        </SectionCard>
+        </Card>
 
-        {/* ── ОПЫТ РАБОТЫ ── */}
-        <SectionCard>
-          <SectionTitle action={
-            <button onClick={() => { setAddingExp(v => !v); setEditingExpId(null); }}
-              className="btn-primary rounded-xl px-4 py-2 text-xs font-semibold text-white">
-              {addingExp ? "Отмена" : "+ Добавить"}
-            </button>
-          }>
-            Опыт работы
-          </SectionTitle>
-
-          {(expYears > 0 || expMonths > 0) && (
-            <div className="text-xs mb-4 font-body" style={{ color: "rgba(255,255,255,0.35)" }}>
-              Общий стаж:{" "}
-              <span style={{ color: "var(--lavender)", fontWeight: 600 }}>
-                {expYears > 0 ? `${expYears} г ` : ""}{expMonths > 0 ? `${expMonths} мес` : ""}
-              </span>
-            </div>
-          )}
-
-          {/* Форма добавления */}
-          {addingExp && (
-            <div className="rounded-2xl p-4 mb-4"
-              style={{ background: "rgba(92,46,204,0.08)", border: "1px solid rgba(92,46,204,0.25)" }}>
-              <div className="font-accent text-xs mb-4" style={{ color: "var(--lavender)" }}>НОВОЕ МЕСТО РАБОТЫ</div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
-                <InputField label="Компания">
-                  <input placeholder="Название компании" value={nCo} onChange={e => setNCo(e.target.value)} style={inputStyle} />
-                </InputField>
-                <InputField label="Должность">
-                  <input placeholder="Ваша должность" value={nPos} onChange={e => setNPos(e.target.value)} style={inputStyle} />
-                </InputField>
-                <InputField label="Начало работы">
-                  <input type="date" value={nS} onChange={e => setNS(e.target.value)} style={{ ...inputStyle, colorScheme: "dark" }} />
-                </InputField>
-                <InputField label="Конец работы (пусто = сейчас)">
-                  <input type="date" value={nE} onChange={e => setNE(e.target.value)} style={{ ...inputStyle, colorScheme: "dark" }} />
-                </InputField>
-              </div>
-              <div className="flex gap-2">
-                <button onClick={addExp} className="btn-primary rounded-xl px-5 py-2 text-sm font-semibold text-white">
-                  Добавить
-                </button>
-                <button onClick={() => setAddingExp(false)}
-                  className="rounded-xl px-5 py-2 text-sm font-body transition"
-                  style={{ border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.5)" }}>
-                  Отмена
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Список опыта */}
-          {experiences.length === 0 && !addingExp ? (
-            <div className="text-center py-10" style={{ color: "rgba(255,255,255,0.2)" }}>
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center mx-auto mb-3" style={{background:"rgba(92,46,204,0.15)",border:"1px solid rgba(92,46,204,0.2)"}}><svg className="w-5 h-5" style={{color:"var(--lavender)"}} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg></div>
-              <div className="text-sm">Добавьте опыт работы</div>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {experiences.map((x) => (
-                <div key={x.id} className="rounded-2xl p-4"
-                  style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}>
-
-                  {editingExpId !== x.id ? (
-                    /* Режим просмотра */
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex gap-3 items-start">
-                        <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 font-bold text-sm"
-                          style={{ background: "rgba(92,46,204,0.2)", color: "var(--lavender)", border: "1px solid rgba(92,46,204,0.3)" }}>
-                          {(x.company ?? "?")[0].toUpperCase()}
-                        </div>
-                        <div>
-                          <div className="font-semibold text-white">{x.company || "Компания"}</div>
-                          <div className="text-sm" style={{ color: "var(--lavender)" }}>{x.position || "Должность"}</div>
-                          <div className="text-xs mt-1" style={{ color: "rgba(255,255,255,0.35)" }}>
-                            {fmtDate(x.start_date)} — {fmtDate(x.end_date)}
-                            {calcDuration(x.start_date, x.end_date) && (
-                              <span className="ml-2" style={{ color: "rgba(255,255,255,0.25)" }}>
-                                · {calcDuration(x.start_date, x.end_date)}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex gap-1.5 shrink-0">
-                        <button onClick={() => setEditingExpId(x.id)}
-                          className="rounded-lg px-3 py-1.5 text-xs font-body transition"
-                          style={{ background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.5)", border: "1px solid rgba(255,255,255,0.08)" }}>
-                          Изменить
-                        </button>
-                        <button onClick={() => delExp(x.id)}
-                          className="rounded-lg px-3 py-1.5 text-xs font-body transition"
-                          style={{ background: "rgba(239,68,68,0.08)", color: "#f87171", border: "1px solid rgba(239,68,68,0.2)" }}>
-                          Удалить
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    /* Режим редактирования */
-                    <div>
-                      <div className="font-accent text-xs mb-3" style={{ color: "var(--lavender)" }}>РЕДАКТИРОВАНИЕ</div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
-                        <InputField label="Компания">
-                          <input value={x.company ?? ""} onChange={e => setExperiences(p => p.map(ex => ex.id === x.id ? { ...ex, company: e.target.value } : ex))} style={inputStyle} />
-                        </InputField>
-                        <InputField label="Должность">
-                          <input value={x.position ?? ""} onChange={e => setExperiences(p => p.map(ex => ex.id === x.id ? { ...ex, position: e.target.value } : ex))} style={inputStyle} />
-                        </InputField>
-                        <InputField label="Начало">
-                          <input type="date" value={x.start_date ?? ""} onChange={e => setExperiences(p => p.map(ex => ex.id === x.id ? { ...ex, start_date: e.target.value } : ex))} style={{ ...inputStyle, colorScheme: "dark" }} />
-                        </InputField>
-                        <InputField label="Конец">
-                          <input type="date" value={x.end_date ?? ""} onChange={e => setExperiences(p => p.map(ex => ex.id === x.id ? { ...ex, end_date: e.target.value } : ex))} style={{ ...inputStyle, colorScheme: "dark" }} />
-                        </InputField>
-                      </div>
-                      <div className="flex gap-2">
-                        <button onClick={() => saveExp(x)} disabled={savingExpId === x.id}
-                          className="btn-primary rounded-xl px-5 py-2 text-sm font-semibold text-white disabled:opacity-60">
-                          {savingExpId === x.id ? "Сохраняю..." : "Сохранить"}
-                        </button>
-                        <button onClick={() => setEditingExpId(null)}
-                          className="rounded-xl px-5 py-2 text-sm font-body transition"
-                          style={{ border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.5)" }}>
-                          Отмена
-                        </button>
-                      </div>
-                    </div>
-                  )}
+        {/* ОПЫТ РАБОТЫ */}
+        <Card>
+          <SectionHeader icon="briefcase" title="Опыт работы" subtitle={experiences.length ? `${experiences.length} места работы` : "Добавьте свой опыт"}
+            action={!showExpForm && <Button size="sm" variant="secondary" onClick={() => setShowExpForm(true)}><Icon name="plus" className="w-4 h-4" /> Добавить</Button>} />
+          
+          {showExpForm && (
+            <div className="mb-5 p-4 rounded-xl" style={{ background: "rgba(92,46,204,0.08)", border: "1px solid rgba(92,46,204,0.2)" }}>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Input label="Компания *" value={expCompany} onChange={setExpCompany} placeholder="Название компании" />
+                <Input label="Должность *" value={expPosition} onChange={setExpPosition} placeholder="Ваша должность" />
+                <Input label="Дата начала *" value={expStart} onChange={setExpStart} type="month" />
+                <div>
+                  <Input label="Дата окончания" value={expEnd} onChange={setExpEnd} type="month" />
+                  <label className="flex items-center gap-2 mt-2 cursor-pointer">
+                    <input type="checkbox" checked={expCurrent} onChange={e => setExpCurrent(e.target.checked)} className="w-4 h-4 rounded" />
+                    <span className="text-xs" style={{ color: "rgba(255,255,255,0.6)" }}>По настоящее время</span>
+                  </label>
                 </div>
-              ))}
-            </div>
-          )}
-        </SectionCard>
-
-        {/* ── НАВЫКИ ── */}
-        <SectionCard>
-          <SectionTitle action={
-            <button onClick={() => setAddingSkill(v => !v)}
-              className="btn-primary rounded-xl px-4 py-2 text-xs font-semibold text-white">
-              {addingSkill ? "Отмена" : "+ Добавить"}
-            </button>
-          }>
-            Навыки
-          </SectionTitle>
-
-          {addingSkill && (
-            <div className="rounded-2xl p-4 mb-4"
-              style={{ background: "rgba(92,46,204,0.08)", border: "1px solid rgba(92,46,204,0.25)" }}>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
-                <InputField label="Название навыка">
-                  <input placeholder="B2B продажи, Excel, CRM..."
-                    value={sName} onChange={e => setSName(e.target.value)}
-                    onKeyDown={e => e.key === "Enter" && addSk()} style={inputStyle} />
-                </InputField>
-                <InputField label="Уровень">
-                  <select value={sLevel} onChange={e => setSLevel(e.target.value as SkillLevel)}
-                    style={{ ...inputStyle, cursor: "pointer" }}>
-                    {Object.entries(LEVEL_LABELS).map(([v, l]) => (
-                      <option key={v} value={v} style={{ background: "#0A0618" }}>{l}</option>
-                    ))}
-                  </select>
-                </InputField>
               </div>
-              <button onClick={addSk} className="btn-primary rounded-xl px-5 py-2 text-sm font-semibold text-white">
-                Добавить
-              </button>
+              <div className="flex gap-2 mt-4">
+                <Button onClick={saveExperience}>{editingExp ? "Сохранить" : "Добавить"}</Button>
+                <Button variant="ghost" onClick={resetExpForm}>Отмена</Button>
+              </div>
             </div>
           )}
+          
+          <div className="space-y-3">
+            {experiences.map(exp => (
+              <ExperienceCard key={exp.id} exp={exp} onEdit={() => startEditExp(exp)} onDelete={() => deleteExp(exp.id)} />
+            ))}
+            {!experiences.length && !showExpForm && (
+              <div className="text-center py-8">
+                <div className="w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-3" style={{ background: "rgba(255,255,255,0.05)" }}>
+                  <Icon name="briefcase" className="w-6 h-6" style={{ color: "rgba(255,255,255,0.3)" }} />
+                </div>
+                <p className="text-sm" style={{ color: "rgba(255,255,255,0.4)" }}>Расскажите о своём опыте работы</p>
+              </div>
+            )}
+          </div>
+        </Card>
 
-          {skills.length === 0 && !addingSkill ? (
-            <div className="text-center py-10" style={{ color: "rgba(255,255,255,0.2)" }}>
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center mx-auto mb-3" style={{background:"rgba(92,46,204,0.15)",border:"1px solid rgba(92,46,204,0.2)"}}><svg className="w-5 h-5" style={{color:"var(--lavender)"}} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg></div>
-              <div className="text-sm">Добавьте свои навыки</div>
+        {/* НАВЫКИ */}
+        <Card>
+          <SectionHeader icon="star" title="Навыки" subtitle={skills.length ? `${skills.length} навыков` : "Укажите ваши навыки"}
+            action={!showSkillForm && <Button size="sm" variant="secondary" onClick={() => setShowSkillForm(true)}><Icon name="plus" className="w-4 h-4" /> Добавить</Button>} />
+          
+          {showSkillForm && (
+            <div className="mb-5 p-4 rounded-xl" style={{ background: "rgba(92,46,204,0.08)", border: "1px solid rgba(92,46,204,0.2)" }}>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Input label="Навык" value={skillName} onChange={setSkillName} placeholder="Например: Excel" />
+                <Select label="Уровень" value={skillLevel} onChange={v => setSkillLevel(v as SkillLevel)} options={LEVEL_OPTIONS.map(l => ({ value: l.value, label: l.label }))} />
+              </div>
+              <div className="flex gap-2 mt-4">
+                <Button onClick={saveSkill}>Добавить</Button>
+                <Button variant="ghost" onClick={() => { setShowSkillForm(false); setSkillName(""); }}>Отмена</Button>
+              </div>
             </div>
-          ) : (
+          )}
+          
+          {skills.length > 0 && (
+            <div className="flex flex-wrap gap-2 mb-4">
+              {skills.map(s => <SkillTag key={s.id} skill={s} onRemove={() => removeSkill(s.id)} />)}
+            </div>
+          )}
+          
+          {/* Popular skills */}
+          <div className="pt-4" style={{ borderTop: skills.length ? "1px solid rgba(255,255,255,0.06)" : "none" }}>
+            <p className="text-xs mb-3" style={{ color: "rgba(255,255,255,0.4)" }}>Популярные навыки:</p>
             <div className="flex flex-wrap gap-2">
-              {skills.map(s => (
-                <div key={s.id} className="group flex items-center gap-2 rounded-xl px-3 py-2"
-                  style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
-                  <div className="w-1.5 h-1.5 rounded-full shrink-0"
-                    style={{ background: LEVEL_COLORS[s.level] ?? "#6b7280" }} />
-                  <span className="text-sm font-body" style={{ color: "rgba(255,255,255,0.8)" }}>{s.name}</span>
-                  <span className="text-xs" style={{ color: "rgba(255,255,255,0.3)" }}>{LEVEL_LABELS[s.level]}</span>
-                  <button onClick={() => delSk(s.id)}
-                    className="opacity-0 group-hover:opacity-100 transition text-xs ml-1"
-                    style={{ color: "#f87171" }}>✕</button>
-                </div>
+              {POPULAR_SKILLS.filter(p => !skills.find(s => s.name.toLowerCase() === p.toLowerCase())).slice(0, 8).map(p => (
+                <button key={p} onClick={() => { setSkillName(p); setShowSkillForm(true); }}
+                  className="text-xs px-3 py-1.5 rounded-lg transition hover:bg-white/10"
+                  style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.6)" }}>
+                  + {p}
+                </button>
               ))}
             </div>
-          )}
-        </SectionCard>
+          </div>
+        </Card>
 
       </div>
     </div>
