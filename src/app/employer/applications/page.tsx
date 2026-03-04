@@ -131,7 +131,7 @@ export default function EmployerApplicationsPage() {
     const { data: userData } = await supabase.auth.getUser();
     if (!userData.user) return;
 
-    // Ищем существующий диалог
+    // Ищем существующий диалог по employer + candidate + job
     const { data: existingConv } = await supabase
       .from("conversations")
       .select("id")
@@ -145,8 +145,35 @@ export default function EmployerApplicationsPage() {
       return;
     }
 
+    // Fallback: ищем по application_id (диалог мог быть создан через смену статуса)
+    const { data: convByApp } = await supabase
+      .from("conversations")
+      .select("id")
+      .eq("application_id", app.id)
+      .maybeSingle();
+
+    if (convByApp) {
+      router.push(`/chat/${convByApp.id}`);
+      return;
+    }
+
+    // Fallback: ищем любой диалог между этим работодателем и кандидатом
+    const { data: convByPair } = await supabase
+      .from("conversations")
+      .select("id")
+      .eq("employer_id", userData.user.id)
+      .eq("candidate_id", app.candidate_id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (convByPair) {
+      router.push(`/chat/${convByPair.id}`);
+      return;
+    }
+
     // Создаём новый диалог
-    const { data: newConv } = await supabase
+    const { data: newConv, error: insertError } = await supabase
       .from("conversations")
       .insert({
         employer_id: userData.user.id,
@@ -159,6 +186,8 @@ export default function EmployerApplicationsPage() {
 
     if (newConv) {
       router.push(`/chat/${newConv.id}`);
+    } else {
+      console.error("Ошибка создания диалога:", insertError);
     }
   }
 
