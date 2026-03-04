@@ -75,14 +75,14 @@ export default function ApplicationsPage() {
 
  if (loading) {
  return (
- <div className="min-h-screen bg-[#0b1220] text-white flex items-center justify-center">
+ <div className="min-h-screen flex items-center justify-center">
  Загрузка...
  </div>
  );
  }
 
  return (
- <div className="min-h-screen bg-[#0b1220] text-white p-6">
+ <div className="min-h-screen p-6">
  <div className="max-w-3xl mx-auto">
  <div className="flex items-center justify-between gap-4 mb-6">
  <div>

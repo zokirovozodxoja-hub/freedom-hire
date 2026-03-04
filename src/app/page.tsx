@@ -13,7 +13,7 @@ type Job = {
  salary_to: number | null;
  created_at: string;
  employment_type: string | null;
- format: string | null;
+ work_format: string | null;
 };
 
 type Counts = { jobs: number; companies: number; candidates: number };
@@ -71,7 +71,7 @@ export default function HomePage() {
  supabase.from("companies").select("id", { count: "exact", head: true }),
  supabase.from("profiles").select("id", { count: "exact", head: true }).eq("role", "candidate"),
  supabase.from("jobs")
- .select("id,title,city,salary_from,salary_to,created_at,employment_type,format")
+ .select("id,title,city,salary_from,salary_to,created_at,employment_type,work_format")
  .eq("is_active", true)
  .order("created_at", { ascending: false })
  .limit(6),
@@ -212,11 +212,11 @@ export default function HomePage() {
  {job.city}
  </span>
  )}
- {job.format && (
+ {job.work_format && (
  <span className="px-2 py-0.5 rounded-full" style={{ background: "rgba(196,173,255,0.08)", color: "var(--lavender)" }}>
- {job.format === "remote"
+ {job.work_format === "remote"
  ? t.jobs.formats.remote
- : job.format === "hybrid"
+ : job.work_format === "hybrid"
  ? t.jobs.formats.hybrid
  : t.jobs.formats.office}
  </span>

@@ -29,7 +29,7 @@ export default function EmployerOnboardingPage() {
 
  const { data } = await supabase.auth.getUser();
  if (!data.user) {
- router.replace("/auth/login?next=/onboarding/employer");
+ router.replace("/auth?next=/onboarding/employer");
  return;
  }
 
@@ -97,7 +97,7 @@ export default function EmployerOnboardingPage() {
 
  const { data } = await supabase.auth.getUser();
  if (!data.user) {
- router.replace("/auth/login?next=/onboarding/employer");
+ router.replace("/auth?next=/onboarding/employer");
  return;
  }
 

@@ -23,34 +23,41 @@ type Application = {
 };
 
 const STATUSES = [
-  { key: "applied", label: "Новый" },
-  { key: "in_progress", label: "Рассматриваю" },
-  { key: "invited", label: "Приглашён" },
-  { key: "rejected", label: "Отказ" },
+  { key: "applied",     label: "Новый",        color: "rgba(196,173,255,0.15)", text: "#C4ADFF",  border: "rgba(196,173,255,0.3)" },
+  { key: "in_progress", label: "Рассматриваю", color: "rgba(251,191,36,0.12)",  text: "#fbbf24",  border: "rgba(251,191,36,0.3)"  },
+  { key: "invited",     label: "Приглашён",    color: "rgba(52,211,153,0.12)",  text: "#34d399",  border: "rgba(52,211,153,0.3)"  },
+  { key: "rejected",    label: "Отказ",        color: "rgba(239,68,68,0.12)",   text: "#f87171",  border: "rgba(239,68,68,0.3)"   },
 ];
 
-// ШАБЛОНЫ СООБЩЕНИЙ
 const MESSAGE_TEMPLATES: Record<string, string> = {
   in_progress: "Здравствуйте! Мы рассматриваем ваш отклик. Свяжемся с вами в ближайшее время.",
-  invited: "Здравствуйте! Приглашаем вас на собеседование. Когда вам будет удобно встретиться?",
-  rejected: "Здравствуйте! К сожалению, мы не можем предложить вам эту позицию. Спасибо за интерес к нашей компании.",
+  invited:     "Здравствуйте! Приглашаем вас на собеседование. Когда вам будет удобно встретиться?",
+  rejected:    "Здравствуйте! К сожалению, мы не можем предложить вам эту позицию. Спасибо за интерес к нашей компании.",
 };
+
+function StatusBadge({ status }: { status: string }) {
+  const s = STATUSES.find((x) => x.key === status) ?? STATUSES[0];
+  return (
+    <span className="text-xs font-semibold px-2.5 py-1 rounded-full"
+      style={{ background: s.color, color: s.text, border: `1px solid ${s.border}` }}>
+      {s.label}
+    </span>
+  );
+}
 
 export default function EmployerApplicationsPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [apps, setApps] = useState<Application[]>([]);
   const [filter, setFilter] = useState("");
-  
-  // Модалка для отправки сообщения
-  const [showMessageModal, setShowMessageModal] = useState(false);
+
+  const [showModal, setShowModal] = useState(false);
   const [selectedApp, setSelectedApp] = useState<Application | null>(null);
   const [messageText, setMessageText] = useState("");
   const [newStatus, setNewStatus] = useState("");
+  const [sending, setSending] = useState(false);
 
-  useEffect(() => {
-    loadApplications();
-  }, []);
+  useEffect(() => { loadApplications(); }, []);
 
   async function loadApplications() {
     const supabase = createClient();
@@ -64,133 +71,185 @@ export default function EmployerApplicationsPage() {
     const jobIds = (jobsList ?? []).map((j) => j.id);
     if (jobIds.length === 0) { setApps([]); setLoading(false); return; }
 
-    const { data } = await supabase.from("applications").select("id,job_id,candidate_id,status,created_at,cover_letter,jobs(title)").in("job_id", jobIds).order("created_at", { ascending: false });
-    const candidateIds = [...new Set((data ?? []).map((app) => app.candidate_id))];
-    const { data: profiles } = await supabase.from("profiles").select("id,full_name,email,phone,city,desired_position").in("id", candidateIds);
-    const profilesMap = new Map((profiles ?? []).map((p) => [p.id, p]));
-    const appsWithProfiles = (data ?? []).map((app) => ({ ...app, candidate: profilesMap.get(app.candidate_id) }));
+    const { data } = await supabase.from("applications")
+      .select("id,job_id,candidate_id,status,created_at,cover_letter,jobs(title)")
+      .in("job_id", jobIds)
+      .order("created_at", { ascending: false });
 
-    setApps(appsWithProfiles as unknown as Application[]);
+    const candidateIds = [...new Set((data ?? []).map((a) => a.candidate_id))];
+    const { data: profiles } = await supabase.from("profiles")
+      .select("id,full_name,email,phone,city,desired_position")
+      .in("id", candidateIds);
+    const profilesMap = new Map((profiles ?? []).map((p) => [p.id, p]));
+
+    setApps((data ?? []).map((a) => ({ ...a, candidate: profilesMap.get(a.candidate_id) })) as unknown as Application[]);
     setLoading(false);
   }
 
-  async function handleStatusChange(app: Application, status: string) {
-    // Если меняем статус - показываем модалку с шаблоном
+  function openModal(app: Application, status: string) {
     setSelectedApp(app);
     setNewStatus(status);
-    setMessageText(MESSAGE_TEMPLATES[status] || "");
-    setShowMessageModal(true);
+    setMessageText(MESSAGE_TEMPLATES[status] ?? "");
+    setShowModal(true);
   }
 
-  async function sendMessageAndUpdateStatus() {
+  async function sendAndUpdate() {
     if (!selectedApp) return;
-    
+    setSending(true);
     const supabase = createClient();
     const { data: userData } = await supabase.auth.getUser();
-    if (!userData.user) return;
+    if (!userData.user) { setSending(false); return; }
 
-    // 1. Отправляем сообщение
-    await supabase.from("messages").insert({
-      application_id: selectedApp.id,
-      sender_id: userData.user.id,
-      receiver_id: selectedApp.candidate_id,
-      message: messageText,
-    });
+    if (messageText.trim()) {
+      await supabase.from("messages").insert({
+        application_id: selectedApp.id,
+        sender_id: userData.user.id,
+        receiver_id: selectedApp.candidate_id,
+        message: messageText,
+      });
+    }
 
-    // 2. Обновляем статус
     await supabase.from("applications").update({ status: newStatus }).eq("id", selectedApp.id);
     setApps((prev) => prev.map((a) => (a.id === selectedApp.id ? { ...a, status: newStatus } : a)));
-
-    // Закрываем модалку
-    setShowMessageModal(false);
+    setSending(false);
+    setShowModal(false);
     setSelectedApp(null);
-    setMessageText("");
   }
 
   const filtered = filter ? apps.filter((a) => a.status === filter) : apps;
 
-  if (loading) return <div className="min-h-screen bg-gray-50 flex items-center justify-center">Загрузка...</div>;
+  if (loading) {
+    return (
+      <div className="min-h-screen p-4 sm:p-8">
+        <div className="max-w-5xl mx-auto space-y-4">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="brand-card rounded-2xl h-32 animate-pulse" />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 sm:p-6">
-      <div className="max-w-6xl mx-auto">
-        
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-900 mb-4">Отклики кандидатов</h1>
-          
-          {/* Фильтры */}
-          <div className="flex flex-wrap gap-2">
-            <button onClick={() => setFilter("")} className={`px-4 py-2 rounded-lg font-medium transition ${!filter ? "bg-blue-600 text-white" : "bg-white text-gray-700 border hover:bg-gray-50"}`}>
-              Все ({apps.length})
-            </button>
-            {STATUSES.map((s) => {
-              const count = apps.filter((a) => a.status === s.key).length;
-              return (
-                <button key={s.key} onClick={() => setFilter(s.key)} className={`px-4 py-2 rounded-lg font-medium transition ${filter === s.key ? "bg-blue-600 text-white" : "bg-white text-gray-700 border hover:bg-gray-50"}`}>
-                  {s.label} ({count})
-                </button>
-              );
-            })}
+    <div className="min-h-screen p-4 sm:p-8">
+      <div className="max-w-5xl mx-auto">
+
+        {/* Header */}
+        <div className="mb-8">
+          <div className="font-accent text-xs mb-2" style={{ color: "var(--lavender)" }}>КАБИНЕТ РАБОТОДАТЕЛЯ</div>
+          <div className="flex items-end justify-between gap-4">
+            <h1 className="font-display text-3xl sm:text-4xl" style={{ color: "var(--chalk)" }}>
+              Отклики кандидатов
+            </h1>
+            <Link href="/employer"
+              className="hidden sm:inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-body transition"
+              style={{ border: "1px solid rgba(196,173,255,0.2)", color: "var(--lavender)" }}>
+              ← Назад
+            </Link>
           </div>
         </div>
 
-        {/* Список */}
+        {/* Filters */}
+        <div className="flex flex-wrap gap-2 mb-6">
+          <button onClick={() => setFilter("")}
+            className="px-4 py-2 rounded-xl text-sm font-body transition"
+            style={{
+              background: !filter ? "rgba(92,46,204,0.4)" : "rgba(255,255,255,0.05)",
+              border: !filter ? "1px solid rgba(196,173,255,0.4)" : "1px solid rgba(255,255,255,0.08)",
+              color: !filter ? "var(--lavender)" : "rgba(255,255,255,0.5)",
+            }}>
+            Все ({apps.length})
+          </button>
+          {STATUSES.map((s) => {
+            const count = apps.filter((a) => a.status === s.key).length;
+            const active = filter === s.key;
+            return (
+              <button key={s.key} onClick={() => setFilter(s.key)}
+                className="px-4 py-2 rounded-xl text-sm font-body transition"
+                style={{
+                  background: active ? s.color : "rgba(255,255,255,0.05)",
+                  border: active ? `1px solid ${s.border}` : "1px solid rgba(255,255,255,0.08)",
+                  color: active ? s.text : "rgba(255,255,255,0.5)",
+                }}>
+                {s.label} ({count})
+              </button>
+            );
+          })}
+        </div>
+
+        {/* List */}
         {filtered.length === 0 ? (
-          <div className="bg-white rounded-lg p-12 text-center">
-            <p className="text-gray-500">Откликов пока нет</p>
+          <div className="brand-card rounded-3xl p-12 text-center">
+            <div className="text-4xl mb-3">📭</div>
+            <div className="font-body text-white/40">Откликов пока нет</div>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-3">
             {filtered.map((app) => {
               const name = app.candidate?.full_name || app.candidate?.email || "Кандидат";
               return (
-                <div key={app.id} className="bg-white rounded-lg shadow-sm p-5">
+                <div key={app.id} className="brand-card rounded-2xl p-5">
                   <div className="flex items-start gap-4">
-                    
-                    <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white text-xl font-bold shrink-0">
+
+                    {/* Avatar */}
+                    <div className="w-12 h-12 rounded-xl flex items-center justify-center text-lg font-bold shrink-0"
+                      style={{ background: "rgba(92,46,204,0.25)", color: "var(--lavender)", border: "1px solid rgba(92,46,204,0.3)" }}>
                       {name[0].toUpperCase()}
                     </div>
 
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-lg text-gray-900 mb-1">{name}</h3>
+                      <div className="flex items-start justify-between gap-3 mb-1">
+                        <h3 className="font-body font-semibold text-white">{name}</h3>
+                        <StatusBadge status={app.status} />
+                      </div>
+
                       {app.candidate?.desired_position && (
-                        <p className="text-sm text-blue-600 mb-2">{app.candidate.desired_position}</p>
+                        <div className="text-sm mb-1" style={{ color: "var(--lavender)" }}>
+                          {app.candidate.desired_position}
+                        </div>
                       )}
 
-                      <div className="text-sm text-gray-600 mb-3">
-                        <span>{app.candidate?.email}</span>
-                        {app.candidate?.phone && <span> • {app.candidate.phone}</span>}
-                        {app.candidate?.city && <span> • {app.candidate.city}</span>}
+                      <div className="flex flex-wrap gap-3 text-xs mb-2" style={{ color: "rgba(255,255,255,0.4)" }}>
+                        {app.candidate?.email && <span>{app.candidate.email}</span>}
+                        {app.candidate?.phone && <span>· {app.candidate.phone}</span>}
+                        {app.candidate?.city && <span>· {app.candidate.city}</span>}
                       </div>
 
-                      <p className="text-xs text-gray-500 mb-3">На вакансию: {app.jobs?.title ?? "—"}</p>
+                      <div className="text-xs mb-3" style={{ color: "rgba(255,255,255,0.3)" }}>
+                        На вакансию: <span className="text-white/60">{app.jobs?.title ?? "—"}</span>
+                        {" · "}
+                        {new Date(app.created_at).toLocaleDateString("ru-RU", { day: "numeric", month: "short" })}
+                      </div>
 
-                      {/* Действия */}
-                      <div className="flex flex-wrap gap-2">
-                        <Link href={`/candidates/${app.candidate_id}`} className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition">
-                          Профиль
+                      {app.cover_letter && (
+                        <div className="text-sm rounded-xl px-3 py-2 mb-3 line-clamp-2"
+                          style={{ background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.5)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                          {app.cover_letter}
+                        </div>
+                      )}
+
+                      {/* Actions */}
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Link href={`/candidates/${app.candidate_id}`}
+                          className="btn-primary inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold text-white">
+                          Профиль →
                         </Link>
-                        <Link href={`/chat/${app.id}`} className="px-4 py-2 rounded-lg bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 text-sm font-medium transition">
+                        <Link href={`/chat/${app.id}`}
+                          className="inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-body transition"
+                          style={{ border: "1px solid rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.7)", background: "rgba(255,255,255,0.04)" }}>
                           Написать
                         </Link>
-                      </div>
-                    </div>
 
-                    {/* Статусы - кнопки */}
-                    <div className="flex flex-col gap-2 shrink-0">
-                      {STATUSES.map((s) => (
-                        <button
-                          key={s.key}
-                          onClick={() => handleStatusChange(app, s.key)}
-                          className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-                            app.status === s.key
-                              ? "bg-blue-100 border-2 border-blue-600 text-blue-700"
-                              : "bg-white border border-gray-300 text-gray-700 hover:bg-gray-50"
-                          }`}
-                        >
-                          {s.label}
-                        </button>
-                      ))}
+                        <div className="ml-auto flex flex-wrap gap-1.5">
+                          {STATUSES.filter((s) => s.key !== app.status).map((s) => (
+                            <button key={s.key} onClick={() => openModal(app, s.key)}
+                              className="rounded-xl px-3 py-1.5 text-xs font-body transition"
+                              style={{ background: s.color, color: s.text, border: `1px solid ${s.border}` }}>
+                              → {s.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -198,45 +257,44 @@ export default function EmployerApplicationsPage() {
             })}
           </div>
         )}
+      </div>
 
-        {/* Модалка для отправки сообщения */}
-        {showMessageModal && selectedApp && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg max-w-2xl w-full p-6">
-              <h3 className="text-xl font-bold text-gray-900 mb-4">
-                Отправить сообщение кандидату
-              </h3>
-              <p className="text-sm text-gray-600 mb-4">
-                Статус будет изменён на: <strong>{STATUSES.find(s => s.key === newStatus)?.label}</strong>
-              </p>
-              <textarea
-                value={messageText}
-                onChange={(e) => setMessageText(e.target.value)}
-                rows={6}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                placeholder="Введите сообщение..."
-              />
-              <div className="flex gap-3 mt-4">
-                <button
-                  onClick={sendMessageAndUpdateStatus}
-                  className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition"
-                >
-                  Отправить и изменить статус
-                </button>
-                <button
-                  onClick={() => {
-                    setShowMessageModal(false);
-                    setSelectedApp(null);
-                  }}
-                  className="px-6 py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg font-semibold transition"
-                >
-                  Отмена
-                </button>
-              </div>
+      {/* Modal */}
+      {showModal && selectedApp && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: "rgba(7,6,15,0.85)", backdropFilter: "blur(8px)" }}>
+          <div className="brand-card rounded-3xl p-6 w-full max-w-lg"
+            style={{ border: "1px solid rgba(196,173,255,0.2)" }}>
+            <h3 className="font-display text-xl mb-1" style={{ color: "var(--chalk)" }}>
+              Сменить статус и отправить сообщение
+            </h3>
+            <p className="text-sm mb-4" style={{ color: "rgba(255,255,255,0.4)" }}>
+              Статус изменится на: <StatusBadge status={newStatus} />
+            </p>
+
+            <textarea
+              value={messageText}
+              onChange={(e) => setMessageText(e.target.value)}
+              rows={5}
+              placeholder="Введите сообщение кандидату..."
+              className="w-full rounded-xl px-4 py-3 text-sm font-body text-white placeholder-white/25 focus:outline-none resize-none transition"
+              style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(196,173,255,0.15)" }}
+            />
+
+            <div className="flex gap-3 mt-4">
+              <button onClick={sendAndUpdate} disabled={sending}
+                className="btn-primary flex-1 rounded-xl py-2.5 font-semibold text-white text-sm disabled:opacity-60">
+                {sending ? "Отправка..." : "Подтвердить →"}
+              </button>
+              <button onClick={() => { setShowModal(false); setSelectedApp(null); }}
+                className="rounded-xl px-5 py-2.5 text-sm font-body transition"
+                style={{ border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.6)", background: "rgba(255,255,255,0.04)" }}>
+                Отмена
+              </button>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -2,185 +2,177 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/client";
 
 export default function ApplyButton({ jobId }: { jobId: string }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [hasApplied, setHasApplied] = useState(false);
-  const [checkingAuth, setCheckingAuth] = useState(true);
+  const [checking, setChecking] = useState(true);
+  const [showCoverLetter, setShowCoverLetter] = useState(false);
+  const [coverLetter, setCoverLetter] = useState("");
+  const [success, setSuccess] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    checkUserStatus();
+    (async () => {
+      const supabase = createClient();
+      const { data: authData } = await supabase.auth.getUser();
+      if (!authData.user) { setChecking(false); return; }
+
+      const { data: profile } = await supabase
+        .from("profiles").select("role").eq("id", authData.user.id).single();
+      setUserRole(profile?.role ?? null);
+
+      if (profile?.role === "candidate") {
+        const { data: existing } = await supabase
+          .from("applications").select("id")
+          .eq("candidate_id", authData.user.id).eq("job_id", jobId).maybeSingle();
+        setHasApplied(!!existing);
+      }
+      setChecking(false);
+    })();
   }, [jobId]);
 
-  const checkUserStatus = async () => {
-    setCheckingAuth(true);
-    const { data: authData } = await supabase.auth.getUser();
-    const user = authData.user;
-
-    if (!user) {
-      setCheckingAuth(false);
-      return;
-    }
-
-    // Проверяем роль пользователя
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", user.id)
-      .single();
-
-    setUserRole(profile?.role || null);
-
-    // Если кандидат, проверяем не откликался ли уже
-    if (profile?.role === "candidate") {
-      const { data: existing } = await supabase
-        .from("applications")
-        .select("id")
-        .eq("candidate_id", user.id)
-        .eq("job_id", jobId)
-        .maybeSingle();
-
-      setHasApplied(!!existing);
-    }
-
-    setCheckingAuth(false);
-  };
-
-  const onApply = async () => {
+  async function submit() {
     setLoading(true);
-    setMessage(null);
-
+    setError(null);
+    const supabase = createClient();
     const { data: authData } = await supabase.auth.getUser();
-    const user = authData.user;
 
-    // Если не авторизован
-    if (!user) {
+    if (!authData.user) {
       router.push(`/auth?role=candidate&next=/jobs/${jobId}`);
       setLoading(false);
       return;
     }
 
-    // Если работодатель
-    if (userRole === "employer") {
-      setMessage("Работодатели не могут откликаться на вакансии");
-      setLoading(false);
-      return;
-    }
-
-    // Проверяем повторно
     const { data: existing } = await supabase
-      .from("applications")
-      .select("id")
-      .eq("candidate_id", user.id)
-      .eq("job_id", jobId)
-      .maybeSingle();
+      .from("applications").select("id")
+      .eq("candidate_id", authData.user.id).eq("job_id", jobId).maybeSingle();
 
     if (existing) {
-      setMessage("Вы уже откликались на эту вакансию");
       setHasApplied(true);
       setLoading(false);
       return;
     }
 
-    // Отправляем отклик
-    const { error } = await supabase.from("applications").insert({
-      candidate_id: user.id,
+    const { error: insertErr } = await supabase.from("applications").insert({
+      candidate_id: authData.user.id,
       job_id: jobId,
       status: "applied",
-      cover_letter: null,
+      cover_letter: coverLetter.trim() || null,
     });
 
-    if (error) {
-      setMessage("Ошибка: " + error.message);
+    if (insertErr) {
+      setError("Ошибка: " + insertErr.message);
     } else {
-      setMessage("✅ Отклик успешно отправлен!");
+      setSuccess(true);
       setHasApplied(true);
-      // Перенаправляем на страницу откликов через 2 секунды
-      setTimeout(() => {
-        router.push("/applications");
-      }, 2000);
+      setShowCoverLetter(false);
     }
-
     setLoading(false);
-  };
+  }
 
-  // Для работодателя - показываем другую кнопку
+  if (checking) {
+    return (
+      <div className="w-full h-12 rounded-2xl animate-pulse" style={{ background: "rgba(255,255,255,0.08)" }} />
+    );
+  }
+
   if (userRole === "employer") {
     return (
-      <div className="mt-6">
-        <button
-          disabled
-          className="rounded-2xl bg-white/10 border border-white/20 px-5 py-3 font-semibold text-white/40 cursor-not-allowed"
-        >
-          Вы не можете откликнуться на свою вакансию
-        </button>
-        <p className="mt-2 text-sm text-white/50">
-          Вы вошли как работодатель. Переключитесь на аккаунт кандидата для отклика.
-        </p>
+      <div className="text-sm text-center" style={{ color: "rgba(255,255,255,0.4)" }}>
+        Войдите как кандидат, чтобы откликнуться
       </div>
     );
   }
 
-  // Если уже откликнулся
-  if (hasApplied) {
+  if (success || hasApplied) {
     return (
-      <div className="mt-6">
-        <button
-          disabled
-          className="rounded-2xl bg-green-500/20 border border-green-500/30 px-5 py-3 font-semibold text-green-400 cursor-not-allowed"
-        >
-          ✓ Вы уже откликнулись
-        </button>
-        <p className="mt-2 text-sm text-white/50">
-          Отклик отправлен. Следите за статусом в{" "}
-          <a href="/applications" className="text-violet-400 hover:underline">
-            личном кабинете
-          </a>
-          .
+      <div className="space-y-2">
+        <div className="flex items-center gap-2 justify-center rounded-2xl py-3 font-semibold text-sm"
+          style={{ background: "rgba(52,211,153,0.12)", border: "1px solid rgba(52,211,153,0.25)", color: "#34d399" }}>
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+          </svg>
+          Отклик отправлен
+        </div>
+        <a href="/applications" className="block text-center text-xs transition"
+          style={{ color: "var(--lavender)" }}>
+          Следить за статусом →
+        </a>
+      </div>
+    );
+  }
+
+  if (!userRole) {
+    return (
+      <div className="space-y-3">
+        <a href={`/auth?role=candidate&next=/jobs/${jobId}`}
+          className="btn-primary flex items-center justify-center gap-2 w-full rounded-2xl py-3 font-semibold text-white text-sm">
+          Откликнуться
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+          </svg>
+        </a>
+        <p className="text-xs text-center" style={{ color: "rgba(255,255,255,0.35)" }}>
+          Необходима{" "}
+          <a href={`/auth?role=candidate&next=/jobs/${jobId}`} style={{ color: "var(--lavender)" }}>авторизация</a>
         </p>
       </div>
     );
   }
 
-  // Для кандидата или неавторизованного
   return (
-    <div className="mt-6">
-      <button
-        onClick={onApply}
-        disabled={loading || checkingAuth}
-        className="rounded-2xl bg-[#7c3aed] hover:bg-[#6d28d9] px-6 py-3 font-semibold text-white disabled:opacity-50 disabled:cursor-not-allowed transition"
-      >
-        {checkingAuth
-          ? "Проверка..."
-          : loading
-          ? "Отправка..."
-          : "Откликнуться"}
-      </button>
-      {message && (
-        <p
-          className={`mt-2 text-sm ${
-            message.includes("✅")
-              ? "text-green-400"
-              : "text-red-400"
-          }`}
-        >
-          {message}
-        </p>
+    <div className="space-y-3">
+      {!showCoverLetter ? (
+        <>
+          <button onClick={() => setShowCoverLetter(true)}
+            className="btn-primary flex items-center justify-center gap-2 w-full rounded-2xl py-3 font-semibold text-white text-sm">
+            Откликнуться
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+            </svg>
+          </button>
+          <button onClick={submit} disabled={loading}
+            className="w-full rounded-2xl py-2 text-xs font-body transition"
+            style={{ color: "rgba(255,255,255,0.4)", border: "1px solid rgba(255,255,255,0.08)" }}>
+            {loading ? "Отправка..." : "Быстрый отклик без письма"}
+          </button>
+        </>
+      ) : (
+        <div className="space-y-2">
+          <label className="text-xs font-body" style={{ color: "rgba(255,255,255,0.5)" }}>
+            Сопроводительное письмо <span style={{ color: "rgba(255,255,255,0.3)" }}>(необязательно)</span>
+          </label>
+          <textarea
+            value={coverLetter}
+            onChange={(e) => setCoverLetter(e.target.value)}
+            rows={4}
+            placeholder="Расскажите, почему вы подходите для этой роли..."
+            className="w-full rounded-xl px-3 py-2.5 text-sm font-body text-white placeholder-white/25 focus:outline-none resize-none transition"
+            style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(196,173,255,0.15)" }}
+          />
+          <div className="flex gap-2">
+            <button onClick={submit} disabled={loading}
+              className="btn-primary flex-1 rounded-xl py-2.5 font-semibold text-white text-sm disabled:opacity-60">
+              {loading ? "Отправка..." : "Отправить отклик"}
+            </button>
+            <button onClick={() => setShowCoverLetter(false)}
+              className="rounded-xl px-4 py-2.5 text-sm font-body transition"
+              style={{ border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.5)" }}>
+              ✕
+            </button>
+          </div>
+        </div>
       )}
-      {!checkingAuth && !userRole && (
-        <p className="mt-2 text-sm text-white/50">
-          Для отклика необходимо{" "}
-          <a
-            href={`/auth?role=candidate&next=/jobs/${jobId}`}
-            className="text-violet-400 hover:underline"
-          >
-            войти или зарегистрироваться
-          </a>
-        </p>
+
+      {error && (
+        <div className="text-xs rounded-xl px-3 py-2"
+          style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", color: "#f87171" }}>
+          {error}
+        </div>
       )}
     </div>
   );

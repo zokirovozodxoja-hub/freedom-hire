@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/client";
 
 type Company = { id: string; name: string | null };
 type Job = {
@@ -52,6 +52,7 @@ export default function EmployerJobsPage() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [msg, setMsg] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
   useEffect(() => {
     void init();
@@ -61,6 +62,7 @@ export default function EmployerJobsPage() {
   async function init() {
     setLoading(true);
     setMsg(null);
+    const supabase = createClient();
 
     const { data: userData } = await supabase.auth.getUser();
     const user = userData?.user;
@@ -88,11 +90,11 @@ export default function EmployerJobsPage() {
     }
 
     setCompany(comp);
-    await loadJobs(comp.id);
+    await loadJobs(comp.id, supabase);
     setLoading(false);
   }
 
-  async function loadJobs(companyId: string) {
+  async function loadJobs(companyId: string, supabase = createClient()) {
     const { data, error } = await supabase
       .from("jobs")
       .select(`
@@ -134,6 +136,7 @@ export default function EmployerJobsPage() {
   async function toggleActive(job: Job) {
     setMsg(null);
     const next = !(job.is_active === true);
+    const supabase = createClient();
 
     const { error } = await supabase.from("jobs").update({ is_active: next }).eq("id", job.id);
     if (error) {
@@ -145,12 +148,9 @@ export default function EmployerJobsPage() {
   }
 
   async function deleteJob(jobId: string) {
-    if (!confirm("Вы уверены, что хотите удалить эту вакансию? Это действие нельзя отменить.")) {
-      return;
-    }
-
     setDeleting(jobId);
     setMsg(null);
+    const supabase = createClient();
 
     const { error } = await supabase.from("jobs").delete().eq("id", jobId);
     
@@ -166,14 +166,14 @@ export default function EmployerJobsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#0b1220] text-white flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         Загрузка...
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#0b1220] text-white p-4 sm:p-6">
+    <div className="min-h-screen p-4 sm:p-6">
       <div className="max-w-5xl mx-auto">
         
         {/* Header */}

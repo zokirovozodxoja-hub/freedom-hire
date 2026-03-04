@@ -17,7 +17,7 @@ type Job = {
  salary_negotiable: boolean | null;
  is_active: boolean;
  employment_type: string | null;
- format: string | null;
+ work_format: string | null;
  experience_level: string | null;
  education_level: string | null;
  tags: string[] | null;
@@ -81,7 +81,7 @@ export default async function JobDetailsPage({ params }: { params: Promise<{ id:
  .select(`
  id, title, city, description, requirements, responsibilities, benefits,
  created_at, salary_from, salary_to, salary_negotiable,
- is_active, employment_type, format, experience_level, education_level, tags,
+ is_active, employment_type, work_format, experience_level, education_level, tags,
  company:companies(id, name, description, city, website)
  `)
  .eq("id", id)
@@ -137,10 +137,10 @@ export default async function JobDetailsPage({ params }: { params: Promise<{ id:
  {salary}
  </span>
  )}
- {job.format && (
+ {job.work_format && (
  <span className="px-3 py-1.5 rounded-full text-sm"
  style={{ background: "rgba(196,173,255,0.1)", color: "#C4ADFF", border: "1px solid rgba(196,173,255,0.2)" }}>
- {FORMAT_LABELS[job.format] ?? job.format}
+ {FORMAT_LABELS[job.work_format] ?? job.work_format}
  </span>
  )}
  {job.employment_type && (
@@ -266,7 +266,7 @@ export default async function JobDetailsPage({ params }: { params: Promise<{ id:
  <h3 className="font-semibold mb-3">Детали</h3>
  <div className="space-y-2 text-sm" style={{ color: "rgba(255,255,255,0.6)" }}>
  {job.city && <div className="flex justify-between"><span>Город</span><span className="text-white">{job.city}</span></div>}
- {job.format && <div className="flex justify-between"><span>Формат</span><span className="text-white">{FORMAT_LABELS[job.format] ?? job.format}</span></div>}
+ {job.work_format && <div className="flex justify-between"><span>Формат</span><span className="text-white">{FORMAT_LABELS[job.work_format] ?? job.work_format}</span></div>}
  {job.employment_type && <div className="flex justify-between"><span>Занятость</span><span className="text-white">{EMP_LABELS[job.employment_type] ?? job.employment_type}</span></div>}
  {job.experience_level && <div className="flex justify-between"><span>Опыт</span><span className="text-white">{EXP_LABELS[job.experience_level] ?? job.experience_level}</span></div>}
  {job.education_level && <div className="flex justify-between"><span>Образование</span><span className="text-white">{EDU_LABELS[job.education_level] ?? job.education_level}</span></div>}

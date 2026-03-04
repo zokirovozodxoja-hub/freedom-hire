@@ -92,3 +92,52 @@ body::after {
  background-size: 60px 60px;
  mask-image: linear-gradient(to bottom, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.3) 50%, rgba(0,0,0,0.05) 100%);
 }
+
+/* ── УЛУЧШЕНИЯ UX ── */
+
+/* Плавная прокрутка */
+html { scroll-behavior: smooth; }
+
+/* Фокус-стили для доступности */
+*:focus-visible {
+  outline: 2px solid rgba(196,173,255,0.6);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+/* Выделение текста */
+::selection {
+  background: rgba(92,46,204,0.35);
+  color: #F6F2FF;
+}
+
+/* Скроллбар */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(196,173,255,0.2); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(196,173,255,0.35); }
+
+/* Анимация появления */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-up { animation: fadeUp 0.3s ease both; }
+
+/* Pulse skeleton */
+@keyframes pulse-brand {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 0.15; }
+}
+.animate-pulse { animation: pulse-brand 1.6s ease-in-out infinite; }
+
+/* Плавные переходы ссылок */
+a { transition: color 0.2s, opacity 0.2s; }
+
+/* Textarea resize only vertical */
+textarea { resize: vertical; }
+
+/* Input placeholder */
+input::placeholder, textarea::placeholder {
+  color: rgba(255,255,255,0.22);
+}

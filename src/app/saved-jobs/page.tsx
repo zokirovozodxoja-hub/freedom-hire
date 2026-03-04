@@ -28,6 +28,7 @@ export default function SavedJobsPage() {
   const [loading, setLoading] = useState(true);
   const [savedJobs, setSavedJobs] = useState<SavedJob[]>([]);
   const [editingNotes, setEditingNotes] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [noteText, setNoteText] = useState("");
 
   useEffect(() => {
@@ -70,12 +71,10 @@ export default function SavedJobsPage() {
   }
 
   async function removeJob(id: string) {
-    if (!confirm("Удалить вакансию из сохранённых?")) return;
-
     const supabase = createClient();
     await supabase.from("saved_jobs").delete().eq("id", id);
-
     setSavedJobs(savedJobs.filter((job) => job.id !== id));
+    setConfirmDelete(null);
   }
 
   async function saveNotes(id: string) {

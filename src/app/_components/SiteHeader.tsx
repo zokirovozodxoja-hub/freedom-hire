@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useI18n, type Lang } from "@/i18n/context";
+import NotificationBell from "@/components/NotificationBell";
 
 const ADMIN_EMAILS = ["zokirovozodxoja@gmail.com"];
 const HIDDEN_PREFIXES = ["/admin", "/onboarding"];
