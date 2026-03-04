@@ -136,7 +136,9 @@ export default function AdminCompaniesPage() {
  </div>
 
  {loading ? (
- <p className="text-white/50">Загрузка...</p>
+ <div className="space-y-2">
+          {[1,2,3].map(i => <div key={i} className="brand-card rounded-xl animate-pulse" style={{height:64}} />)}
+        </div>
  ) : filtered.length === 0 ? (
  <p className="text-white/50">Нет компаний</p>
  ) : (

@@ -120,7 +120,9 @@ export default function AdminUsersPage() {
  )}
 
  {loading ? (
- <p className="text-white/50">Загрузка...</p>
+ <div className="space-y-2">
+          {[1,2,3].map(i => <div key={i} className="brand-card rounded-xl animate-pulse" style={{height:64}} />)}
+        </div>
  ) : filtered.length === 0 ? (
  <div className="rounded-2xl border border-white/10 bg-white/5 p-8 text-center text-white/50">
  {users.length === 0 ? "Нет пользователей" : "Не найдено"}

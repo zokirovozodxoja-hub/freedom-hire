@@ -126,9 +126,13 @@ function CandidateOnboardingInner() {
 
  if (loading) {
  return (
- <div className="min-h-screen bg-[#0b1220] text-white flex items-center justify-center">
- Загрузка...
- </div>
+ <div className="min-h-screen flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 rounded-full border-2 animate-spin"
+            style={{ borderColor: "rgba(196,173,255,0.2)", borderTopColor: "var(--lavender)" }} />
+          <div className="text-sm font-body" style={{ color: "rgba(255,255,255,0.3)" }}>Загрузка...</div>
+        </div>
+      </div>
  );
  }
 
@@ -152,7 +156,11 @@ function CandidateOnboardingInner() {
  "bg-white/10 text-white/30"
  }`}
  >
- {i < step ? "" : i + 1}
+ {i < step ? (
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                </svg>
+              ) : i + 1}
  </button>
  <span className={`text-sm mr-2 ${i === step ? "text-white" : "text-white/40"}`}>{s}</span>
  {i < STEPS.length - 1 && <div className="flex-1 h-px bg-white/10" />}
@@ -308,7 +316,13 @@ function CandidateOnboardingInner() {
 
 export default function CandidateOnboardingPage() {
  return (
- <Suspense fallback={<div className="min-h-screen bg-[#0b1220] text-white flex items-center justify-center">Загрузка...</div>}>
+ <Suspense fallback={<div className="min-h-screen flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 rounded-full border-2 animate-spin"
+            style={{ borderColor: "rgba(196,173,255,0.2)", borderTopColor: "var(--lavender)" }} />
+          <div className="text-sm font-body" style={{ color: "rgba(255,255,255,0.3)" }}>Загрузка...</div>
+        </div>
+      </div>}>
  <CandidateOnboardingInner />
  </Suspense>
  );

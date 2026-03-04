@@ -234,7 +234,7 @@ export default function AdminUserDetailPage() {
  return { steps: [], percent: 0 };
  }
 
- if (loading) return <div className="text-white/40 p-8">Загрузка...</div>;
+ if (loading) return <div className="p-8 space-y-3">{[1,2,3].map(i => <div key={i} className="brand-card rounded-xl animate-pulse" style={{height:80}} />)}</div>;
  if (!profile) return <div className="text-white/40 p-8">Пользователь не найден</div>;
 
  const initials = (profile.full_name || profile.email)[0].toUpperCase();
@@ -325,7 +325,7 @@ export default function AdminUserDetailPage() {
  </div>
 
  {/* ══════════ ONBOARDING PROGRESS ══════════ */}
- <Section icon="" title="Прогресс заполнения профиля">
+ <Section icon="chart" title="Прогресс заполнения профиля">
  <div className="mb-3 flex items-center justify-between text-sm">
  <span style={{ color: "rgba(255,255,255,0.5)" }}>Заполнено</span>
  <span className="font-semibold" style={{ color: progressPercent === 100 ? "#34d399" : "#fbbf24" }}>
@@ -343,7 +343,7 @@ export default function AdminUserDetailPage() {
  {progressSteps.map((step) => (
  <div key={step.label} className="flex items-center gap-2 text-sm rounded-xl px-3 py-2"
  style={{ background: step.done ? "rgba(52,211,153,0.08)" : "rgba(239,68,68,0.08)", border: `1px solid ${step.done ? "rgba(52,211,153,0.2)" : "rgba(239,68,68,0.15)"}` }}>
- <span>{step.done ? "" : ""}</span>
+ <span>{step.done ? "+" : "-"}</span>
  <span style={{ color: step.done ? "#6ee7b7" : "#f87171", fontSize: "12px" }}>{step.label}</span>
  </div>
  ))}
@@ -356,7 +356,7 @@ export default function AdminUserDetailPage() {
  </Section>
 
  {/* ══════════ PROFILE DETAILS ══════════ */}
- <Section icon="" title="Данные профиля">
+ <Section icon="chart" title="Данные профиля">
  <InfoRow label="ID пользователя" value={<span className="font-mono text-xs opacity-60">{profile.id}</span>} />
  <InfoRow label="Email" value={profile.email} />
  <InfoRow label="Роль" value={isEmployer ? "Работодатель" : "Соискатель"} />
@@ -383,7 +383,7 @@ export default function AdminUserDetailPage() {
 
  {/* ══════════ EMPLOYER: COMPANY ══════════ */}
  {isEmployer && (
- <Section icon="" title="Компания">
+ <Section icon="chart" title="Компания">
  {company ? (
  <>
  <InfoRow label="Название" value={company.name} />
@@ -406,7 +406,7 @@ export default function AdminUserDetailPage() {
 
  {/* ══════════ EXPERIENCE ══════════ */}
  {isCandidate && (
- <Section icon="" title={`Опыт работы (${experiences.length})`}>
+ <Section icon="chart" title={`Опыт работы (${experiences.length})`}>
  {experiences.length === 0 ? (
  <div className="text-sm" style={{ color: "rgba(255,255,255,0.3)" }}>Не добавлен</div>
  ) : (
@@ -428,7 +428,7 @@ export default function AdminUserDetailPage() {
 
  {/* ══════════ SKILLS ══════════ */}
  {isCandidate && (
- <Section icon="" title={`Навыки (${skills.length})`}>
+ <Section icon="chart" title={`Навыки (${skills.length})`}>
  {skills.length === 0 ? (
  <div className="text-sm" style={{ color: "rgba(255,255,255,0.3)" }}>Не добавлены</div>
  ) : (
@@ -447,7 +447,7 @@ export default function AdminUserDetailPage() {
 
  {/* ══════════ APPLICATIONS ══════════ */}
  {isCandidate && (
- <Section icon="" title={`Отклики (${applications.length})`}>
+ <Section icon="chart" title={`Отклики (${applications.length})`}>
  {applications.length === 0 ? (
  <div className="text-sm" style={{ color: "rgba(255,255,255,0.3)" }}>Откликов нет</div>
  ) : (
@@ -476,7 +476,7 @@ export default function AdminUserDetailPage() {
 
  {/* ══════════ SAVED JOBS ══════════ */}
  {isCandidate && savedJobs.length > 0 && (
- <Section icon="" title={`Сохранённые вакансии (${savedJobs.length})`}>
+ <Section icon="chart" title={`Сохранённые вакансии (${savedJobs.length})`}>
  <div className="space-y-1">
  {savedJobs.map((s) => (
  <div key={s.id} className="flex items-center justify-between text-sm py-1.5"

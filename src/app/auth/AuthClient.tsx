@@ -39,7 +39,7 @@ function AuthClientInner() {
  // Показываем сообщение о блокировке
  const qError = getQueryParam("error");
  if (qError === "blocked") {
- setError(" Ваш аккаунт заблокирован. Обратитесь в поддержку: support@freedomhire.uz");
+ setError("Ваш аккаунт заблокирован. Обратитесь в поддержку: support@freedomhire.uz");
  }
  }, []);
 
@@ -160,7 +160,12 @@ function AuthClientInner() {
  className="text-sm mb-6 flex items-center gap-1" style={{ color: "#C4ADFF" }}>
  ← Назад
  </button>
- <div className="text-4xl mb-4 text-center"></div>
+ <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4"
+          style={{ background: "rgba(92,46,204,0.15)", border: "1px solid rgba(92,46,204,0.25)" }}>
+          <svg className="w-7 h-7" style={{ color: "var(--lavender)" }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+          </svg>
+        </div>
  <h1 className="text-xl font-bold text-center mb-2">Проверьте почту</h1>
  <p className="text-sm text-center mb-6" style={{ color: "rgba(255,255,255,0.5)" }}>
  Код отправлен на<br />
@@ -235,8 +240,8 @@ function AuthClientInner() {
  <p className="text-sm mb-6" style={{ color: "rgba(255,255,255,0.4)" }}>Выберите роль</p>
  <div className="grid grid-cols-2 gap-3">
  {([
- { value: "candidate" as Role, icon: "", label: "Соискатель", desc: "Ищу работу" },
- { value: "employer" as Role, icon: "", label: "Работодатель", desc: "Ищу сотрудников" },
+ { value: "candidate" as Role, icon: "candidate", label: "Соискатель", desc: "Ищу работу" },
+ { value: "employer" as Role, icon: "employer", label: "Работодатель", desc: "Ищу сотрудников" },
  ]).map((r) => (
  <button key={r.value} onClick={() => { setRole(r.value); setStep("form"); }}
  className="flex flex-col items-center gap-3 rounded-2xl p-6 transition hover:border-violet-500"
@@ -256,7 +261,17 @@ function AuthClientInner() {
  {mode === "signup" && (
  <div className="flex items-center gap-3 mb-5 p-3 rounded-xl"
  style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
- <span className="text-xl">{role === "employer" ? "" : ""}</span>
+ <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "rgba(92,46,204,0.2)" }}>
+                    {role === "employer" ? (
+                      <svg className="w-4 h-4" style={{ color: "var(--lavender)" }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5" />
+                      </svg>
+                    ) : (
+                      <svg className="w-4 h-4" style={{ color: "var(--lavender)" }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                    )}
+                  </div>
  <div className="flex-1 text-sm font-medium">{role === "employer" ? "Работодатель" : "Соискатель"}</div>
  <button onClick={() => setStep("role")} className="text-xs" style={{ color: "#C4ADFF" }}>Изменить</button>
  </div>
@@ -270,8 +285,8 @@ function AuthClientInner() {
  {mode === "login" && (
  <div className="flex gap-2 mb-5">
  {([
- { value: "password" as LoginMethod, label: " Пароль" },
- { value: "otp" as LoginMethod, label: " Код на email" },
+ { value: "password" as LoginMethod, label: "Пароль" },
+ { value: "otp" as LoginMethod, label: "Код на email" },
  ]).map((m) => (
  <button key={m.value} onClick={() => { setLoginMethod(m.value); setError(null); }}
  className="flex-1 py-2 rounded-xl text-sm transition"
@@ -349,9 +364,7 @@ function AuthClientInner() {
 export default function AuthClient() {
  return (
  <Suspense fallback={
- <div className="min-h-screen flex items-center justify-center" style={{ background: "#07060F", color: "#fff" }}>
- Загрузка...
- </div>
+ <div style={{ minHeight:"100vh", background:"#07060F", display:"grid", placeItems:"center" }}><div className="w-8 h-8 border-2 rounded-full animate-spin" style={{ borderColor:"rgba(196,173,255,0.2)", borderTopColor:"#C4ADFF" }} /></div>
  }>
  <AuthClientInner />
  </Suspense>

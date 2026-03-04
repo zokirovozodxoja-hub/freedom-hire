@@ -167,7 +167,11 @@ export default function EmployerJobsPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        Загрузка...
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 rounded-full border-2 animate-spin"
+            style={{ borderColor: "rgba(196,173,255,0.2)", borderTopColor: "var(--lavender)" }} />
+          <div className="text-sm font-body" style={{ color: "rgba(255,255,255,0.3)" }}>Загрузка...</div>
+        </div>
       </div>
     );
   }
