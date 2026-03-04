@@ -1,4 +1,4 @@
-import { supabase } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/client";
 
 export type Company = {
  id: string;
@@ -24,6 +24,7 @@ export type CreateJobInput = {
 };
 
 export async function getMyCompanies() {
+  const supabase = createClient();
  const {
  data: { user },
  error: userError,
@@ -46,6 +47,7 @@ export async function getMyCompanies() {
 }
 
 export async function createJob(input: CreateJobInput) {
+  const supabase = createClient();
  const { data, error } = await supabase
  .from("jobs")
  .insert({
@@ -76,6 +78,7 @@ export async function createJob(input: CreateJobInput) {
 }
 
 export async function addJobSkill(jobId: string, name: string) {
+  const supabase = createClient();
  const { error } = await supabase.from("job_skills").insert({
  job_id: jobId,
  name,

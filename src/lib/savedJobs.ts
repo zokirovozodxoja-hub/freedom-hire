@@ -1,6 +1,7 @@
 import { createClient } from "./supabase/client";
 
 export async function listMySavedJobs() {
+  const supabase = createClient();
  const { data: auth } = await supabase.auth.getUser();
  const user = auth.user;
  if (!user) return { items: [], error: null };
@@ -15,6 +16,7 @@ export async function listMySavedJobs() {
 }
 
 export async function saveJob(jobId: string) {
+  const supabase = createClient();
  const { data: auth } = await supabase.auth.getUser();
  const user = auth.user;
  if (!user) return { error: new Error("Not authenticated") };
@@ -28,6 +30,7 @@ export async function saveJob(jobId: string) {
 }
 
 export async function unsaveJob(jobId: string) {
+  const supabase = createClient();
  const { data: auth } = await supabase.auth.getUser();
  const user = auth.user;
  if (!user) return { error: new Error("Not authenticated") };

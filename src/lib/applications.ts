@@ -1,6 +1,7 @@
 import { createClient } from "./supabase/client";
 
 export async function listMyApplications() {
+  const supabase = createClient();
  const { data: auth } = await supabase.auth.getUser();
  const user = auth.user;
  if (!user) return { items: [], error: null };
