@@ -63,7 +63,7 @@ export default function AdminJobsPage() {
  }
 
  async function deleteJob(id: string) {
- if (!confirm("Удалить вакансию?")) return;
+ 
  const supabase = createClient();
  await supabase.from("jobs").delete().eq("id", id);
  setJobs((prev) => prev.filter((j) => j.id !== id));

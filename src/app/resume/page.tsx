@@ -173,7 +173,7 @@ export default function ResumePage() {
     setSavingProfile(false);
     if (error) { notify(error.message, "err"); return; }
     setProfile((p: any) => ({ ...p, full_name: fullName, headline, city, about, job_search_status: status }));
-    notify("Профиль сохранён ✓");
+    notify("Профиль сохранён");
   }
 
   async function addExp() {
@@ -183,7 +183,7 @@ export default function ResumePage() {
     const ex = await listMyExperiences(); setExperiences(ex.items ?? []);
     setNCo(""); setNPos(""); setNS(""); setNE("");
     setAddingExp(false);
-    notify("Опыт добавлен ✓");
+    notify("Опыт добавлен");
   }
 
   async function saveExp(x: Experience) {
@@ -192,7 +192,7 @@ export default function ResumePage() {
     setSavingExpId(null);
     if (error) { notify(error.message, "err"); return; }
     setEditingExpId(null);
-    notify("Сохранено ✓");
+    notify("Сохранено");
   }
 
   async function delExp(id: string) {
@@ -207,7 +207,7 @@ export default function ResumePage() {
     if (error) { notify(error.message, "err"); return; }
     const sk = await listMySkills(); setSkills(sk.items ?? []);
     setSName(""); setAddingSkill(false);
-    notify("Навык добавлен ✓");
+    notify("Навык добавлен");
   }
 
   async function delSk(id: string) {
@@ -258,7 +258,7 @@ export default function ResumePage() {
               </div>
               <div className="absolute inset-0 rounded-2xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition"
                 style={{ background: "rgba(0,0,0,0.6)" }}>
-                <span className="text-xl">📷</span>
+                <svg className="w-5 h-5" style={{color:"rgba(255,255,255,0.7)"}} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
               </div>
               <input type="file" accept="image/*" className="hidden" onChange={async (e) => {
                 const file = e.target.files?.[0]; if (!file) return;
@@ -272,7 +272,7 @@ export default function ResumePage() {
                 const { data: url } = sb.storage.from("avatars").getPublicUrl(path);
                 await sb.from("profiles").update({ avatar_url: url.publicUrl }).eq("id", ud.user.id);
                 setProfile((p: any) => ({ ...p, avatar_url: url.publicUrl }));
-                notify("Фото обновлено ✓");
+                notify("Фото обновлено");
               }} />
             </label>
 
@@ -282,7 +282,7 @@ export default function ResumePage() {
                 {fullName || "Мой профиль"}
               </h1>
               <div className="text-sm mb-3" style={{ color: "rgba(255,255,255,0.45)" }}>
-                {headline}{headline && city ? " · " : ""}{city && `📍 ${city}`}
+                {headline}{headline && city ? " · " : ""}{city && `${city}`}
               </div>
 
               <div className="flex flex-wrap gap-2">
@@ -351,10 +351,10 @@ export default function ResumePage() {
             </div>
             {completeness < 100 && (
               <div className="mt-2 text-xs" style={{ color: "rgba(255,255,255,0.25)" }}>
-                {!headline.trim() && "· Добавьте должность "}
-                {!about.trim() && "· Заполните «О себе» "}
-                {!experiences.length && "· Добавьте опыт работы "}
-                {!skills.length && "· Укажите навыки"}
+                {!headline.trim() && "Добавьте должность. "}
+                {!about.trim() && "Заполните «О себе». "}
+                {!experiences.length && "Добавьте опыт работы. "}
+                {!skills.length && "Укажите навыки."}
               </div>
             )}
           </div>
@@ -472,7 +472,7 @@ export default function ResumePage() {
           {/* Список опыта */}
           {experiences.length === 0 && !addingExp ? (
             <div className="text-center py-10" style={{ color: "rgba(255,255,255,0.2)" }}>
-              <div className="text-4xl mb-2">💼</div>
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center mx-auto mb-3" style={{background:"rgba(92,46,204,0.15)",border:"1px solid rgba(92,46,204,0.2)"}}><svg className="w-5 h-5" style={{color:"var(--lavender)"}} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg></div>
               <div className="text-sm">Добавьте опыт работы</div>
             </div>
           ) : (
@@ -589,7 +589,7 @@ export default function ResumePage() {
 
           {skills.length === 0 && !addingSkill ? (
             <div className="text-center py-10" style={{ color: "rgba(255,255,255,0.2)" }}>
-              <div className="text-4xl mb-2">⚡</div>
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center mx-auto mb-3" style={{background:"rgba(92,46,204,0.15)",border:"1px solid rgba(92,46,204,0.2)"}}><svg className="w-5 h-5" style={{color:"var(--lavender)"}} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg></div>
               <div className="text-sm">Добавьте свои навыки</div>
             </div>
           ) : (

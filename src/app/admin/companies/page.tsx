@@ -95,7 +95,7 @@ export default function AdminCompaniesPage() {
  }
 
  async function deleteCompany(id: string) {
- if (!confirm("Удалить компанию и все её вакансии?")) return;
+ 
  const supabase = createClient();
  await supabase.from("jobs").delete().eq("company_id", id);
  await supabase.from("companies").delete().eq("id", id);

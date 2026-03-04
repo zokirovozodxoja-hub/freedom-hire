@@ -104,8 +104,10 @@ export default function SavedJobsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#0b1220] text-white flex items-center justify-center">
-        Загрузка...
+            <div className="min-h-screen p-6">
+        <div className="max-w-3xl mx-auto space-y-3 pt-4">
+          {[1,2,3].map(i => <div key={i} className="brand-card rounded-2xl animate-pulse" style={{height:88}} />)}
+        </div>
       </div>
     );
   }
