@@ -178,8 +178,9 @@ export default function ResumePage() {
 
   async function addExp() {
     if (!nCo.trim() || !nPos.trim() || !nS) { notify("Заполните компанию, должность и дату начала", "err"); return; }
-    const { items } = await addExperience({ company: nCo.trim(), position: nPos.trim(), start_date: nS, end_date: nE || null, description: "", is_current: !nE });
-    setExperiences(items ?? []);
+    const { error } = await addExperience({ company: nCo.trim(), position: nPos.trim(), start_date: nS, end_date: nE || null });
+    if (error) { notify(error.message, "err"); return; }
+    const ex = await listMyExperiences(); setExperiences(ex.items ?? []);
     setNCo(""); setNPos(""); setNS(""); setNE("");
     setAddingExp(false);
     notify("Опыт добавлен ✓");
@@ -187,29 +188,31 @@ export default function ResumePage() {
 
   async function saveExp(x: Experience) {
     setSavingExpId(x.id);
-    await updateExperience(x.id, { company: x.company, position: x.position, start_date: x.start_date, end_date: x.end_date, description: x.description ?? "", is_current: !x.end_date });
+    const { error } = await updateExperience(x.id, { company: x.company, position: x.position, start_date: x.start_date, end_date: x.end_date });
     setSavingExpId(null);
+    if (error) { notify(error.message, "err"); return; }
     setEditingExpId(null);
     notify("Сохранено ✓");
   }
 
   async function delExp(id: string) {
-    const { items } = await deleteExperience(id);
-    setExperiences(items ?? []);
+    await deleteExperience(id);
+    setExperiences(prev => prev.filter(e => e.id !== id));
     notify("Удалено");
   }
 
   async function addSk() {
     if (!sName.trim()) { notify("Введите название навыка", "err"); return; }
-    const { items } = await addSkill({ name: sName.trim(), level: sLevel });
-    setSkills(items ?? []);
+    const { error } = await addSkill(sName.trim(), sLevel);
+    if (error) { notify(error.message, "err"); return; }
+    const sk = await listMySkills(); setSkills(sk.items ?? []);
     setSName(""); setAddingSkill(false);
     notify("Навык добавлен ✓");
   }
 
   async function delSk(id: string) {
-    const { items } = await deleteSkill(id);
-    setSkills(items ?? []);
+    await deleteSkill(id);
+    setSkills(prev => prev.filter(s => s.id !== id));
   }
 
   if (loading) {

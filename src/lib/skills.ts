@@ -1,4 +1,4 @@
-import { supabase } from "./supabase/client";
+import { createClient } from "./supabase/client";
 
 export type SkillLevel = "beginner" | "intermediate" | "advanced" | "expert" | "junior";
 
@@ -10,6 +10,7 @@ export type Skill = {
 };
 
 export async function listMySkills() {
+  const supabase = createClient();
  const { data: auth } = await supabase.auth.getUser();
  const user = auth.user;
  if (!user) return { items: [], error: null };
@@ -24,6 +25,7 @@ export async function listMySkills() {
 }
 
 export async function addSkill(name: string, level: SkillLevel) {
+  const supabase = createClient();
  const { data: auth } = await supabase.auth.getUser();
  const user = auth.user;
  if (!user) return { error: { message: "Not authorized" } as any };
@@ -38,6 +40,7 @@ export async function addSkill(name: string, level: SkillLevel) {
 }
 
 export async function deleteSkill(id: string) {
+  const supabase = createClient();
  const { error } = await supabase
  .from("candidate_skills")
  .delete()

@@ -1,4 +1,4 @@
-import { supabase } from "./supabase/client";
+import { createClient } from "./supabase/client";
 
 export type Experience = {
  id: string;
@@ -9,6 +9,7 @@ export type Experience = {
 };
 
 export async function listMyExperiences() {
+  const supabase = createClient();
  const { data: auth } = await supabase.auth.getUser();
  const user = auth.user;
  if (!user) return { items: [], error: null };
@@ -23,6 +24,7 @@ export async function listMyExperiences() {
 }
 
 export async function addExperience(payload: Omit<Experience, "id">) {
+  const supabase = createClient();
  const { data: auth } = await supabase.auth.getUser();
  const user = auth.user;
  if (!user) return { error: { message: "Not authorized" } as any };
@@ -36,6 +38,7 @@ export async function addExperience(payload: Omit<Experience, "id">) {
 }
 
 export async function updateExperience(id: string, patch: Partial<Omit<Experience, "id">>) {
+  const supabase = createClient();
  const { error } = await supabase
  .from("candidate_experiences")
  .update(patch)
@@ -45,6 +48,7 @@ export async function updateExperience(id: string, patch: Partial<Omit<Experienc
 }
 
 export async function deleteExperience(id: string) {
+  const supabase = createClient();
  const { error } = await supabase
  .from("candidate_experiences")
  .delete()
