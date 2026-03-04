@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
-type Company = { id: string; name: string | null };
+type Company = { id: string; name: string | null; verification_status: string | null };
 
 const EMPLOYMENT_TYPES = [
  { value: "full-time", label: "Полная занятость" },
@@ -83,7 +83,7 @@ export default function NewJobPage() {
 
  const { data: comps, error } = await supabase
  .from("companies")
- .select("id,name")
+ .select("id,name,verification_status")
  .eq("owner_id", userData.user.id)
  .order("created_at", { ascending: false });
 
@@ -91,7 +91,9 @@ export default function NewJobPage() {
 
  const list = (comps ?? []) as Company[];
  setCompanies(list);
- if (list[0]) setCompanyId(list[0].id);
+ // Используем только верифицированные компании
+ const verified = list.filter(c => c.verification_status === 'verified');
+ if (verified[0]) setCompanyId(verified[0].id);
  if (!list.length) setMsg("Сначала создайте компанию.");
  setLoading(false);
  })();
@@ -155,6 +157,78 @@ export default function NewJobPage() {
 
  const inputCls = "w-full rounded-2xl bg-black/20 border border-white/10 px-4 py-3 outline-none focus:border-violet-500/50 transition";
  const labelCls = "text-xs text-white/60 block mb-2";
+
+ // Проверяем есть ли верифицированная компания
+ const verifiedCompany = companies.find(c => c.verification_status === 'verified');
+ const pendingCompany = companies.find(c => c.verification_status === 'pending');
+ const rejectedCompany = companies.find(c => c.verification_status === 'rejected');
+
+ // Если нет верифицированной компании — показываем сообщение
+ if (!verifiedCompany) {
+   return (
+     <div className="min-h-screen text-white p-6" style={{ background: "var(--ink)" }}>
+       <div className="max-w-2xl mx-auto mt-20">
+         <div className="rounded-3xl border p-8 text-center"
+           style={{ 
+             background: pendingCompany ? "rgba(251,191,36,0.05)" : rejectedCompany ? "rgba(239,68,68,0.05)" : "rgba(255,255,255,0.03)",
+             borderColor: pendingCompany ? "rgba(251,191,36,0.2)" : rejectedCompany ? "rgba(239,68,68,0.2)" : "rgba(255,255,255,0.1)"
+           }}>
+           
+           <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4"
+             style={{ 
+               background: pendingCompany ? "rgba(251,191,36,0.15)" : rejectedCompany ? "rgba(239,68,68,0.15)" : "rgba(92,46,204,0.15)",
+             }}>
+             <span className="text-3xl">
+               {pendingCompany ? "⏳" : rejectedCompany ? "❌" : "🏢"}
+             </span>
+           </div>
+
+           {pendingCompany ? (
+             <>
+               <h2 className="text-xl font-semibold mb-2" style={{ color: "#fbbf24" }}>
+                 Компания на проверке
+               </h2>
+               <p className="text-white/60 mb-4">
+                 Ваша компания <strong>"{pendingCompany.name}"</strong> находится на модерации. 
+                 Обычно проверка занимает до 24 часов.
+               </p>
+               <p className="text-white/40 text-sm">
+                 После верификации вы сможете публиковать вакансии.
+               </p>
+             </>
+           ) : rejectedCompany ? (
+             <>
+               <h2 className="text-xl font-semibold mb-2" style={{ color: "#f87171" }}>
+                 Компания отклонена
+               </h2>
+               <p className="text-white/60 mb-4">
+                 К сожалению, компания <strong>"{rejectedCompany.name}"</strong> не прошла проверку.
+               </p>
+               <p className="text-white/40 text-sm mb-4">
+                 Свяжитесь с поддержкой для уточнения причин.
+               </p>
+             </>
+           ) : (
+             <>
+               <h2 className="text-xl font-semibold mb-2">
+                 Создайте компанию
+               </h2>
+               <p className="text-white/60 mb-4">
+                 Для публикации вакансий необходимо сначала зарегистрировать компанию.
+               </p>
+             </>
+           )}
+
+           <button 
+             onClick={() => router.push("/employer")}
+             className="btn-primary rounded-xl px-6 py-2.5 font-semibold text-white mt-2">
+             ← Вернуться в кабинет
+           </button>
+         </div>
+       </div>
+     </div>
+   );
+ }
 
  return (
  <div className="min-h-screen  text-white p-6" style={{ background: "var(--ink)" }}>
