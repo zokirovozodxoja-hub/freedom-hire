@@ -17,18 +17,16 @@ type Notification = {
 export default function NotificationBell() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [unreadMessages, setUnreadMessages] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadNotifications();
-    loadUnreadMessages();
     
     // Подписка на новые уведомления в реальном времени
     const supabase = createClient();
     const channel = supabase
-      .channel("notifications-and-messages")
+      .channel("notifications")
       .on(
         "postgres_changes",
         {
@@ -40,44 +38,12 @@ export default function NotificationBell() {
           loadNotifications();
         }
       )
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "conversations",
-        },
-        () => {
-          loadUnreadMessages();
-        }
-      )
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
   }, []);
-
-  async function loadUnreadMessages() {
-    const supabase = createClient();
-    const { data: userData } = await supabase.auth.getUser();
-    if (!userData.user) return;
-
-    const myId = userData.user.id;
-
-    // Получаем непрочитанные сообщения из conversations
-    const { data: convs } = await supabase
-      .from("conversations")
-      .select("employer_id, candidate_id, employer_unread, candidate_unread")
-      .or(`employer_id.eq.${myId},candidate_id.eq.${myId}`);
-
-    let total = 0;
-    for (const c of convs ?? []) {
-      const isEmployer = c.employer_id === myId;
-      total += isEmployer ? (c.employer_unread ?? 0) : (c.candidate_unread ?? 0);
-    }
-    setUnreadMessages(total);
-  }
 
   async function loadNotifications() {
     const supabase = createClient();
@@ -142,8 +108,6 @@ export default function NotificationBell() {
         return "👁️";
       case "new_job":
         return "💼";
-      case "new_message":
-        return "💬";
       default:
         return "🔔";
     }
@@ -167,8 +131,6 @@ export default function NotificationBell() {
 
   if (loading) return null;
 
-  const totalUnread = unreadCount + unreadMessages;
-
   return (
     <div className="relative">
       {/* Bell Button */}
@@ -191,9 +153,9 @@ export default function NotificationBell() {
         </svg>
 
         {/* Unread Badge */}
-        {totalUnread > 0 && (
+        {unreadCount > 0 && (
           <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 text-white text-xs font-bold flex items-center justify-center">
-            {totalUnread > 9 ? "9+" : totalUnread}
+            {unreadCount > 9 ? "9+" : unreadCount}
           </span>
         )}
       </button>
@@ -222,34 +184,12 @@ export default function NotificationBell() {
               )}
             </div>
 
-            {/* Messages shortcut */}
-            {unreadMessages > 0 && (
-              <Link
-                href="/chat"
-                onClick={() => setIsOpen(false)}
-                className="flex items-center gap-3 p-4 bg-violet-500/10 border-b border-white/10 hover:bg-violet-500/20 transition"
-              >
-                <span className="text-2xl">💬</span>
-                <div className="flex-1">
-                  <div className="font-medium text-white text-sm">Новые сообщения</div>
-                  <div className="text-xs text-white/50">{unreadMessages} непрочитанных</div>
-                </div>
-                <svg className="w-5 h-5 text-white/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </Link>
-            )}
-
             {/* Notifications List */}
             <div className="overflow-y-auto flex-1">
-              {notifications.length === 0 && unreadMessages === 0 ? (
+              {notifications.length === 0 ? (
                 <div className="p-8 text-center">
                   <div className="text-4xl mb-2">🔕</div>
                   <p className="text-white/40 text-sm">Нет уведомлений</p>
-                </div>
-              ) : notifications.length === 0 ? (
-                <div className="p-4 text-center text-white/40 text-sm">
-                  Нет других уведомлений
                 </div>
               ) : (
                 <div className="divide-y divide-white/5">
@@ -294,24 +234,17 @@ export default function NotificationBell() {
             </div>
 
             {/* Footer */}
-            <div className="p-3 border-t border-white/10 flex gap-2">
-              <Link
-                href="/chat"
-                className="flex-1 text-center text-sm py-2 rounded-xl bg-white/5 text-white/70 hover:bg-white/10 transition"
-                onClick={() => setIsOpen(false)}
-              >
-                💬 Сообщения
-              </Link>
-              {notifications.length > 0 && (
+            {notifications.length > 0 && (
+              <div className="p-3 border-t border-white/10">
                 <Link
                   href="/notifications"
-                  className="flex-1 text-center text-sm py-2 rounded-xl bg-white/5 text-white/70 hover:bg-white/10 transition"
+                  className="block text-center text-sm text-violet-400 hover:underline"
                   onClick={() => setIsOpen(false)}
                 >
-                  Все уведомления
+                  Показать все →
                 </Link>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         </>
       )}

@@ -11,7 +11,6 @@ type Application = {
   status: string | null;
   cover_letter: string | null;
   created_at: string;
-  conversation_id?: string | null;
   jobs: {
     title: string | null;
     city: string | null;
@@ -62,18 +61,7 @@ export default function ApplicationsPage() {
         .eq("candidate_id", userData.user.id)
         .order("created_at", { ascending: false });
       if (error) setError(error.message);
-      
-      // Загружаем conversations для каждого application
-      const appsWithConv = await Promise.all((data ?? []).map(async (app: any) => {
-        const { data: conv } = await supabase
-          .from("conversations")
-          .select("id")
-          .eq("application_id", app.id)
-          .maybeSingle();
-        return { ...app, conversation_id: conv?.id ?? null };
-      }));
-      
-      setApps(appsWithConv as unknown as Application[]);
+      setApps((data ?? []) as unknown as Application[]);
       setLoading(false);
     })();
   }, [router, supabase]);
@@ -180,21 +168,14 @@ export default function ApplicationsPage() {
                     <span className="text-xs font-body" style={{ color: "rgba(255,255,255,0.25)" }}>
                       {formatDate(app.created_at)}
                     </span>
-                    {app.conversation_id ? (
-                      <Link href={`/chat/${app.conversation_id}`}
-                        className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-xl transition font-body"
-                        style={{ background: "rgba(92,46,204,0.15)", color: "var(--lavender)", border: "1px solid rgba(92,46,204,0.25)" }}>
-                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-                        </svg>
-                        Чат с работодателем
-                      </Link>
-                    ) : (
-                      <span className="text-xs px-3 py-1.5 rounded-xl font-body"
-                        style={{ background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.3)" }}>
-                        Чат будет доступен после ответа
-                      </span>
-                    )}
+                    <Link href={`/chat/${app.id}`}
+                      className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-xl transition font-body"
+                      style={{ background: "rgba(92,46,204,0.15)", color: "var(--lavender)", border: "1px solid rgba(92,46,204,0.25)" }}>
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                      </svg>
+                      Чат с работодателем
+                    </Link>
                   </div>
                 </div>
               );

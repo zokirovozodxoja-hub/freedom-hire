@@ -142,9 +142,6 @@ export default function EmployerOnboardingPage() {
  throw new Error("Не удалось сохранить компанию. Проверьте таблицу companies и RLS.");
  }
 
- // Обновляем профиль - онбординг пройден
- await supabase.from("profiles").update({ is_onboarded: true }).eq("id", data.user.id);
-
  setNotice("Документы отправлены на проверку. Статус: на модерации.");
  // можно сразу вести в кабинет (там покажешь “pending”)
  router.replace("/employer");
