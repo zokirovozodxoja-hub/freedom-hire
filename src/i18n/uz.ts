@@ -102,6 +102,38 @@ const uz: Translations = {
  title: "Biz haqimizda",
  description:
  "FreedomHIRE — O'zbekistonda ish qidirish va yollash platformasi. Bu yerda ish izlovchilar vakansiyalar topadi, kompaniyalar esa tezda pozitsiyalarni to'ldiradi.",
+ badge: "LOYIHA HAQIDA",
+ tagline: "O'zbekistonda ish qidirish va yollash platformasi. Ish izlovchilar mos vakansiyalar topadi, kompaniyalar esa ortiqcha qadamlarsiz va yashirin to'lovlarsiz tezda pozitsiyalarni to'ldiradi.",
+ viewJobs: "Vakansiyalarni ko'rish",
+ postJob: "Vakansiya joylashtirish",
+ stats: {
+ jobs: "Joylashtirilgan vakansiyalar",
+ companies: "Platformadagi kompaniyalar",
+ candidates: "Ish izlovchilar",
+ hires: "Muvaffaqiyatli yollash",
+ },
+ mission: {
+ title: "MISSIYA",
+ subtitle: "Nima uchun buni qilyapmiz",
+ text: "O'zbekiston mehnat bozori faol rivojlanmoqda, ammo yollash vositalari orqada qolgan edi. Biz FreedomHIRE ni yaratdik, shunda ish beruvchilar odamlarni tez topa olsin, ish izlovchilar esa arizalarining holatini tushunib, halol fikr-mulohaza olsin.",
+ },
+ values: {
+ title: "QADRIYATLAR",
+ items: [
+ { icon: "speed", title: "Tezlik", desc: "Vakansiya joylashtirish yoki ariza yuborish — 2 daqiqalik ish. Biz ortiqchasini olib tashladik." },
+ { icon: "local", title: "Mahalliylik", desc: "O'zbekiston bozoriga e'tibor. Barcha vakansiyalar va nomzodlar — bu yerdan." },
+ { icon: "open", title: "Shaffoflik", desc: "Maoshlar, ariza holatlari va qarorlar sabablari ko'rinadi — qora qutilarsiz." },
+ { icon: "simple", title: "Soddalik", desc: "Obunalar va yashirin to'lovlar yo'q. Ro'yxatdan o'ting va darhol boshlang." },
+ ],
+ },
+ contacts: {
+ title: "ALOQA",
+ subtitle: "Biz bilan bog'laning",
+ email: "Qo'llab-quvvatlash email",
+ website: "Sayt",
+ city: "Shahar",
+ cityValue: "Toshkent, O'zbekiston",
+ },
  },
  // Employers page
  employers: {

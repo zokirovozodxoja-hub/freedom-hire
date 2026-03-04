@@ -105,15 +105,15 @@ export default function SiteHeader() {
  <Link href="/" className="flex items-center gap-3">
  <div
  className="relative flex h-10 w-10 items-center justify-center rounded-xl overflow-hidden shrink-0"
- style={{ background: "linear-gradient(135deg, #3D14BB, #7C4AE8)", boxShadow: "0 4px 16px rgba(92,46,204,0.5)" }}
+ style={{ background: "linear-gradient(145deg, #1A0044, #4A1FCC, #7C3AED)", boxShadow: "0 4px 16px rgba(92,46,204,0.5)" }}
  >
- <span style={{ fontFamily: "'Syne', sans-serif", fontWeight: 800, fontSize: "13px", color: "#fff", letterSpacing: "0.05em" }}>FH</span>
+ <span style={{ fontFamily: "Georgia, serif", fontWeight: 700, fontSize: "16px", color: "#fff", letterSpacing: "-1px" }}>FH</span>
  </div>
  <div className="leading-tight">
- <div className="font-semibold text-white text-sm">
- Freedom<span style={{ color: "#C4ADFF" }}>HIRE</span>
+ <div className="font-display font-bold text-white" style={{ fontSize: "15px", letterSpacing: "-0.3px" }}>
+ Freedom<span className="font-accent text-xs ml-0.5" style={{ color: "var(--lavender)", letterSpacing: "0.15em", verticalAlign: "baseline" }}>HIRE</span>
  </div>
- <div className="text-xs text-white/40">freedomhire.uz</div>
+ <div className="text-xs" style={{ color: "rgba(255,255,255,0.4)" }}>freedomhire.uz</div>
  </div>
  </Link>
 

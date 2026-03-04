@@ -11,8 +11,14 @@
  --lavender: #C4ADFF;
  --chalk: #F6F2FF;
  --ink: #0A0618;
+ --deep: #120830;
+ --mid: #1E0F44;
  --gold: #C9A84C;
- --bg: #07060F;
+ --bg: #0A0618;
+ /* RGB variants for rgba() usage */
+ --brand-core-rgb: 91, 46, 204;
+ --lavender-rgb: 196, 173, 255;
+ --gold-rgb: 201, 168, 76;
 }
 
 html, body {
@@ -63,7 +69,7 @@ html, body {
 body {
  position: relative;
  isolation: isolate;
- background: #07060F;
+ background: var(--ink);
 }
 
 /* Основные световые пятна */

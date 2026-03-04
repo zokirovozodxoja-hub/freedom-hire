@@ -165,7 +165,7 @@ export default function EmployerOnboardingPage() {
  }
 
  return (
- <main className="min-h-screen bg-[#0b1220] text-white">
+ <main className="min-h-screen text-white" style={{ background: "var(--ink)" }}>
  <div className="mx-auto w-full max-w-3xl px-4 sm:px-6 lg:px-8 py-10">
  <div className="rounded-3xl border border-white/10 bg-white/5 p-8 shadow-[0_20px_60px_rgba(0,0,0,0.45)]">
  <h1 className="text-2xl sm:text-3xl font-semibold">
@@ -233,7 +233,7 @@ export default function EmployerOnboardingPage() {
  </div>
 
  <button
- className="mt-7 w-full rounded-xl bg-[#7c3aed] px-4 py-3 font-semibold hover:bg-[#6d28d9] transition disabled:opacity-60"
+ className="btn-primary mt-7 w-full rounded-xl px-4 py-3 font-semibold text-white transition disabled:opacity-60"
  onClick={submit}
  disabled={saving}
  >

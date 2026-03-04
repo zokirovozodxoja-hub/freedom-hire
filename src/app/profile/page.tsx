@@ -242,7 +242,7 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#0b1220] text-white flex items-center justify-center">
+      <div className="min-h-screen  text-white flex items-center justify-center">
         Загрузка профиля...
       </div>
     );
@@ -252,7 +252,7 @@ export default function ProfilePage() {
   const labelCls = "text-xs text-white/60 block mb-2 font-medium";
 
   return (
-    <div className="min-h-screen bg-[#0b1220] text-white p-4 sm:p-6">
+    <div className="min-h-screen  text-white p-4 sm:p-6">
       <div className="max-w-4xl mx-auto">
         
         {/* Header */}

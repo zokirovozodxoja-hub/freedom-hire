@@ -113,7 +113,7 @@ export default function SavedJobsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0b1220] text-white p-4 sm:p-6">
+    <div className="min-h-screen text-white p-4 sm:p-6" style={{ background: "var(--ink)" }}>
       <div className="max-w-4xl mx-auto">
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2">Сохранённые вакансии</h1>
@@ -124,14 +124,18 @@ export default function SavedJobsPage() {
 
         {savedJobs.length === 0 ? (
           <div className="bg-white/5 border border-white/10 rounded-3xl p-12 text-center">
-            <div className="text-4xl mb-4">❤️</div>
+            <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ background: "rgba(92,46,204,0.2)", border: "1px solid rgba(92,46,204,0.3)" }}>
+              <svg className="w-7 h-7" style={{ color: "var(--lavender)" }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+              </svg>
+            </div>
             <h2 className="text-xl font-semibold mb-2">Нет сохранённых вакансий</h2>
             <p className="text-white/50 mb-6">
               Сохраняйте понравившиеся вакансии, чтобы вернуться к ним позже
             </p>
             <Link
               href="/jobs"
-              className="inline-block px-6 py-3 rounded-xl bg-violet-600 hover:bg-violet-700 font-semibold transition"
+              className="btn-primary inline-block px-6 py-3 rounded-xl font-semibold text-white transition"
             >
               Смотреть вакансии
             </Link>
@@ -154,7 +158,10 @@ export default function SavedJobsPage() {
                       {/* Job Title */}
                       <Link
                         href={`/jobs/${job.id}`}
-                        className="font-semibold text-lg hover:text-violet-400 transition truncate block mb-2"
+                        className="font-semibold text-lg transition truncate block mb-2"
+                        style={{ color: "white" }}
+                        onMouseOver={(e) => e.currentTarget.style.color = "var(--lavender)"}
+                        onMouseOut={(e) => e.currentTarget.style.color = "white"}
                       >
                         {job.title || "Без названия"}
                       </Link>
@@ -179,14 +186,14 @@ export default function SavedJobsPage() {
                           </span>
                         )}
                         {job.work_format && (
-                          <span className="px-2 py-0.5 rounded-full bg-violet-600/20 text-violet-300">
+                          <span className="px-2 py-0.5 rounded-full" style={{ background: "rgba(196,173,255,0.1)", color: "var(--lavender)" }}>
                             {job.work_format === "remote" ? "Удалённо" : job.work_format === "hybrid" ? "Гибрид" : "Офис"}
                           </span>
                         )}
                       </div>
 
                       {/* Salary */}
-                      <div className="text-[#f59e0b] font-semibold mb-3">
+                      <div className="font-semibold mb-3" style={{ color: "var(--gold)" }}>
                         {salary}
                       </div>
 
@@ -198,12 +205,15 @@ export default function SavedJobsPage() {
                             onChange={(e) => setNoteText(e.target.value)}
                             placeholder="Добавьте заметку..."
                             rows={3}
-                            className="w-full rounded-xl bg-black/20 border border-white/10 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-violet-500/50"
+                            className="w-full rounded-xl bg-black/20 border border-white/10 px-3 py-2 text-sm text-white placeholder-white/30 outline-none"
+                            style={{ borderColor: "rgba(196,173,255,0.12)" }}
+                            onFocus={(e) => e.target.style.borderColor = "rgba(92,46,204,0.5)"}
+                            onBlur={(e) => e.target.style.borderColor = "rgba(196,173,255,0.12)"}
                           />
                           <div className="flex gap-2 mt-2">
                             <button
                               onClick={() => saveNotes(saved.id)}
-                              className="px-3 py-1.5 rounded-lg bg-violet-600 hover:bg-violet-700 text-sm font-medium transition"
+                              className="btn-primary px-3 py-1.5 rounded-lg text-sm font-medium text-white transition"
                             >
                               Сохранить
                             </button>
@@ -226,7 +236,8 @@ export default function SavedJobsPage() {
                               setEditingNotes(saved.id);
                               setNoteText(saved.notes || "");
                             }}
-                            className="text-xs text-violet-400 hover:underline mt-2"
+                            className="text-xs hover:underline mt-2"
+                            style={{ color: "var(--lavender)" }}
                           >
                             Редактировать заметку
                           </button>
@@ -234,7 +245,9 @@ export default function SavedJobsPage() {
                       ) : (
                         <button
                           onClick={() => setEditingNotes(saved.id)}
-                          className="text-xs text-white/40 hover:text-violet-400 transition"
+                          className="text-xs text-white/40 transition"
+                          onMouseOver={(e) => e.currentTarget.style.color = "var(--lavender)"}
+                          onMouseOut={(e) => e.currentTarget.style.color = "rgba(255,255,255,0.4)"}
                         >
                           + Добавить заметку
                         </button>
@@ -254,7 +267,7 @@ export default function SavedJobsPage() {
                     <div className="flex flex-col gap-2 shrink-0">
                       <Link
                         href={`/jobs/${job.id}`}
-                        className="px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-sm font-semibold text-center transition"
+                        className="btn-primary px-4 py-2 rounded-xl text-sm font-semibold text-white text-center transition"
                       >
                         Открыть
                       </Link>

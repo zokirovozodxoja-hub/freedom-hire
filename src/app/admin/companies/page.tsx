@@ -128,7 +128,7 @@ export default function AdminCompaniesPage() {
  ].map((f) => (
  <button key={f.value} onClick={() => setFilter(f.value)}
  className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
- filter === f.value ? "bg-[#7c3aed] text-white" : "bg-white/8 text-white/70 hover:text-white"
+ filter === f.value ? "btn-primary text-white" : "bg-white/8 text-white/70 hover:text-white"
  }`}>
  {f.label}
  </button>

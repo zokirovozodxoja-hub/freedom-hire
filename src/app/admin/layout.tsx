@@ -43,21 +43,25 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
  if (checking) {
  return (
- <div className="min-h-screen bg-[#0b1220] flex items-center justify-center text-white/50 text-sm">
- Проверка доступа...
+ <div className="min-h-screen flex items-center justify-center text-white/50 text-sm" style={{ background: "var(--ink)" }}>
+ <div className="flex flex-col items-center gap-3">
+ <div className="w-8 h-8 rounded-full border-2 animate-spin"
+ style={{ borderColor: "rgba(196,173,255,0.2)", borderTopColor: "var(--lavender)" }} />
+ <div className="text-sm" style={{ color: "rgba(255,255,255,0.5)" }}>Проверка доступа...</div>
+ </div>
  </div>
  );
  }
 
  return (
- <div className="min-h-screen bg-[#0b1220] text-white flex">
+ <div className="min-h-screen text-white flex" style={{ background: "var(--ink)" }}>
  {/* Сайдбар */}
  <aside className="w-56 shrink-0 border-r border-white/10 bg-white/3 flex flex-col">
  <div className="p-5 border-b border-white/10">
  <div className="font-black text-lg">FH Admin</div>
  <div className="text-xs text-white/40 mt-0.5">Панель управления</div>
  {adminEmail && (
- <div className="text-xs text-violet-400 mt-1 truncate">{adminEmail}</div>
+ <div className="text-xs mt-1 truncate" style={{ color: "var(--lavender)" }}>{adminEmail}</div>
  )}
  </div>
  <nav className="flex-1 p-3 space-y-1">
@@ -69,9 +73,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
  href={item.href}
  className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
  active
- ? "bg-[#7c3aed] text-white"
+ ? "text-white"
  : "text-white/70 hover:bg-white/8 hover:text-white"
  }`}
+ style={active ? { background: "var(--brand-core)" } : undefined}
  >
  {item.label}
  </Link>

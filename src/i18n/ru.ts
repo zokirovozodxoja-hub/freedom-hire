@@ -66,7 +66,37 @@ export type Translations = {
  yesterday: string;
  daysAgo: (d: number) => string;
  };
- about: { title: string; description: string };
+ about: {
+ title: string;
+ description: string;
+ badge: string;
+ tagline: string;
+ viewJobs: string;
+ postJob: string;
+ stats: {
+ jobs: string;
+ companies: string;
+ candidates: string;
+ hires: string;
+ };
+ mission: {
+ title: string;
+ subtitle: string;
+ text: string;
+ };
+ values: {
+ title: string;
+ items: { icon: string; title: string; desc: string }[];
+ };
+ contacts: {
+ title: string;
+ subtitle: string;
+ email: string;
+ website: string;
+ city: string;
+ cityValue: string;
+ };
+ };
  employers: {
  title: string;
  subtitle: string;
@@ -168,6 +198,38 @@ const ru: Translations = {
  about: {
  title: "О нас",
  description: "FreedomHIRE — платформа для поиска работы и найма в Узбекистане. Здесь соискатели находят вакансии, а компании быстро закрывают позиции.",
+ badge: "О ПРОЕКТЕ",
+ tagline: "Платформа для поиска работы и найма в Узбекистане. Соискатели находят подходящие вакансии, а компании быстро закрывают открытые позиции — без лишних шагов и скрытых платежей.",
+ viewJobs: "Смотреть вакансии",
+ postJob: "Разместить вакансию",
+ stats: {
+ jobs: "Вакансий размещено",
+ companies: "Компаний на платформе",
+ candidates: "Соискателей",
+ hires: "Успешных наймов",
+ },
+ mission: {
+ title: "МИССИЯ",
+ subtitle: "Почему мы это делаем",
+ text: "Рынок труда в Узбекистане активно растёт, но инструменты найма отставали. Мы создали FreedomHIRE чтобы работодатели могли находить людей быстро, а соискатели — понимать статус своего отклика и получать честную обратную связь.",
+ },
+ values: {
+ title: "ЦЕННОСТИ",
+ items: [
+ { icon: "speed", title: "Скорость", desc: "Разместить вакансию или отправить отклик — дело 2 минут. Мы убрали всё лишнее." },
+ { icon: "local", title: "Локальность", desc: "Фокус на рынке Узбекистана. Все вакансии и кандидаты — отсюда." },
+ { icon: "open", title: "Прозрачность", desc: "Видны зарплаты, статусы откликов и причины решений — без чёрных ящиков." },
+ { icon: "simple", title: "Простота", desc: "Никаких подписок и скрытых платежей. Зарегистрируйся и начни сразу." },
+ ],
+ },
+ contacts: {
+ title: "КОНТАКТЫ",
+ subtitle: "Свяжитесь с нами",
+ email: "Email поддержки",
+ website: "Сайт",
+ city: "Город",
+ cityValue: "Ташкент, Узбекистан",
+ },
  },
  employers: {
  title: "Работодателям",

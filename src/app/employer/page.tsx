@@ -103,7 +103,7 @@ export default function EmployerDashboard() {
  : { label: "Не верифицирована", cls: "bg-white/10 text-white/50" };
 
  return (
- <div className="min-h-screen bg-[#0b1220] text-white p-6">
+ <div className="min-h-screen text-white p-6" style={{ background: "var(--ink)" }}>
  <div className="max-w-5xl mx-auto">
 
  {/* Шапка */}
@@ -145,7 +145,9 @@ export default function EmployerDashboard() {
  href="/employer/jobs/new"
  className="group rounded-2xl border border-white/10 bg-white/5 hover:bg-white/8 p-6 transition"
  >
- <div className="text-2xl mb-3"></div>
+ <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-3" style={{ background: "rgba(92,46,204,0.2)", border: "1px solid rgba(92,46,204,0.3)" }}>
+ <svg className="w-5 h-5" style={{ color: "var(--lavender)" }} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" /></svg>
+ </div>
  <div className="font-semibold text-lg">Создать вакансию</div>
  <div className="text-sm text-white/50 mt-1">Разместите новую вакансию для поиска кандидатов</div>
  </Link>
@@ -154,7 +156,9 @@ export default function EmployerDashboard() {
  href="/employer/jobs"
  className="group rounded-2xl border border-white/10 bg-white/5 hover:bg-white/8 p-6 transition"
  >
- <div className="text-2xl mb-3"></div>
+ <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-3" style={{ background: "rgba(92,46,204,0.2)", border: "1px solid rgba(92,46,204,0.3)" }}>
+ <svg className="w-5 h-5" style={{ color: "var(--lavender)" }} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+ </div>
  <div className="font-semibold text-lg">Мои вакансии</div>
  <div className="text-sm text-white/50 mt-1">
  {stats.jobs > 0 ? `${stats.jobs} вакансий, ${stats.activeJobs} активных` : "Вакансий пока нет"}
@@ -165,7 +169,9 @@ export default function EmployerDashboard() {
  href="/employer/applications"
  className="group rounded-2xl border border-white/10 bg-white/5 hover:bg-white/8 p-6 transition"
  >
- <div className="text-2xl mb-3"></div>
+ <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-3" style={{ background: "rgba(92,46,204,0.2)", border: "1px solid rgba(92,46,204,0.3)" }}>
+ <svg className="w-5 h-5" style={{ color: "var(--lavender)" }} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+ </div>
  <div className="font-semibold text-lg">Отклики</div>
  <div className="text-sm text-white/50 mt-1">
  {stats.applications > 0 ? `${stats.applications} откликов` : "Откликов пока нет"}
@@ -173,7 +179,9 @@ export default function EmployerDashboard() {
  </Link>
 
  <div className="rounded-2xl border border-white/10 bg-white/5 p-6 opacity-50">
- <div className="text-2xl mb-3"></div>
+ <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-3" style={{ background: "rgba(255,255,255,0.1)" }}>
+ <svg className="w-5 h-5" style={{ color: "rgba(255,255,255,0.4)" }} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5" /></svg>
+ </div>
  <div className="font-semibold text-lg">Профиль компании</div>
  <div className="text-sm text-white/50 mt-1">Скоро: редактирование данных компании</div>
  </div>

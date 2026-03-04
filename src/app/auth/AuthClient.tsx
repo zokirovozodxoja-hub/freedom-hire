@@ -240,13 +240,23 @@ function AuthClientInner() {
  <p className="text-sm mb-6" style={{ color: "rgba(255,255,255,0.4)" }}>Выберите роль</p>
  <div className="grid grid-cols-2 gap-3">
  {([
- { value: "candidate" as Role, icon: "candidate", label: "Соискатель", desc: "Ищу работу" },
- { value: "employer" as Role, icon: "employer", label: "Работодатель", desc: "Ищу сотрудников" },
+ { value: "candidate" as Role, label: "Соискатель", desc: "Ищу работу" },
+ { value: "employer" as Role, label: "Работодатель", desc: "Ищу сотрудников" },
  ]).map((r) => (
  <button key={r.value} onClick={() => { setRole(r.value); setStep("form"); }}
  className="flex flex-col items-center gap-3 rounded-2xl p-6 transition hover:border-violet-500"
  style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)" }}>
- <span className="text-4xl">{r.icon}</span>
+ <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: "rgba(92,46,204,0.2)", border: "1px solid rgba(92,46,204,0.3)" }}>
+ {r.value === "candidate" ? (
+ <svg className="w-7 h-7" style={{ color: "var(--lavender)" }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+ <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+ </svg>
+ ) : (
+ <svg className="w-7 h-7" style={{ color: "var(--lavender)" }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+ <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+ </svg>
+ )}
+ </div>
  <div className="text-center">
  <div className="font-semibold text-sm">{r.label}</div>
  <div className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.4)" }}>{r.desc}</div>
@@ -364,7 +374,7 @@ function AuthClientInner() {
 export default function AuthClient() {
  return (
  <Suspense fallback={
- <div style={{ minHeight:"100vh", background:"#07060F", display:"grid", placeItems:"center" }}><div className="w-8 h-8 border-2 rounded-full animate-spin" style={{ borderColor:"rgba(196,173,255,0.2)", borderTopColor:"#C4ADFF" }} /></div>
+ <div style={{ minHeight:"100vh", background:"var(--ink)", display:"grid", placeItems:"center" }}><div className="w-8 h-8 border-2 rounded-full animate-spin" style={{ borderColor:"rgba(196,173,255,0.2)", borderTopColor:"var(--lavender)" }} /></div>
  }>
  <AuthClientInner />
  </Suspense>

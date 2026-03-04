@@ -235,7 +235,7 @@ export default function EditJobPage() {
   const labelCls = "text-xs text-white/60 block mb-2";
 
   return (
-    <div className="min-h-screen bg-[#0b1220] text-white p-6">
+    <div className="min-h-screen  text-white p-6" style={{ background: "var(--ink)" }}>
       <div className="max-w-4xl mx-auto">
         <div className="flex items-center justify-between gap-3 mb-6">
           <div>
@@ -254,7 +254,7 @@ export default function EditJobPage() {
             <button
               onClick={onUpdate}
               disabled={saving || !companyId}
-              className="rounded-2xl bg-[#7c3aed] px-5 py-2 font-semibold hover:bg-[#6d28d9] transition disabled:opacity-50"
+              className="rounded-2xl btn-primary px-5 py-2 font-semibold  transition disabled:opacity-50"
             >
               {saving ? "Сохраняю..." : "Сохранить"}
             </button>
@@ -527,7 +527,7 @@ export default function EditJobPage() {
           <button
             onClick={onUpdate}
             disabled={saving || !companyId}
-            className="rounded-2xl bg-[#7c3aed] px-6 py-3 font-semibold hover:bg-[#6d28d9] transition disabled:opacity-50"
+            className="rounded-2xl btn-primary px-6 py-3 font-semibold  transition disabled:opacity-50"
           >
             {saving ? "Сохраняю..." : "Сохранить изменения"}
           </button>

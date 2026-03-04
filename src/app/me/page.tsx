@@ -24,7 +24,7 @@ export default function MeRedirect() {
  }, [router]);
 
  return (
- <div className="min-h-screen bg-[#0b1220] text-white flex items-center justify-center">
+ <div className="min-h-screen  text-white flex items-center justify-center">
  <div className="text-white/50 text-sm">Перенаправляем...</div>
  </div>
  );

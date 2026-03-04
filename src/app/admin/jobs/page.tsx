@@ -79,7 +79,7 @@ export default function AdminJobsPage() {
  key={f}
  onClick={() => setFilter(f)}
  className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
- filter === f ? "bg-[#7c3aed] text-white" : "bg-white/8 text-white/70 hover:text-white"
+ filter === f ? "btn-primary text-white" : "bg-white/8 text-white/70 hover:text-white"
  }`}
  >
  {f === "all" ? "Все" : f === "active" ? "Активные" : "Скрытые"}

@@ -2,25 +2,8 @@
 import Link from "next/link";
 import { useI18n } from "@/i18n/context";
 
-const TEAM = [
-  { name: "Зокиров Озод", role: "CEO & Co-founder", initials: "ЗО" },
-  { name: "Команда разработки", role: "Engineering",      initials: "КР" },
-  { name: "Команда продукта",   role: "Product & Design", initials: "КП" },
-];
-
-const STATS = [
-  { label: "Вакансий размещено",  value: "500+",  icon: "briefcase" },
-  { label: "Компаний на платформе", value: "120+", icon: "building"  },
-  { label: "Соискателей",         value: "2 000+", icon: "people"    },
-  { label: "Успешных наймов",     value: "300+",  icon: "check"     },
-];
-
-const VALUES = [
-  { icon: "speed",   title: "Скорость",     desc: "Разместить вакансию или отправить отклик — дело 2 минут. Мы убрали всё лишнее." },
-  { icon: "local",   title: "Локальность",  desc: "Фокус на рынке Узбекистана. Все вакансии и кандидаты — отсюда." },
-  { icon: "open",    title: "Прозрачность", desc: "Видны зарплаты, статусы откликов и причины решений — без чёрных ящиков." },
-  { icon: "simple",  title: "Простота",     desc: "Никаких подписок и скрытых платежей. Зарегистрируйся и начни сразу." },
-];
+const STATS_ICONS = ["briefcase", "building", "people", "check"];
+const STATS_VALUES = ["500+", "120+", "2 000+", "300+"];
 
 function Icon({ type }: { type: string }) {
   const cls = "w-5 h-5";
@@ -40,6 +23,7 @@ function Icon({ type }: { type: string }) {
 
 export default function AboutPage() {
   const { t } = useI18n();
+  const statsLabels = [t.about.stats.jobs, t.about.stats.companies, t.about.stats.candidates, t.about.stats.hires];
 
   return (
     <main className="min-h-screen pb-20">
@@ -48,24 +32,21 @@ export default function AboutPage() {
         {/* ── HERO ── */}
         <div className="brand-card rounded-3xl p-8 sm:p-12 relative overflow-hidden"
           style={{ border: "1px solid rgba(196,173,255,0.12)" }}>
-          {/* bg glow */}
           <div className="absolute -top-20 -right-20 w-72 h-72 rounded-full pointer-events-none"
             style={{ background: "radial-gradient(circle, rgba(92,46,204,0.15) 0%, transparent 70%)" }} />
 
           <div className="relative">
-            <div className="font-accent text-xs mb-3" style={{ color: "var(--lavender)" }}>О ПРОЕКТЕ</div>
+            <div className="font-accent text-xs mb-3" style={{ color: "var(--lavender)" }}>{t.about.badge}</div>
             <h1 className="font-display text-4xl sm:text-5xl mb-4" style={{ color: "var(--chalk)" }}>
               Freedom<span style={{ color: "var(--lavender)" }}>HIRE</span>
             </h1>
             <p className="font-body text-lg leading-relaxed max-w-2xl" style={{ color: "rgba(255,255,255,0.6)" }}>
-              Платформа для поиска работы и найма в Узбекистане. Соискатели находят
-              подходящие вакансии, а компании быстро закрывают открытые позиции —
-              без лишних шагов и скрытых платежей.
+              {t.about.tagline}
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
               <Link href="/jobs"
                 className="btn-primary inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold text-white">
-                Смотреть вакансии
+                {t.about.viewJobs}
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3"/>
                 </svg>
@@ -73,7 +54,7 @@ export default function AboutPage() {
               <Link href="/employers"
                 className="inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold transition"
                 style={{ border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.7)", background: "rgba(255,255,255,0.04)" }}>
-                Разместить вакансию
+                {t.about.postJob}
               </Link>
             </div>
           </div>
@@ -81,35 +62,33 @@ export default function AboutPage() {
 
         {/* ── STATS ── */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {STATS.map(s => (
-            <div key={s.label} className="brand-card rounded-2xl p-5 text-center"
+          {STATS_ICONS.map((icon, i) => (
+            <div key={icon} className="brand-card rounded-2xl p-5 text-center"
               style={{ border: "1px solid rgba(255,255,255,0.07)" }}>
               <div className="w-9 h-9 rounded-xl flex items-center justify-center mx-auto mb-3"
                 style={{ background: "rgba(92,46,204,0.15)", border: "1px solid rgba(92,46,204,0.2)" }}>
-                <Icon type={s.icon} />
+                <Icon type={icon} />
               </div>
-              <div className="font-display text-2xl font-bold mb-1" style={{ color: "var(--chalk)" }}>{s.value}</div>
-              <div className="font-body text-xs" style={{ color: "rgba(255,255,255,0.4)" }}>{s.label}</div>
+              <div className="font-display text-2xl font-bold mb-1" style={{ color: "var(--chalk)" }}>{STATS_VALUES[i]}</div>
+              <div className="font-body text-xs" style={{ color: "rgba(255,255,255,0.4)" }}>{statsLabels[i]}</div>
             </div>
           ))}
         </div>
 
         {/* ── MISSION ── */}
         <div className="brand-card rounded-2xl p-7" style={{ border: "1px solid rgba(196,173,255,0.1)" }}>
-          <div className="font-accent text-xs mb-3" style={{ color: "var(--lavender)" }}>МИССИЯ</div>
-          <h2 className="font-display text-2xl mb-3" style={{ color: "var(--chalk)" }}>Почему мы это делаем</h2>
+          <div className="font-accent text-xs mb-3" style={{ color: "var(--lavender)" }}>{t.about.mission.title}</div>
+          <h2 className="font-display text-2xl mb-3" style={{ color: "var(--chalk)" }}>{t.about.mission.subtitle}</h2>
           <p className="font-body leading-relaxed" style={{ color: "rgba(255,255,255,0.55)" }}>
-            Рынок труда в Узбекистане активно растёт, но инструменты найма отставали.
-            Мы создали FreedomHIRE чтобы работодатели могли находить людей быстро,
-            а соискатели — понимать статус своего отклика и получать честную обратную связь.
+            {t.about.mission.text}
           </p>
         </div>
 
         {/* ── VALUES ── */}
         <div>
-          <div className="font-accent text-xs mb-4" style={{ color: "var(--lavender)" }}>ЦЕННОСТИ</div>
+          <div className="font-accent text-xs mb-4" style={{ color: "var(--lavender)" }}>{t.about.values.title}</div>
           <div className="grid sm:grid-cols-2 gap-3">
-            {VALUES.map(v => (
+            {t.about.values.items.map(v => (
               <div key={v.title} className="brand-card rounded-2xl p-5 flex gap-4"
                 style={{ border: "1px solid rgba(255,255,255,0.07)" }}>
                 <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
@@ -127,13 +106,13 @@ export default function AboutPage() {
 
         {/* ── CONTACTS ── */}
         <div className="brand-card rounded-2xl p-7" style={{ border: "1px solid rgba(196,173,255,0.1)" }}>
-          <div className="font-accent text-xs mb-3" style={{ color: "var(--lavender)" }}>КОНТАКТЫ</div>
-          <h2 className="font-display text-xl mb-4" style={{ color: "var(--chalk)" }}>Свяжитесь с нами</h2>
+          <div className="font-accent text-xs mb-3" style={{ color: "var(--lavender)" }}>{t.about.contacts.title}</div>
+          <h2 className="font-display text-xl mb-4" style={{ color: "var(--chalk)" }}>{t.about.contacts.subtitle}</h2>
           <div className="space-y-3">
             {[
-              { icon: "email", label: "Email поддержки", value: "support@freedomhire.uz" },
-              { icon: "web",   label: "Сайт",            value: "freedomhire.uz"          },
-              { icon: "geo",   label: "Город",           value: "Ташкент, Узбекистан"     },
+              { icon: "email", label: t.about.contacts.email, value: "support@freedomhire.uz" },
+              { icon: "web",   label: t.about.contacts.website, value: "freedomhire.uz" },
+              { icon: "geo",   label: t.about.contacts.city, value: t.about.contacts.cityValue },
             ].map(row => (
               <div key={row.label} className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"

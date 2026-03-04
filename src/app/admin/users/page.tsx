@@ -99,7 +99,7 @@ export default function AdminUsersPage() {
  {(["all", "candidate", "employer"] as const).map((f) => (
  <button key={f} onClick={() => setFilter(f)}
  className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
- filter === f ? "bg-[#7c3aed] text-white" : "bg-white/8 text-white/70 hover:text-white"
+ filter === f ? "btn-primary text-white" : "bg-white/8 text-white/70 hover:text-white"
  }`}>
  {f === "all" ? `Все (${counts.all})` : f === "candidate" ? `Соискатели (${counts.candidate})` : `Работодатели (${counts.employer})`}
  </button>

@@ -153,7 +153,7 @@ export default function CandidateDashboard() {
   const profileCompletion = calculateProfileCompletion(profile);
 
   return (
-    <div className="min-h-screen bg-[#0b1220] text-white p-4 sm:p-6">
+    <div className="min-h-screen  text-white p-4 sm:p-6">
       <div className="max-w-6xl mx-auto">
         
         {/* Header */}

@@ -140,7 +140,7 @@ function CandidateOnboardingInner() {
  const labelCls = "text-sm text-white/70";
 
  return (
- <div className="min-h-screen bg-[#0b1220] text-white p-6 flex items-center justify-center">
+ <div className="min-h-screen text-white p-6 flex items-center justify-center" style={{ background: "var(--ink)" }}>
  <div className="w-full max-w-2xl">
 
  {/* Прогресс */}
@@ -150,11 +150,16 @@ function CandidateOnboardingInner() {
  <div key={i} className="flex items-center gap-1 flex-1">
  <button
  onClick={() => i < step && setStep(i)}
- className={`w-8 h-8 rounded-full text-sm font-bold shrink-0 transition-colors ${
- i === step ? "bg-violet-600 text-white" :
- i < step ? "bg-violet-600/40 text-violet-300 cursor-pointer" :
- "bg-white/10 text-white/30"
+ className={`w-8 h-8 rounded-full text-sm font-bold shrink-0 transition-colors flex items-center justify-center ${
+ i === step ? "text-white" :
+ i < step ? "text-violet-300 cursor-pointer" :
+ "text-white/30"
  }`}
+ style={{
+ background: i === step ? "var(--brand-core)" :
+ i < step ? "rgba(91,46,204,0.4)" :
+ "rgba(255,255,255,0.1)"
+ }}
  >
  {i < step ? (
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -169,8 +174,8 @@ function CandidateOnboardingInner() {
  </div>
  <div className="h-1 bg-white/10 rounded-full">
  <div
- className="h-1 bg-violet-600 rounded-full transition-all duration-300"
- style={{ width: `${((step + 1) / STEPS.length) * 100}%` }}
+ className="h-1 rounded-full transition-all duration-300"
+ style={{ width: `${((step + 1) / STEPS.length) * 100}%`, background: "var(--brand-core)" }}
  />
  </div>
  </div>
@@ -294,7 +299,7 @@ function CandidateOnboardingInner() {
  setMsg(null);
  setStep(step + 1);
  }}
- className="rounded-2xl bg-[#7c3aed] px-5 py-2.5 font-semibold hover:bg-[#6d28d9] transition"
+ className="btn-primary rounded-2xl px-5 py-2.5 font-semibold text-white transition"
  >
  Далее →
  </button>

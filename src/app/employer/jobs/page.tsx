@@ -202,7 +202,7 @@ export default function EmployerJobsPage() {
               </button>
               <button
                 onClick={() => router.push("/employer/jobs/new")}
-                className="bg-[#7c3aed] px-4 sm:px-5 py-2 rounded-2xl font-semibold hover:bg-[#6d28d9] transition text-sm sm:text-base"
+                className="btn-primary px-4 sm:px-5 py-2 rounded-2xl font-semibold  transition text-sm sm:text-base"
               >
                 + Новая вакансия
               </button>
@@ -228,7 +228,7 @@ export default function EmployerJobsPage() {
               </div>
               <button
                 onClick={() => router.push("/employer/jobs/new")}
-                className="inline-block bg-[#7c3aed] px-6 py-3 rounded-2xl font-semibold hover:bg-[#6d28d9] transition"
+                className="inline-block btn-primary px-6 py-3 rounded-2xl font-semibold  transition"
               >
                 Создать первую вакансию
               </button>
@@ -287,7 +287,7 @@ export default function EmployerJobsPage() {
                     </div>
 
                     {/* Salary */}
-                    <div className="mt-3 text-[#f59e0b] font-semibold">
+                    <div className="mt-3 font-semibold" style={{ color: "var(--gold)" }}>
                       {formatMoneyRange(job.salary_from, job.salary_to)}
                     </div>
 
@@ -323,7 +323,7 @@ export default function EmployerJobsPage() {
                 <div className="flex flex-wrap gap-2 pt-4 border-t border-white/10">
                   <button
                     onClick={() => router.push(`/employer/jobs/${job.id}/edit`)}
-                    className="flex items-center gap-2 bg-[#7c3aed] px-4 py-2 rounded-xl font-medium hover:bg-[#6d28d9] transition text-sm"
+                    className="flex items-center gap-2 btn-primary px-4 py-2 rounded-xl font-medium  transition text-sm"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />

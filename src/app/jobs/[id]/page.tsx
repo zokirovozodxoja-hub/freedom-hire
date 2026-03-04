@@ -133,7 +133,7 @@ export default async function JobDetailsPage({ params }: { params: Promise<{ id:
  <div className="mt-4 flex flex-wrap gap-2">
  {salary && (
  <span className="px-3 py-1.5 rounded-full text-sm font-semibold"
- style={{ background: "rgba(212,175,55,0.15)", color: "#D4AF37", border: "1px solid rgba(212,175,55,0.3)" }}>
+ style={{ background: "rgba(201,168,76,0.15)", color: "var(--gold)", border: "1px solid rgba(201,168,76,0.3)" }}>
  {salary}
  </span>
  )}
