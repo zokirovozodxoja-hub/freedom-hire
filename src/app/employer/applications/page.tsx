@@ -93,6 +93,42 @@ export default function EmployerApplicationsPage() {
     setShowModal(true);
   }
 
+  async function openChat(app: Application) {
+    const supabase = createClient();
+    const { data: userData } = await supabase.auth.getUser();
+    if (!userData.user) return;
+
+    // Ищем существующий диалог
+    const { data: existingConv } = await supabase
+      .from("conversations")
+      .select("id")
+      .eq("employer_id", userData.user.id)
+      .eq("candidate_id", app.candidate_id)
+      .eq("job_id", app.job_id)
+      .maybeSingle();
+
+    if (existingConv) {
+      router.push(`/chat/${existingConv.id}`);
+      return;
+    }
+
+    // Создаём новый диалог
+    const { data: newConv } = await supabase
+      .from("conversations")
+      .insert({
+        employer_id: userData.user.id,
+        candidate_id: app.candidate_id,
+        job_id: app.job_id,
+        application_id: app.id,
+      })
+      .select("id")
+      .single();
+
+    if (newConv) {
+      router.push(`/chat/${newConv.id}`);
+    }
+  }
+
   async function sendAndUpdate() {
     if (!selectedApp) return;
     setSending(true);
@@ -101,12 +137,40 @@ export default function EmployerApplicationsPage() {
     if (!userData.user) { setSending(false); return; }
 
     if (messageText.trim()) {
-      await supabase.from("messages").insert({
-        application_id: selectedApp.id,
-        sender_id: userData.user.id,
-        receiver_id: selectedApp.candidate_id,
-        message: messageText,
-      });
+      // Ищем или создаём conversation
+      const { data: existingConv } = await supabase
+        .from("conversations")
+        .select("id")
+        .eq("employer_id", userData.user.id)
+        .eq("candidate_id", selectedApp.candidate_id)
+        .eq("job_id", selectedApp.job_id)
+        .maybeSingle();
+
+      let conversationId = existingConv?.id;
+
+      if (!conversationId) {
+        // Создаём новый диалог
+        const { data: newConv } = await supabase
+          .from("conversations")
+          .insert({
+            employer_id: userData.user.id,
+            candidate_id: selectedApp.candidate_id,
+            job_id: selectedApp.job_id,
+            application_id: selectedApp.id,
+          })
+          .select("id")
+          .single();
+        conversationId = newConv?.id;
+      }
+
+      if (conversationId) {
+        // Отправляем сообщение
+        await supabase.from("messages").insert({
+          conversation_id: conversationId,
+          sender_id: userData.user.id,
+          content: messageText.trim(),
+        });
+      }
     }
 
     await supabase.from("applications").update({ status: newStatus }).eq("id", selectedApp.id);
@@ -234,11 +298,12 @@ export default function EmployerApplicationsPage() {
                           className="btn-primary inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold text-white">
                           Профиль →
                         </Link>
-                        <Link href={`/chat/${app.id}`}
+                        <button
+                          onClick={() => openChat(app)}
                           className="inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-body transition"
                           style={{ border: "1px solid rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.7)", background: "rgba(255,255,255,0.04)" }}>
-                          Написать
-                        </Link>
+                          💬 Написать
+                        </button>
 
                         <div className="ml-auto flex flex-wrap gap-1.5">
                           {STATUSES.filter((s) => s.key !== app.status).map((s) => (
