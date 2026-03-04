@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 import Link from "next/link";
 import ApplyButton from "./ApplyButton";
+import JobViewTracker from "./JobViewTracker";
 
 type Job = {
  id: string;
@@ -95,6 +96,7 @@ export default async function JobDetailsPage({ params }: { params: Promise<{ id:
 
  return (
  <div className="min-h-screen" style={{ background: "var(--bg, #07060F)", color: "#fff" }}>
+ <JobViewTracker jobId={job.id} />
  <div className="mx-auto max-w-5xl px-4 sm:px-6 py-10">
 
  {/* Назад */}

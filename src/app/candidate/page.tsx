@@ -212,10 +212,10 @@ export default function CandidateDashboard() {
             link="/saved-jobs"
           />
           <StatCard
-            icon="👁️"
-            label="Просмотры"
-            value={stats.profileViews}
-            link="/profile"
+            icon="💬"
+            label="Сообщения"
+            value={0}
+            link="/chat"
           />
         </div>
 
