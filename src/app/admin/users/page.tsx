@@ -55,30 +55,17 @@ export default function AdminUsersPage() {
  setError(null);
  const supabase = createClient();
 
- // Получаем токен для авторизации
- const { data: sessionData } = await supabase.auth.getSession();
- const token = sessionData.session?.access_token;
+ // Delete related data
+ await Promise.all([
+ supabase.from("candidate_experiences").delete().eq("profile_id", id),
+ supabase.from("candidate_skills").delete().eq("user_id", id),
+ supabase.from("applications").delete().eq("user_id", id),
+ supabase.from("saved_jobs").delete().eq("user_id", id),
+ ]);
 
- if (!token) {
- setError("Не авторизован");
- setDeletingId(null);
- return;
- }
-
- // Вызываем API для полного удаления
- const res = await fetch("/api/admin/users", {
- method: "DELETE",
- headers: {
- "Content-Type": "application/json",
- "Authorization": `Bearer ${token}`,
- },
- body: JSON.stringify({ userId: id }),
- });
-
- const data = await res.json();
-
- if (!res.ok) {
- setError("Ошибка удаления: " + (data.error || "Неизвестная ошибка"));
+ const { error: err } = await supabase.from("profiles").delete().eq("id", id);
+ if (err) {
+ setError("Ошибка удаления: " + err.message);
  setDeletingId(null);
  return;
  }

@@ -296,11 +296,6 @@ export default function JobsPage() {
  )}
  </div>
  )}
- {job.description && (
- <p className="text-sm mt-2 line-clamp-2 font-body" style={{ color: "rgba(255,255,255,0.5)" }}>
- {job.description}
- </p>
- )}
  </div>
  </Link>
  );
