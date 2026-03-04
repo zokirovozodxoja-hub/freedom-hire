@@ -89,9 +89,9 @@ const Icons = {
   download: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />,
 };
 
-function Icon({ name, className = "w-5 h-5" }: { name: keyof typeof Icons; className?: string }) {
+function Icon({ name, className = "w-5 h-5", style }: { name: keyof typeof Icons; className?: string; style?: React.CSSProperties }) {
   return (
-    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <svg className={className} style={style} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       {Icons[name]}
     </svg>
   );
@@ -629,7 +629,9 @@ export default function ResumePage() {
             {!experiences.length && !showExpForm && (
               <div className="text-center py-8">
                 <div className="w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-3" style={{ background: "rgba(255,255,255,0.05)" }}>
-                  <Icon name="briefcase" className="w-6 h-6" style={{ color: "rgba(255,255,255,0.3)" }} />
+                  <svg className="w-6 h-6" style={{ color: "rgba(255,255,255,0.3)" }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
                 </div>
                 <p className="text-sm" style={{ color: "rgba(255,255,255,0.4)" }}>Расскажите о своём опыте работы</p>
               </div>
