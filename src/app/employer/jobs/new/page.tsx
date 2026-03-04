@@ -92,7 +92,7 @@ export default function NewJobPage() {
  const list = (comps ?? []) as Company[];
  setCompanies(list);
  // Используем только верифицированные компании
- const verified = list.filter(c => c.verification_status === 'verified');
+ const verified = list.filter(c => c.verification_status === 'verified' || c.verification_status === 'approved');
  if (verified[0]) setCompanyId(verified[0].id);
  if (!list.length) setMsg("Сначала создайте компанию.");
  setLoading(false);
@@ -159,7 +159,7 @@ export default function NewJobPage() {
  const labelCls = "text-xs text-white/60 block mb-2";
 
  // Проверяем есть ли верифицированная компания
- const verifiedCompany = companies.find(c => c.verification_status === 'verified');
+ const verifiedCompany = companies.find(c => c.verification_status === 'verified' || c.verification_status === 'approved');
  const pendingCompany = companies.find(c => c.verification_status === 'pending');
  const rejectedCompany = companies.find(c => c.verification_status === 'rejected');
 

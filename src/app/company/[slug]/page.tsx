@@ -85,7 +85,7 @@ export default function CompanyPage() {
       let query = supabase
         .from("companies")
         .select("*")
-        .eq("verification_status", "verified");
+        .in("verification_status", ["verified", "approved"]);
 
       // Проверяем, это slug или uuid
       const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(slug);
@@ -195,7 +195,7 @@ export default function CompanyPage() {
                 <h1 className="text-2xl sm:text-3xl font-bold" style={{ color: "var(--chalk)" }}>
                   {company.name}
                 </h1>
-                {company.verification_status === "verified" && (
+                {(company.verification_status === "verified" || company.verification_status === "approved") && (
                   <span className="text-xs px-2 py-1 rounded-full font-medium"
                     style={{ background: "rgba(52,211,153,0.15)", color: "#34d399", border: "1px solid rgba(52,211,153,0.3)" }}>
                     ✓ Верифицирована

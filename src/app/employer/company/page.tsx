@@ -416,12 +416,12 @@ export default function EditCompanyPage() {
                 <select
                   value={industry}
                   onChange={(e) => setIndustry(e.target.value)}
-                  className="w-full rounded-xl px-4 py-2.5 text-sm outline-none transition appearance-none"
-                  style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "var(--chalk)" }}
+                  className="w-full rounded-xl px-4 py-2.5 text-sm outline-none transition cursor-pointer"
+                  style={{ background: "#1a1625", border: "1px solid rgba(255,255,255,0.1)", color: "var(--chalk)" }}
                 >
-                  <option value="">Выберите отрасль</option>
+                  <option value="" style={{ background: "#1a1625", color: "rgba(255,255,255,0.5)" }}>Выберите отрасль</option>
                   {INDUSTRIES.map((ind) => (
-                    <option key={ind} value={ind}>{ind}</option>
+                    <option key={ind} value={ind} style={{ background: "#1a1625", color: "white" }}>{ind}</option>
                   ))}
                 </select>
               </div>
@@ -431,12 +431,12 @@ export default function EditCompanyPage() {
                 <select
                   value={employeeCount}
                   onChange={(e) => setEmployeeCount(e.target.value)}
-                  className="w-full rounded-xl px-4 py-2.5 text-sm outline-none transition appearance-none"
-                  style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "var(--chalk)" }}
+                  className="w-full rounded-xl px-4 py-2.5 text-sm outline-none transition cursor-pointer"
+                  style={{ background: "#1a1625", border: "1px solid rgba(255,255,255,0.1)", color: "var(--chalk)" }}
                 >
-                  <option value="">Выберите размер</option>
+                  <option value="" style={{ background: "#1a1625", color: "rgba(255,255,255,0.5)" }}>Выберите размер</option>
                   {EMPLOYEE_COUNTS.map((count) => (
-                    <option key={count} value={count}>{count} сотрудников</option>
+                    <option key={count} value={count} style={{ background: "#1a1625", color: "white" }}>{count} сотрудников</option>
                   ))}
                 </select>
               </div>
