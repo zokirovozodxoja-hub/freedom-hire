@@ -68,9 +68,9 @@ export default function CandidatePage() {
       setProfile(p);
 
       const [{ data: sk }, { data: ex }] = await Promise.all([
-        supabase.from("candidate_skills").select("id, name, level").eq("user_id", candidateId),
-        supabase.from("candidate_experiences").select("id, company, position, start_date, end_date")
-          .eq("profile_id", candidateId).order("start_date", { ascending: false }),
+        supabase.from("skills").select("id, name, level").eq("user_id", candidateId),
+        supabase.from("experiences").select("id, company, position, start_date, end_date")
+          .eq("user_id", candidateId).order("start_date", { ascending: false }),
       ]);
       setSkills((sk ?? []) as Skill[]);
       setExperiences((ex ?? []) as Experience[]);
