@@ -83,15 +83,39 @@ export default function EmployerApplicationsPage() {
       .order("created_at", { ascending: false });
 
     const candidateIds = [...new Set((data ?? []).map((a) => a.candidate_id))];
-    const { data: profiles } = await supabase.from("profiles")
+    
+    // ИСПРАВЛЕНИЕ 1: Добавлено логирование
+    console.log("Loading profiles for candidates:", candidateIds);
+    
+    const { data: profiles, error: profilesErr } = await supabase.from("profiles")
       .select("id,full_name,email,phone,city,headline,desired_position,job_search_status,salary_expectation,experience_years")
       .in("id", candidateIds);
+    
+    // ИСПРАВЛЕНИЕ 2: Обработка ошибок загрузки профилей
+    if (profilesErr) {
+      console.error("Error loading profiles:", profilesErr);
+    }
+    
+    console.log("Loaded profiles:", profiles?.length, "of", candidateIds.length);
+    
     const profilesMap = new Map((profiles ?? []).map((p) => [p.id, p]));
 
+    // ИСПРАВЛЕНИЕ 3: Проверка отсутствующих профилей
+    candidateIds.forEach(id => {
+      if (!profilesMap.has(id)) {
+        console.warn("Missing profile for candidate:", id);
+      }
+    });
+
     // Загружаем навыки кандидатов
-    const { data: allSkills } = await supabase.from("candidate_skills")
+    const { data: allSkills, error: skillsErr } = await supabase.from("candidate_skills")
       .select("user_id,name,level")
       .in("user_id", candidateIds);
+    
+    if (skillsErr) {
+      console.error("Error loading skills:", skillsErr);
+    }
+    
     const skillsMap = new Map<string, { name: string; level: string }[]>();
     (allSkills ?? []).forEach((s: any) => {
       if (!skillsMap.has(s.user_id)) skillsMap.set(s.user_id, []);
@@ -99,10 +123,15 @@ export default function EmployerApplicationsPage() {
     });
 
     // Загружаем последний опыт работы
-    const { data: allExp } = await supabase.from("candidate_experiences")
+    const { data: allExp, error: expErr } = await supabase.from("candidate_experiences")
       .select("profile_id,company,position,start_date")
       .in("profile_id", candidateIds)
       .order("start_date", { ascending: false });
+    
+    if (expErr) {
+      console.error("Error loading experiences:", expErr);
+    }
+    
     const expMap = new Map<string, { company: string | null; position: string | null }>();
     (allExp ?? []).forEach((e: any) => {
       if (!expMap.has(e.profile_id)) {
@@ -126,81 +155,120 @@ export default function EmployerApplicationsPage() {
     setShowModal(true);
   }
 
+  // ИСПРАВЛЕНИЕ 4: Улучшенная функция openChat с обработкой ошибок
   async function openChat(app: Application) {
     const supabase = createClient();
     const { data: userData } = await supabase.auth.getUser();
     if (!userData.user) return;
 
-    // Ищем существующий диалог по employer + candidate + job
-    const { data: existingConv } = await supabase
-      .from("conversations")
-      .select("id")
-      .eq("employer_id", userData.user.id)
-      .eq("candidate_id", app.candidate_id)
-      .eq("job_id", app.job_id)
-      .maybeSingle();
+    try {
+      // Попытка 1: Ищем по employer + candidate + job
+      const { data: existingConv, error: err1 } = await supabase
+        .from("conversations")
+        .select("id")
+        .eq("employer_id", userData.user.id)
+        .eq("candidate_id", app.candidate_id)
+        .eq("job_id", app.job_id)
+        .maybeSingle();
 
-    if (existingConv) {
-      router.push(`/chat/${existingConv.id}`);
-      return;
-    }
+      if (err1) {
+        console.error("Error finding conversation:", err1);
+      }
+      
+      if (existingConv) {
+        router.push(`/chat/${existingConv.id}`);
+        return;
+      }
 
-    // Fallback: ищем по application_id (диалог мог быть создан через смену статуса)
-    const { data: convByApp } = await supabase
-      .from("conversations")
-      .select("id")
-      .eq("application_id", app.id)
-      .maybeSingle();
+      // Попытка 2: Ищем по application_id
+      const { data: convByApp, error: err2 } = await supabase
+        .from("conversations")
+        .select("id")
+        .eq("application_id", app.id)
+        .maybeSingle();
 
-    if (convByApp) {
-      router.push(`/chat/${convByApp.id}`);
-      return;
-    }
+      if (err2) {
+        console.error("Error finding conversation by app:", err2);
+      }
 
-    // Fallback: ищем любой диалог между этим работодателем и кандидатом
-    const { data: convByPair } = await supabase
-      .from("conversations")
-      .select("id")
-      .eq("employer_id", userData.user.id)
-      .eq("candidate_id", app.candidate_id)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+      if (convByApp) {
+        router.push(`/chat/${convByApp.id}`);
+        return;
+      }
 
-    if (convByPair) {
-      router.push(`/chat/${convByPair.id}`);
-      return;
-    }
+      // Попытка 3: Ищем любой диалог между парой
+      const { data: convByPair, error: err3 } = await supabase
+        .from("conversations")
+        .select("id")
+        .eq("employer_id", userData.user.id)
+        .eq("candidate_id", app.candidate_id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
-    // Создаём новый диалог
-    const { data: newConv, error: insertError } = await supabase
-      .from("conversations")
-      .insert({
-        employer_id: userData.user.id,
-        candidate_id: app.candidate_id,
-        job_id: app.job_id,
-        application_id: app.id,
-      })
-      .select("id")
-      .single();
+      if (err3) {
+        console.error("Error finding conversation by pair:", err3);
+      }
 
-    if (newConv) {
-      router.push(`/chat/${newConv.id}`);
-    } else {
-      console.error("Ошибка создания диалога:", insertError);
+      if (convByPair) {
+        router.push(`/chat/${convByPair.id}`);
+        return;
+      }
+
+      // Создаём новый диалог
+      const { data: newConv, error: createErr } = await supabase
+        .from("conversations")
+        .insert({
+          employer_id: userData.user.id,
+          candidate_id: app.candidate_id,
+          job_id: app.job_id,
+          application_id: app.id,
+        })
+        .select("id")
+        .single();
+
+      if (createErr) {
+        console.error("Error creating conversation:", createErr);
+        alert(`Ошибка создания диалога: ${createErr.message}`);
+        return;
+      }
+
+      if (newConv) {
+        router.push(`/chat/${newConv.id}`);
+      }
+    } catch (err) {
+      console.error("Unexpected error in openChat:", err);
+      alert("Произошла ошибка при открытии чата");
     }
   }
 
   async function sendAndUpdate() {
-    if (!selectedApp) return;
+    if (!selectedApp || !messageText.trim()) return;
+
     setSending(true);
     const supabase = createClient();
     const { data: userData } = await supabase.auth.getUser();
     if (!userData.user) { setSending(false); return; }
 
-    if (messageText.trim()) {
-      // Ищем или создаём conversation
-      const { data: existingConv } = await supabase
+    try {
+      // Обновляем статус отклика
+      const { error: updateErr } = await supabase
+        .from("applications")
+        .update({ status: newStatus })
+        .eq("id", selectedApp.id);
+
+      if (updateErr) {
+        console.error("Error updating application:", updateErr);
+        alert(`Ошибка обновления статуса: ${updateErr.message}`);
+        setSending(false);
+        return;
+      }
+
+      // Ищем или создаём диалог
+      let convId: string | null = null;
+
+      // Попытка 1: по employer + candidate + job
+      const { data: conv1 } = await supabase
         .from("conversations")
         .select("id")
         .eq("employer_id", userData.user.id)
@@ -208,48 +276,77 @@ export default function EmployerApplicationsPage() {
         .eq("job_id", selectedApp.job_id)
         .maybeSingle();
 
-      let conversationId = existingConv?.id;
-
-      if (!conversationId) {
-        // Создаём новый диалог
-        const { data: newConv } = await supabase
+      if (conv1) {
+        convId = conv1.id;
+      } else {
+        // Попытка 2: по application_id
+        const { data: conv2 } = await supabase
           .from("conversations")
-          .insert({
-            employer_id: userData.user.id,
-            candidate_id: selectedApp.candidate_id,
-            job_id: selectedApp.job_id,
-            application_id: selectedApp.id,
-          })
           .select("id")
-          .single();
-        conversationId = newConv?.id;
+          .eq("application_id", selectedApp.id)
+          .maybeSingle();
+
+        if (conv2) {
+          convId = conv2.id;
+        } else {
+          // Создаём новый диалог
+          const { data: newConv, error: convErr } = await supabase
+            .from("conversations")
+            .insert({
+              employer_id: userData.user.id,
+              candidate_id: selectedApp.candidate_id,
+              job_id: selectedApp.job_id,
+              application_id: selectedApp.id,
+            })
+            .select("id")
+            .single();
+
+          if (convErr) {
+            console.error("Error creating conversation:", convErr);
+            alert(`Ошибка создания диалога: ${convErr.message}`);
+            setSending(false);
+            return;
+          }
+
+          if (newConv) convId = newConv.id;
+        }
       }
 
-      if (conversationId) {
-        // Отправляем сообщение
-        await supabase.from("messages").insert({
-          conversation_id: conversationId,
+      // Отправляем сообщение
+      if (convId && messageText.trim()) {
+        const { error: msgErr } = await supabase.from("messages").insert({
+          conversation_id: convId,
           sender_id: userData.user.id,
           content: messageText.trim(),
         });
+
+        if (msgErr) {
+          console.error("Error sending message:", msgErr);
+          alert(`Ошибка отправки сообщения: ${msgErr.message}`);
+        }
       }
+
+      // Перезагружаем список откликов
+      await loadApplications();
+      setShowModal(false);
+      setSelectedApp(null);
+    } catch (err) {
+      console.error("Unexpected error in sendAndUpdate:", err);
+      alert("Произошла непредвиденная ошибка");
     }
 
-    await supabase.from("applications").update({ status: newStatus }).eq("id", selectedApp.id);
-    setApps((prev) => prev.map((a) => (a.id === selectedApp.id ? { ...a, status: newStatus } : a)));
     setSending(false);
-    setShowModal(false);
-    setSelectedApp(null);
   }
 
-  const filtered = filter ? apps.filter((a) => a.status === filter) : apps;
+  const filtered = apps.filter((a) => !filter || a.status === filter);
+  const counts = STATUSES.map((s) => ({ ...s, count: apps.filter((a) => a.status === s.key).length }));
 
   if (loading) {
     return (
-      <div className="min-h-screen p-4 sm:p-8">
-        <div className="max-w-5xl mx-auto space-y-4">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="brand-card rounded-2xl h-32 animate-pulse" />
+      <div className="min-h-screen p-6">
+        <div className="max-w-4xl mx-auto space-y-4 pt-4">
+          {[140, 160, 180].map((h, i) => (
+            <div key={i} className="brand-card rounded-2xl animate-pulse" style={{ height: h }} />
           ))}
         </div>
       </div>
@@ -257,62 +354,56 @@ export default function EmployerApplicationsPage() {
   }
 
   return (
-    <div className="min-h-screen p-4 sm:p-8">
-      <div className="max-w-5xl mx-auto">
-
-        {/* Header */}
-        <div className="mb-8">
-          <div className="font-accent text-xs mb-2" style={{ color: "var(--lavender)" }}>КАБИНЕТ РАБОТОДАТЕЛЯ</div>
-          <div className="flex items-end justify-between gap-4">
-            <h1 className="font-display text-3xl sm:text-4xl" style={{ color: "var(--chalk)" }}>
-              Отклики кандидатов
-            </h1>
-            <Link href="/employer"
-              className="hidden sm:inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-body transition"
-              style={{ border: "1px solid rgba(196,173,255,0.2)", color: "var(--lavender)" }}>
-              ← Назад
-            </Link>
-          </div>
-        </div>
+    <div className="min-h-screen p-6">
+      <div className="max-w-4xl mx-auto">
+        <h1 className="font-display text-3xl mb-1" style={{ color: "var(--chalk)" }}>
+          Отклики кандидатов
+        </h1>
+        <p className="text-sm mb-6" style={{ color: "rgba(255,255,255,0.4)" }}>
+          Управляйте откликами на ваши вакансии
+        </p>
 
         {/* Filters */}
         <div className="flex flex-wrap gap-2 mb-6">
           <button onClick={() => setFilter("")}
-            className="px-4 py-2 rounded-xl text-sm font-body transition"
-            style={{
-              background: !filter ? "rgba(92,46,204,0.4)" : "rgba(255,255,255,0.05)",
-              border: !filter ? "1px solid rgba(196,173,255,0.4)" : "1px solid rgba(255,255,255,0.08)",
-              color: !filter ? "var(--lavender)" : "rgba(255,255,255,0.5)",
-            }}>
+            className={`px-3 py-1.5 text-xs font-body rounded-xl transition ${!filter ? "btn-primary text-white" : ""}`}
+            style={!filter ? {} : { background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.6)", border: "1px solid rgba(255,255,255,0.08)" }}>
             Все ({apps.length})
           </button>
-          {STATUSES.map((s) => {
-            const count = apps.filter((a) => a.status === s.key).length;
-            const active = filter === s.key;
-            return (
-              <button key={s.key} onClick={() => setFilter(s.key)}
-                className="px-4 py-2 rounded-xl text-sm font-body transition"
-                style={{
-                  background: active ? s.color : "rgba(255,255,255,0.05)",
-                  border: active ? `1px solid ${s.border}` : "1px solid rgba(255,255,255,0.08)",
-                  color: active ? s.text : "rgba(255,255,255,0.5)",
-                }}>
-                {s.label} ({count})
-              </button>
-            );
-          })}
+          {counts.map((s) => (
+            <button key={s.key} onClick={() => setFilter(s.key)}
+              className="px-3 py-1.5 text-xs font-body rounded-xl transition"
+              style={{
+                background: filter === s.key ? s.color : "rgba(255,255,255,0.05)",
+                color: filter === s.key ? s.text : "rgba(255,255,255,0.6)",
+                border: filter === s.key ? `1px solid ${s.border}` : "1px solid rgba(255,255,255,0.08)",
+              }}>
+              {s.label} ({s.count})
+            </button>
+          ))}
         </div>
 
-        {/* List */}
+        {/* Applications */}
         {filtered.length === 0 ? (
-          <div className="brand-card rounded-3xl p-12 text-center">
+          <div className="brand-card rounded-2xl p-10 text-center">
             <div className="text-4xl mb-3">📭</div>
-            <div className="font-body text-white/40">Откликов пока нет</div>
+            <p className="font-body" style={{ color: "rgba(255,255,255,0.4)" }}>
+              {filter ? "Нет откликов с таким статусом" : "Пока нет откликов"}
+            </p>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-4">
             {filtered.map((app) => {
-              const name = app.candidate?.full_name || app.candidate?.email || "Кандидат";
+              // ИСПРАВЛЕНИЕ 5: Улучшенный fallback для имени
+              const name = app.candidate?.full_name || 
+                           app.candidate?.email || 
+                           `Кандидат ${app.candidate_id.slice(0, 8)}`;
+              
+              // ИСПРАВЛЕНИЕ 6: Проверка наличия профиля
+              if (!app.candidate) {
+                console.error("No candidate profile for application:", app.id, "candidate_id:", app.candidate_id);
+              }
+              
               const statusLabels: Record<string, { label: string; color: string }> = {
                 actively_looking: { label: "Активно ищет", color: "#4ade80" },
                 open_to_offers: { label: "Открыт к предложениям", color: "#C4ADFF" },

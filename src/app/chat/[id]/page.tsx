@@ -92,9 +92,30 @@ export default function ChatPage() {
         .eq("id", conversationId)
         .maybeSingle();
 
-      if (convErr || !conv) {
+      // ИСПРАВЛЕНИЕ 1: Детальная обработка ошибок
+      if (convErr) {
+        console.error("Conversation fetch error:", convErr);
         if (mounted) {
-          setError("Диалог не найден");
+          setError(`Ошибка загрузки диалога: ${convErr.message}`);
+          setLoading(false);
+        }
+        return;
+      }
+
+      if (!conv) {
+        console.log("Conversation not found:", conversationId);
+        if (mounted) {
+          setError("Диалог не найден. Возможно, он был удалён или у вас нет доступа.");
+          setLoading(false);
+        }
+        return;
+      }
+
+      // ИСПРАВЛЕНИЕ 2: Проверка наличия профилей
+      if (!conv.employer || !conv.candidate) {
+        console.error("Missing profiles in conversation:", conv);
+        if (mounted) {
+          setError("Ошибка: профили участников не найдены");
           setLoading(false);
         }
         return;
