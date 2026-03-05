@@ -227,7 +227,11 @@ export default function JobsPage() {
               </div>
             ) : jobs.length === 0 ? (
               <div className="brand-card rounded-2xl p-12 text-center">
-                <div className="text-4xl mb-3">🔍</div>
+                <div className="mb-3 flex justify-center">
+                  <svg className="w-10 h-10" style={{ color: "rgba(255,255,255,0.2)" }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </div>
                 <div className="font-body text-white/40">{t.jobs.notFound}</div>
               </div>
             ) : (
@@ -290,29 +294,42 @@ export default function JobsPage() {
                         )}
 
                         {/* Теги: город, формат, занятость, опыт */}
-                        <div className="flex flex-wrap items-center gap-2 mb-2">
+                        <div className="flex flex-wrap items-center gap-1.5 mb-2">
                           {job.city && (
-                            <span className="inline-flex items-center gap-1 text-xs font-body px-2.5 py-1 rounded-lg"
+                            <span className="inline-flex items-center gap-1.5 text-xs font-body px-2.5 py-1 rounded-lg"
                               style={{ background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.55)", border: "1px solid rgba(255,255,255,0.08)" }}>
-                              📍 {job.city}
+                              <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                              </svg>
+                              {job.city}
                             </span>
                           )}
                           {job.work_format && (
-                            <span className="text-xs px-2.5 py-1 rounded-lg font-body"
+                            <span className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg font-body"
                               style={{ background: "rgba(196,173,255,0.1)", color: "var(--lavender)", border: "1px solid rgba(196,173,255,0.2)" }}>
+                              <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                              </svg>
                               {wFormat ?? job.work_format}
                             </span>
                           )}
                           {job.employment_type && (
-                            <span className="text-xs px-2.5 py-1 rounded-lg font-body"
+                            <span className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg font-body"
                               style={{ background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.5)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                              <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
                               {empType ?? job.employment_type}
                             </span>
                           )}
                           {job.experience_level && (
-                            <span className="text-xs px-2.5 py-1 rounded-lg font-body"
+                            <span className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg font-body"
                               style={{ background: "rgba(92,46,204,0.12)", color: "#a78bfa", border: "1px solid rgba(92,46,204,0.2)" }}>
-                              💼 {expLevel ?? job.experience_level}
+                              <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                              </svg>
+                              {expLevel ?? job.experience_level}
                             </span>
                           )}
                         </div>
