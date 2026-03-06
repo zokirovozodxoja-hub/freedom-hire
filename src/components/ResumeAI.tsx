@@ -526,23 +526,19 @@ export function ResumeAI({ section, onApply, onClose }: ResumeAIProps) {
 }
 
 // ═══════════════════════════════════════════════════════
-// API CALL
+// API CALL — через безопасный server-side route
 // ═══════════════════════════════════════════════════════
 
 async function callClaude(
   messages: { role: "user" | "assistant"; content: string }[],
   system: string
 ): Promise<string> {
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
+  const res = await fetch("/api/ai", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 1000,
-      system,
-      messages,
-    }),
+    body: JSON.stringify({ messages, system, max_tokens: 1000 }),
   });
   const data = await res.json();
-  return data.content?.[0]?.text ?? "";
+  if (data.error) throw new Error(data.error);
+  return data.text ?? "";
 }
