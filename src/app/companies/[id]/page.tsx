@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { createClient } from "@supabase/supabase-js";
+import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 
 type Company = {
@@ -35,13 +35,6 @@ type Job = {
   created_at: string;
 };
 
-function supabaseServer() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !key) return null;
-  return createClient(url, key, { auth: { persistSession: false } });
-}
-
 function formatSalary(from: number | null, to: number | null, negotiable: boolean | null) {
   if (negotiable) return "По договорённости";
   const fmt = (n: number) => n.toLocaleString("ru-RU");
@@ -69,8 +62,7 @@ function timeAgoLabel(dateStr: string) {
 
 export default async function CompanyPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const supabase = supabaseServer();
-  if (!supabase) notFound();
+  const supabase = await createClient();
 
   const { data: company, error: companyError } = await supabase
     .from("companies")
