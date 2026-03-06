@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useI18n, type Lang } from "@/i18n/context";
-import NotificationBell from "@/components/NotificationBell";
+import { getUnreadCount } from "@/lib/chat";
 
 const ADMIN_EMAILS = ["zokirovozodxoja@gmail.com"];
 const HIDDEN_PREFIXES = ["/admin", "/onboarding"];
@@ -23,6 +23,7 @@ export default function SiteHeader() {
  const supabaseRef = useRef(createClient());
  const [authUser, setAuthUser] = useState<AuthUser | null | undefined>(undefined);
  const [menuOpen, setMenuOpen] = useState(false);
+  const [unreadChats, setUnreadChats] = useState(0);
 
  const navItems = [
  { href: "/jobs", label: t.nav.jobs },
