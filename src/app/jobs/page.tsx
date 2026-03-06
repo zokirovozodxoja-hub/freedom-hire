@@ -248,111 +248,113 @@ export default function JobsPage() {
 
                   return (
                     <Link key={job.id} href={`/jobs/${job.id}`}
-                      className="brand-card rounded-2xl p-5 flex gap-4 items-start group transition-all hover:border-[rgba(196,173,255,0.25)] block">
+                      className="brand-card rounded-2xl p-5 flex gap-4 items-start group transition-all hover:border-[rgba(196,173,255,0.3)] hover:bg-white/[0.06] block">
 
-                      {/* Логотип / аватар компании */}
-                      <div className="shrink-0 w-14 h-14 rounded-xl overflow-hidden flex items-center justify-center font-accent text-lg"
+                      {/* Логотип компании */}
+                      <div
+                        className="shrink-0 w-12 h-12 rounded-xl overflow-hidden flex items-center justify-center font-accent text-base"
                         style={{
-                          background: companyLogo ? undefined : "rgba(92,46,204,0.2)",
+                          background: companyLogo ? "white" : "rgba(92,46,204,0.25)",
                           color: "var(--lavender)",
-                          border: "1px solid rgba(92,46,204,0.3)",
-                        }}>
+                          border: "1px solid rgba(92,46,204,0.35)",
+                        }}
+                      >
                         {companyLogo ? (
-                          <img src={companyLogo} alt={companyName ?? ""} className="w-full h-full object-cover" />
+                          <img src={companyLogo} alt={companyName ?? ""} className="w-full h-full object-contain p-1.5" />
                         ) : (
-                          (job.title ?? "?")[0].toUpperCase()
+                          (companyName ?? job.title ?? "?")[0].toUpperCase()
                         )}
                       </div>
 
                       <div className="flex-1 min-w-0">
 
-                        {/* Заголовок + дата */}
-                        <div className="flex items-start justify-between gap-3 mb-1">
-                          <h2 className="font-body font-semibold text-white text-base group-hover:text-[var(--lavender)] transition line-clamp-1">
+                        {/* Строка 1: название + NEW badge + дата */}
+                        <div className="flex items-center justify-between gap-2 mb-0.5">
+                          <h2 className="font-body font-semibold text-white text-[15px] leading-snug group-hover:text-[var(--lavender)] transition truncate">
                             {job.title ?? t.jobs.noTitle}
                           </h2>
                           <div className="flex items-center gap-2 shrink-0">
                             {isNew(job.created_at) && (
-                              <span className="badge-new text-xs px-2 py-0.5 rounded-full font-accent">{t.common.new}</span>
+                              <span className="badge-new text-[10px] px-2 py-0.5 rounded-full font-accent tracking-wide">
+                                NEW
+                              </span>
                             )}
-                            <span className="text-xs text-white/30 font-body">{dateStr}</span>
+                            <span className="text-xs font-body" style={{ color: "rgba(255,255,255,0.3)" }}>
+                              {dateStr}
+                            </span>
                           </div>
                         </div>
 
-                        {/* Компания */}
-                        {companyName && (
-                          <div className="text-sm font-medium mb-2" style={{ color: "var(--lavender)" }}>
-                            {companyName}
-                          </div>
-                        )}
-
-                        {/* Зарплата — крупно */}
-                        {salary && (
-                          <div className="text-base font-bold mb-2" style={{ color: "var(--gold)" }}>
+                        {/* Строка 2: зарплата */}
+                        {salary ? (
+                          <div className="text-[15px] font-bold mb-2.5" style={{ color: "var(--gold)" }}>
                             {salary} {t.jobs.sum}
                           </div>
+                        ) : (
+                          <div className="mb-2.5" />
                         )}
 
-                        {/* Теги: город, формат, занятость, опыт */}
-                        <div className="flex flex-wrap items-center gap-1.5 mb-2">
+                        {/* Строка 3: теги */}
+                        <div className="flex flex-wrap items-center gap-1.5 mb-2.5">
                           {job.city && (
-                            <span className="inline-flex items-center gap-1.5 text-xs font-body px-2.5 py-1 rounded-lg"
-                              style={{ background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.55)", border: "1px solid rgba(255,255,255,0.08)" }}>
-                              <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <span className="inline-flex items-center gap-1 text-xs font-body px-2.5 py-1 rounded-lg"
+                              style={{ background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.55)", border: "1px solid rgba(255,255,255,0.09)" }}>
+                              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
                               </svg>
                               {job.city}
                             </span>
                           )}
                           {job.work_format && (
-                            <span className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg font-body"
+                            <span className="inline-flex items-center gap-1 text-xs font-body px-2.5 py-1 rounded-lg"
                               style={{ background: "rgba(196,173,255,0.1)", color: "var(--lavender)", border: "1px solid rgba(196,173,255,0.2)" }}>
-                              <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
                               </svg>
                               {wFormat ?? job.work_format}
                             </span>
                           )}
                           {job.employment_type && (
-                            <span className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg font-body"
-                              style={{ background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.5)", border: "1px solid rgba(255,255,255,0.08)" }}>
-                              <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            <span className="inline-flex items-center gap-1 text-xs font-body px-2.5 py-1 rounded-lg"
+                              style={{ background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.5)", border: "1px solid rgba(255,255,255,0.09)" }}>
+                              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
                               </svg>
                               {empType ?? job.employment_type}
                             </span>
                           )}
                           {job.experience_level && (
-                            <span className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg font-body"
-                              style={{ background: "rgba(92,46,204,0.12)", color: "#a78bfa", border: "1px solid rgba(92,46,204,0.2)" }}>
-                              <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                            <span className="inline-flex items-center gap-1 text-xs font-body px-2.5 py-1 rounded-lg"
+                              style={{ background: "rgba(92,46,204,0.15)", color: "#a78bfa", border: "1px solid rgba(92,46,204,0.25)" }}>
+                              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/>
                               </svg>
                               {expLevel ?? job.experience_level}
                             </span>
                           )}
                         </div>
 
-                        {/* Краткое описание */}
+                        {/* Строка 4: краткое описание */}
                         {descriptionText && (
-                          <p className="text-sm font-body line-clamp-2 mb-2"
-                            style={{ color: "rgba(255,255,255,0.45)" }}>
+                          <p className="text-sm font-body line-clamp-2"
+                            style={{ color: "rgba(255,255,255,0.4)", lineHeight: "1.55" }}>
                             {descriptionText}
                           </p>
                         )}
 
-                        {/* Теги */}
+                        {/* Строка 5: доп. теги */}
                         {job.tags && job.tags.length > 0 && (
-                          <div className="flex flex-wrap gap-1.5 mt-1">
+                          <div className="flex flex-wrap gap-1.5 mt-2">
                             {job.tags.slice(0, 5).map((tag) => (
-                              <span key={tag} className="text-xs px-2 py-0.5 rounded-full"
-                                style={{ background: "rgba(124,58,237,0.12)", color: "#C4ADFF", border: "1px solid rgba(124,58,237,0.2)" }}>
+                              <span key={tag} className="text-xs px-2 py-0.5 rounded-full font-body"
+                                style={{ background: "rgba(124,58,237,0.1)", color: "#C4ADFF", border: "1px solid rgba(124,58,237,0.18)" }}>
                                 {tag}
                               </span>
                             ))}
                             {job.tags.length > 5 && (
-                              <span className="text-xs text-white/30">+{job.tags.length - 5}</span>
+                              <span className="text-xs font-body" style={{ color: "rgba(255,255,255,0.25)" }}>
+                                +{job.tags.length - 5}
+                              </span>
                             )}
                           </div>
                         )}
