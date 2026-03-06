@@ -118,8 +118,14 @@ export default async function JobDetailsPage({ params }: { params: Promise<{ id:
  {/* Шапка */}
  <div className="rounded-2xl p-6" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(196,173,255,0.12)" }}>
  <div className="flex items-start gap-4">
- <div className="h-14 w-14 shrink-0 rounded-xl flex items-center justify-center text-xl font-bold"
- style={{ background: "rgba(92,46,204,0.25)", color: "#C4ADFF", border: "1px solid rgba(92,46,204,0.3)" }}>
+ <div className="h-14 w-14 shrink-0 rounded-xl overflow-hidden flex items-center justify-center text-xl font-bold"
+                 style={{ background: job.company?.logo_url ? "white" : "rgba(92,46,204,0.25)", color: "#C4ADFF", border: "1px solid rgba(92,46,204,0.3)" }}>
+                 {job.company?.logo_url ? (
+                   <img src={job.company.logo_url} alt={job.company.name || ""} className="w-full h-full object-contain p-1.5" />
+                 ) : (
+                   (job.company?.name ?? job.title ?? "?")[0].toUpperCase()
+                 )}
+                 </div> }}>
  {(job.title ?? "?")[0].toUpperCase()}
  </div>
  <div className="flex-1">
