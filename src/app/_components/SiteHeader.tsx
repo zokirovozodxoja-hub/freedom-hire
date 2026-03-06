@@ -134,7 +134,26 @@ export default function SiteHeader() {
  {/* RIGHT: LANG SWITCHER + USER */}
  <div className="flex items-center gap-2">
 
- {/* Language Switcher */}
+ {/* Chat icon */}
+              {authUser && (
+                <Link
+                  href="/chat"
+                  style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center", width: 36, height: 36, borderRadius: 10, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", textDecoration: "none", flexShrink: 0, transition: "all .2s" }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "rgba(92,46,204,0.2)"; }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.06)"; }}
+                >
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.65)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                  </svg>
+                  {unreadChats > 0 && (
+                    <div style={{ position: "absolute", top: -5, right: -5, background: "#C4ADFF", color: "#0A0618", borderRadius: 99, fontSize: 9, fontWeight: 800, minWidth: 16, height: 16, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 3px", border: "2px solid rgba(7,6,15,0.85)" }}>
+                      {unreadChats > 9 ? "9+" : unreadChats}
+                    </div>
+                  )}
+                </Link>
+              )}
+
+              {/* Language Switcher */}
  <div
  className="flex items-center rounded-xl overflow-hidden shrink-0"
  style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}
