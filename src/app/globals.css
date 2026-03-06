@@ -4,242 +4,237 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
- --brand-deep: #3D14BB;
- --brand-core: #5B2ECC;
- --brand-light: #7C4AE8;
- --lavender: #C4ADFF;
- --chalk: #F6F2FF;
- --ink: #0A0618;
- --deep: #120830;
- --mid: #1E0F44;
- --gold: #C9A84C;
- --bg: #0A0618;
- /* RGB variants for rgba() usage */
- --brand-core-rgb: 91, 46, 204;
- --lavender-rgb: 196, 173, 255;
- --gold-rgb: 201, 168, 76;
- /* Theme-aware aliases (dark by default) */
- --text-primary: #F6F2FF;
- --text-secondary: rgba(255,255,255,0.5);
- --text-muted: rgba(255,255,255,0.28);
- --surface: rgba(255,255,255,0.04);
- --border: rgba(196,173,255,0.12);
- --border-hover: rgba(196,173,255,0.3);
- --search-bg: rgba(255,255,255,0.05);
- --badge-bg: rgba(92,46,204,0.12);
- --badge-border: rgba(92,46,204,0.25);
- --how-num: rgba(92,46,204,0.14);
- --ticker-bg: rgba(255,255,255,0.04);
- --ticker-border: rgba(196,173,255,0.1);
-}
-
-html, body {
- height: 100%;
- min-height: 100vh;
- background: var(--bg);
- color: #fff;
- font-family: 'DM Sans', sans-serif;
-}
-
-/* Типографика */
-.font-display { font-family: 'Cormorant Garamond', serif; }
-.font-accent { font-family: 'Syne', sans-serif; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; }
-.font-body { font-family: 'DM Sans', sans-serif; }
-
-/* Сетка — только на нужных страницах, НЕ на body */
-.brand-grid-bg {
- background-image:
- linear-gradient(rgba(92,46,204,0.04) 1px, transparent 1px),
- linear-gradient(90deg, rgba(92,46,204,0.04) 1px, transparent 1px);
- background-size: 48px 48px;
-}
-
-.brand-glow {
- box-shadow: 0 0 60px rgba(92,46,204,0.25), 0 20px 60px rgba(0,0,0,0.5);
-}
-
-.btn-primary {
- background: linear-gradient(135deg, var(--brand-core), var(--brand-light));
- box-shadow: 0 8px 32px rgba(92,46,204,0.4);
- transition: all 0.2s;
-}
-.btn-primary:hover {
- transform: translateY(-1px);
- box-shadow: 0 12px 40px rgba(92,46,204,0.55);
-}
-
-.brand-card {
- background: rgba(255,255,255,0.04);
- border: 1px solid rgba(196,173,255,0.12);
- backdrop-filter: blur(12px);
-}
-
-.badge-new { background: rgba(201,168,76,0.15); color: var(--gold); border: 1px solid rgba(201,168,76,0.3); }
-.badge-hot { background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
-.badge-active { background: rgba(52,211,153,0.15); color: #6ee7b7; border: 1px solid rgba(52,211,153,0.3); }
-/* ── КОРПОРАТИВНЫЙ ФОН ── */
-body {
- position: relative;
- isolation: isolate;
- background: var(--ink);
-}
-
-/* Основные световые пятна */
-body::before {
- content: '';
- position: fixed;
- inset: 0;
- z-index: -2;
- pointer-events: none;
- background:
- radial-gradient(ellipse 70% 60% at -5% 10%, rgba(92, 46, 204, 0.35) 0%, transparent 55%),
- radial-gradient(ellipse 50% 45% at 105% 85%, rgba(124, 74, 232, 0.28) 0%, transparent 50%),
- radial-gradient(ellipse 35% 30% at 55% 50%, rgba(61, 20, 187, 0.12) 0%, transparent 45%);
-}
-
-/* Сетка поверх пятен */
-body::after {
- content: '';
- position: fixed;
- inset: 0;
- z-index: -1;
- pointer-events: none;
- background-image:
- linear-gradient(rgba(196, 173, 255, 0.04) 1px, transparent 1px),
- linear-gradient(90deg, rgba(196, 173, 255, 0.04) 1px, transparent 1px);
- background-size: 60px 60px;
- mask-image: linear-gradient(to bottom, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.3) 50%, rgba(0,0,0,0.05) 100%);
-}
-
-/* ── УЛУЧШЕНИЯ UX ── */
-
-/* Плавная прокрутка */
-html { scroll-behavior: smooth; }
-
-/* Фокус-стили для доступности */
-*:focus-visible {
-  outline: 2px solid rgba(196,173,255,0.6);
-  outline-offset: 2px;
-  border-radius: 8px;
-}
-
-/* Выделение текста */
-::selection {
-  background: rgba(92,46,204,0.35);
-  color: #F6F2FF;
-}
-
-/* Скроллбар */
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(196,173,255,0.2); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(196,173,255,0.35); }
-
-/* Анимация появления */
-@keyframes fadeUp {
-  from { opacity: 0; transform: translateY(12px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-.animate-fade-up { animation: fadeUp 0.3s ease both; }
-
-/* Pulse skeleton */
-@keyframes pulse-brand {
-  0%, 100% { opacity: 0.5; }
-  50% { opacity: 0.15; }
-}
-.animate-pulse { animation: pulse-brand 1.6s ease-in-out infinite; }
-
-/* Плавные переходы ссылок */
-a { transition: color 0.2s, opacity 0.2s; }
-
-/* Textarea resize only vertical */
-textarea { resize: vertical; }
-
-/* Input placeholder */
-input::placeholder, textarea::placeholder {
-  color: rgba(255,255,255,0.22);
-}
-
-/* ══════════════════════════════════
-   LIGHT / DARK THEME VARIABLES
-══════════════════════════════════ */
-
-/* Dark (default) */
+/* ══════════════════════════════════════════════
+   CSS VARIABLES — DARK THEME (default)
+══════════════════════════════════════════════ */
 :root, [data-theme="dark"] {
+  --brand-deep: #3D14BB;
+  --brand-core: #5B2ECC;
+  --brand-light: #7C4AE8;
+  --lavender: #C4ADFF;
+  --chalk: #F6F2FF;
+  --ink: #0A0618;
+  --deep: #120830;
+  --mid: #1E0F44;
+  --gold: #C9A84C;
   --bg: #0A0618;
+  --brand-core-rgb: 91, 46, 204;
+  --lavender-rgb: 196, 173, 255;
+  --gold-rgb: 201, 168, 76;
+
+  /* Theme aliases */
+  --text-primary: #F6F2FF;
+  --text-secondary: rgba(255,255,255,0.5);
+  --text-muted: rgba(255,255,255,0.28);
   --surface: rgba(255,255,255,0.04);
   --surface-hover: rgba(255,255,255,0.07);
   --border: rgba(196,173,255,0.12);
   --border-hover: rgba(196,173,255,0.3);
-  --text-primary: #F6F2FF;
-  --text-secondary: rgba(255,255,255,0.5);
-  --text-muted: rgba(255,255,255,0.28);
-  --lavender: #C4ADFF;
-  --gold: #C9A84C;
+  --search-bg: rgba(255,255,255,0.05);
   --badge-bg: rgba(92,46,204,0.12);
   --badge-border: rgba(92,46,204,0.25);
   --how-num: rgba(92,46,204,0.14);
-  --search-bg: rgba(255,255,255,0.05);
   --ticker-bg: rgba(255,255,255,0.04);
   --ticker-border: rgba(196,173,255,0.1);
-  --nav-bg: rgba(7,6,15,0.85);
+  --card-bg: rgba(255,255,255,0.04);
+  --input-bg: rgba(255,255,255,0.05);
+  --input-border: rgba(196,173,255,0.15);
+  --dropdown-bg: #0f1929;
 }
 
-/* Light */
+/* ══════════════════════════════════════════════
+   CSS VARIABLES — LIGHT THEME
+══════════════════════════════════════════════ */
 [data-theme="light"] {
+  --lavender: #5B2ECC;
+  --chalk: #160A32;
+  --gold: #8A6010;
   --bg: #EDE9F8;
+  --ink: #EDE9F8;
+
+  --text-primary: #160A32;
+  --text-secondary: rgba(22,10,50,0.6);
+  --text-muted: rgba(22,10,50,0.38);
   --surface: rgba(255,255,255,0.85);
   --surface-hover: #ffffff;
   --border: rgba(91,46,204,0.14);
   --border-hover: rgba(91,46,204,0.4);
-  --text-primary: #160A32;
-  --text-secondary: rgba(22,10,50,0.55);
-  --text-muted: rgba(22,10,50,0.35);
-  --lavender: #5B2ECC;
-  --gold: #8A6010;
+  --search-bg: rgba(255,255,255,0.95);
   --badge-bg: rgba(91,46,204,0.08);
   --badge-border: rgba(91,46,204,0.2);
   --how-num: rgba(91,46,204,0.08);
-  --search-bg: rgba(255,255,255,0.9);
-  --ticker-bg: rgba(255,255,255,0.7);
-  --ticker-border: rgba(91,46,204,0.1);
-  --nav-bg: rgba(237,233,248,0.9);
+  --ticker-bg: rgba(255,255,255,0.8);
+  --ticker-border: rgba(91,46,204,0.12);
+  --card-bg: rgba(255,255,255,0.85);
+  --input-bg: rgba(255,255,255,0.95);
+  --input-border: rgba(91,46,204,0.2);
+  --dropdown-bg: #ffffff;
+}
+
+/* ══════════════════════════════════════════════
+   BASE STYLES
+══════════════════════════════════════════════ */
+html {
+  scroll-behavior: smooth;
+}
+
+html, body {
+  height: 100%;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text-primary);
+  font-family: 'DM Sans', sans-serif;
+  transition: background 0.3s, color 0.3s;
+}
+
+/* ── Фоновые эффекты ── */
+body {
+  position: relative;
+  isolation: isolate;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 70% 60% at -5% 10%, rgba(92,46,204,0.35) 0%, transparent 55%),
+    radial-gradient(ellipse 50% 45% at 105% 85%, rgba(124,74,232,0.28) 0%, transparent 50%),
+    radial-gradient(ellipse 35% 30% at 55% 50%, rgba(61,20,187,0.12) 0%, transparent 45%);
+  transition: background 0.3s;
 }
 
 [data-theme="light"] body::before {
   background:
-    radial-gradient(ellipse 70% 60% at -5% 10%, rgba(92,46,204,0.1) 0%, transparent 55%),
+    radial-gradient(ellipse 70% 60% at -5% 10%, rgba(92,46,204,0.12) 0%, transparent 55%),
     radial-gradient(ellipse 50% 45% at 105% 85%, rgba(124,74,232,0.08) 0%, transparent 50%);
 }
+
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(196,173,255,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(196,173,255,0.04) 1px, transparent 1px);
+  background-size: 60px 60px;
+  mask-image: linear-gradient(to bottom, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.3) 50%, rgba(0,0,0,0.05) 100%);
+}
+
 [data-theme="light"] body::after {
   background-image:
     linear-gradient(rgba(91,46,204,0.05) 1px, transparent 1px),
     linear-gradient(90deg, rgba(91,46,204,0.05) 1px, transparent 1px);
-  background-size: 60px 60px;
-}
-[data-theme="light"] html,
-[data-theme="light"] body {
-  background: var(--bg);
-  color: var(--text-primary);
 }
 
-/* brand-card adapts to theme */
-.brand-card {
-  background: var(--surface) !important;
+/* ══════════════════════════════════════════════
+   TYPOGRAPHY
+══════════════════════════════════════════════ */
+.font-display { font-family: 'Cormorant Garamond', serif; }
+.font-accent  { font-family: 'Syne', sans-serif; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; }
+.font-body    { font-family: 'DM Sans', sans-serif; }
+
+/* ══════════════════════════════════════════════
+   LIGHT THEME — OVERRIDE HARDCODED COLORS
+   Это нужно чтобы все страницы с text-white работали
+══════════════════════════════════════════════ */
+
+/* Tailwind text-white и opacity variants */
+[data-theme="light"] .text-white { color: var(--text-primary) !important; }
+[data-theme="light"] .text-white\/10 { color: rgba(22,10,50,0.1) !important; }
+[data-theme="light"] .text-white\/20 { color: rgba(22,10,50,0.2) !important; }
+[data-theme="light"] .text-white\/30 { color: rgba(22,10,50,0.3) !important; }
+[data-theme="light"] .text-white\/40 { color: rgba(22,10,50,0.4) !important; }
+[data-theme="light"] .text-white\/50 { color: rgba(22,10,50,0.5) !important; }
+[data-theme="light"] .text-white\/60 { color: rgba(22,10,50,0.6) !important; }
+[data-theme="light"] .text-white\/70 { color: rgba(22,10,50,0.7) !important; }
+[data-theme="light"] .text-white\/80 { color: rgba(22,10,50,0.8) !important; }
+
+/* Tailwind bg-white opacity variants (тёмные поверхности) */
+[data-theme="light"] .bg-white\/8,
+[data-theme="light"] .hover\:bg-white\/8:hover { background: rgba(91,46,204,0.06) !important; }
+
+/* Заголовки */
+[data-theme="light"] h1, [data-theme="light"] h2,
+[data-theme="light"] h3, [data-theme="light"] h4,
+[data-theme="light"] h5, [data-theme="light"] h6 {
+  color: var(--text-primary) !important;
+}
+
+/* Инпуты и textarea */
+[data-theme="light"] input,
+[data-theme="light"] textarea,
+[data-theme="light"] select {
+  color: var(--text-primary) !important;
+  background: var(--input-bg) !important;
+  border-color: var(--input-border) !important;
+}
+[data-theme="light"] input::placeholder,
+[data-theme="light"] textarea::placeholder {
+  color: var(--text-muted) !important;
+}
+
+/* Карточки */
+[data-theme="light"] .brand-card {
+  background: var(--card-bg) !important;
   border-color: var(--border) !important;
 }
-.brand-card:hover {
-  border-color: var(--border-hover) !important;
+
+/* Дропдауны и попапы */
+[data-theme="light"] [style*="background: \"#0f"],
+[data-theme="light"] [style*="background: \"#12"],
+[data-theme="light"] [style*="background: \"#1E"],
+[data-theme="light"] [style*="#0f1929"] {
+  background: #ffffff !important;
+  border-color: rgba(91,46,204,0.15) !important;
+  color: var(--text-primary) !important;
 }
 
-/* Ticker animation */
-.ticker-track {
-  animation: ticker 30s linear infinite;
+/* ══════════════════════════════════════════════
+   COMPONENTS
+══════════════════════════════════════════════ */
+.brand-grid-bg {
+  background-image:
+    linear-gradient(rgba(92,46,204,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(92,46,204,0.04) 1px, transparent 1px);
+  background-size: 48px 48px;
 }
-.ticker-track:hover {
-  animation-play-state: paused;
+
+.brand-glow {
+  box-shadow: 0 0 60px rgba(92,46,204,0.25), 0 20px 60px rgba(0,0,0,0.5);
 }
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--brand-core), var(--brand-light));
+  box-shadow: 0 8px 32px rgba(92,46,204,0.4);
+  transition: all 0.2s;
+}
+.btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 40px rgba(92,46,204,0.55);
+}
+
+.brand-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  backdrop-filter: blur(12px);
+  transition: background 0.3s, border-color 0.3s;
+}
+.brand-card:hover {
+  border-color: var(--border-hover);
+}
+
+.badge-new    { background: rgba(201,168,76,0.15);  color: var(--gold);   border: 1px solid rgba(201,168,76,0.3); }
+.badge-hot    { background: rgba(239,68,68,0.15);   color: #f87171;       border: 1px solid rgba(239,68,68,0.3); }
+.badge-active { background: rgba(52,211,153,0.15);  color: #6ee7b7;       border: 1px solid rgba(52,211,153,0.3); }
+
+/* Ticker */
+.ticker-track { animation: ticker 30s linear infinite; }
+.ticker-track:hover { animation-play-state: paused; }
 @keyframes ticker {
   from { transform: translateX(0); }
   to   { transform: translateX(-50%); }
@@ -254,115 +249,45 @@ input::placeholder, textarea::placeholder {
   border-color: var(--border-hover);
 }
 
-/* ══════════════════════════════════════════════════════
-   LIGHT THEME — GLOBAL OVERRIDES FOR ALL PAGES
-   Перекрывает все hardcoded text-white и rgba(255,255,255)
-══════════════════════════════════════════════════════ */
-
-[data-theme="light"] body,
-[data-theme="light"] main,
-[data-theme="light"] header,
-[data-theme="light"] footer,
-[data-theme="light"] section,
-[data-theme="light"] div,
-[data-theme="light"] article {
-  color: inherit;
+/* ══════════════════════════════════════════════
+   ACCESSIBILITY & UX
+══════════════════════════════════════════════ */
+*:focus-visible {
+  outline: 2px solid rgba(196,173,255,0.6);
+  outline-offset: 2px;
+  border-radius: 8px;
 }
 
-/* Основной фон и текст */
-[data-theme="light"] {
-  background: var(--bg);
-  color: var(--text-primary);
+::selection {
+  background: rgba(92,46,204,0.35);
+  color: #F6F2FF;
 }
 
-/* Все элементы с text-white классами */
-[data-theme="light"] .text-white,
-[data-theme="light"] .text-white\/80,
-[data-theme="light"] .text-white\/70,
-[data-theme="light"] .text-white\/60,
-[data-theme="light"] .text-white\/50,
-[data-theme="light"] .text-white\/40,
-[data-theme="light"] .text-white\/30 {
-  color: var(--text-primary) !important;
-}
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(196,173,255,0.2); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(196,173,255,0.35); }
+[data-theme="light"] ::-webkit-scrollbar-thumb { background: rgba(91,46,204,0.2); }
 
-/* Карточки и поверхности */
-[data-theme="light"] .brand-card,
-[data-theme="light"] [style*="rgba(255,255,255,0.04)"],
-[data-theme="light"] [style*="rgba(255,255,255,0.06)"],
-[data-theme="light"] [style*="rgba(255,255,255,0.07)"],
-[data-theme="light"] [style*="rgba(255,255,255,0.08)"] {
-  background: rgba(255,255,255,0.85) !important;
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
+.animate-fade-up { animation: fadeUp 0.3s ease both; }
 
-/* Инпуты */
-[data-theme="light"] input,
-[data-theme="light"] textarea,
-[data-theme="light"] select {
-  color: var(--text-primary) !important;
-  background: rgba(255,255,255,0.9) !important;
-  border-color: rgba(91,46,204,0.2) !important;
+@keyframes pulse-brand {
+  0%, 100% { opacity: 0.5; }
+  50%       { opacity: 0.15; }
+}
+.animate-pulse { animation: pulse-brand 1.6s ease-in-out infinite; }
+
+a { transition: color 0.2s, opacity 0.2s; }
+textarea { resize: vertical; }
+
+input::placeholder, textarea::placeholder {
+  color: rgba(255,255,255,0.22);
 }
 [data-theme="light"] input::placeholder,
 [data-theme="light"] textarea::placeholder {
-  color: rgba(22,10,50,0.35) !important;
-}
-
-/* Навигационные ссылки */
-[data-theme="light"] nav a,
-[data-theme="light"] nav button {
-  color: rgba(22,10,50,0.65) !important;
-}
-
-/* Фон страниц */
-[data-theme="light"] .min-h-screen,
-[data-theme="light"] [style*="background: \"var(--bg)\""],
-[data-theme="light"] [style*="background: var(--bg)"],
-[data-theme="light"] [style*="var(--ink)"] {
-  background: var(--bg) !important;
-}
-
-/* Поисковые поля и фильтры */
-[data-theme="light"] [style*="rgba(255,255,255,0.05)"],
-[data-theme="light"] [style*="rgba(255,255,255,0.03)"] {
-  background: rgba(255,255,255,0.9) !important;
-  border-color: rgba(91,46,204,0.15) !important;
-}
-
-/* Бейджи и теги */
-[data-theme="light"] [style*="rgba(196,173,255,0.08)"] {
-  background: rgba(91,46,204,0.08) !important;
-}
-
-/* Бордеры */
-[data-theme="light"] [style*="rgba(196,173,255,0.12)"],
-[data-theme="light"] [style*="rgba(196,173,255,0.2)"] {
-  border-color: rgba(91,46,204,0.15) !important;
-}
-
-/* Заголовки страниц */
-[data-theme="light"] h1,
-[data-theme="light"] h2,
-[data-theme="light"] h3,
-[data-theme="light"] h4 {
-  color: var(--text-primary) !important;
-}
-
-/* Модальные окна и дропдауны */
-[data-theme="light"] [style*="#0f1929"],
-[data-theme="light"] [style*="background: \"#0f"],
-[data-theme="light"] [style*="background: \"#12"],
-[data-theme="light"] [style*="background: \"#1E"] {
-  background: #ffffff !important;
-  border-color: rgba(91,46,204,0.15) !important;
-}
-
-/* Скроллбар в светлой теме */
-[data-theme="light"] ::-webkit-scrollbar-thumb {
-  background: rgba(91,46,204,0.2);
-}
-
-/* Поисковая строка на главной — фикс видимости */
-[data-theme="light"] .search-input {
-  color: #160A32 !important;
+  color: var(--text-muted) !important;
 }
