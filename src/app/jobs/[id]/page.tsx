@@ -28,8 +28,8 @@ type Job = {
  description: string | null;
  city: string | null;
  website: string | null;
- logo_url: string | null;
- slug: string | null;
+ industry: string | null;
+ employees_count: string | null;
  } | null;
 };
 
@@ -85,7 +85,7 @@ export default async function JobDetailsPage({ params }: { params: Promise<{ id:
  id, title, city, description, requirements, responsibilities, benefits,
  created_at, salary_from, salary_to, salary_negotiable,
  is_active, employment_type, work_format, experience_level, education_level, tags,
- company:companies(id, name, description, city, website, logo_url, slug)
+ company:companies(id, name, description, city, website, industry, employees_count)
  `)
  .eq("id", id)
  .maybeSingle();
@@ -95,6 +95,8 @@ export default async function JobDetailsPage({ params }: { params: Promise<{ id:
  const job = data as unknown as Job;
  const salary = formatSalary(job.salary_from, job.salary_to, job.salary_negotiable);
  const responsibilityList = parseList(job.responsibilities);
+ const requirementsList = parseList(job.requirements);
+ const benefitsList = parseList(job.benefits);
 
  return (
  <div className="min-h-screen" style={{ background: "var(--bg, #07060F)", color: "#fff" }}>
@@ -122,13 +124,13 @@ export default async function JobDetailsPage({ params }: { params: Promise<{ id:
  <div className="flex-1">
  <h1 className="text-2xl font-bold leading-tight">{job.title ?? "Без названия"}</h1>
  {job.company?.name && (
- <div className="mt-1 text-sm font-medium" style={{ color: "#C4ADFF" }}>
+ <Link href={`/companies/${job.company.id}`} className="mt-1 text-sm font-medium hover:underline inline-block" style={{ color: "#C4ADFF" }}>
  {job.company.name}
- </div>
+ </Link>
  )}
- <div className="mt-2 flex flex-wrap gap-2 text-sm" style={{ color: "rgba(255,255,255,0.5)" }}>
- {job.city && <span> {job.city}</span>}
- <span> {formatDate(job.created_at)}</span>
+ <div className="mt-2 flex flex-wrap gap-3 text-sm" style={{ color: "rgba(255,255,255,0.5)" }}>
+ {job.city && <span>📍 {job.city}</span>}
+ <span>🕒 {formatDate(job.created_at)}</span>
  </div>
  </div>
  </div>
@@ -138,31 +140,31 @@ export default async function JobDetailsPage({ params }: { params: Promise<{ id:
  {salary && (
  <span className="px-3 py-1.5 rounded-full text-sm font-semibold"
  style={{ background: "rgba(201,168,76,0.15)", color: "var(--gold)", border: "1px solid rgba(201,168,76,0.3)" }}>
- {salary}
+ 💰 {salary}
  </span>
  )}
  {job.work_format && (
  <span className="px-3 py-1.5 rounded-full text-sm"
  style={{ background: "rgba(196,173,255,0.1)", color: "#C4ADFF", border: "1px solid rgba(196,173,255,0.2)" }}>
- {FORMAT_LABELS[job.work_format] ?? job.work_format}
+ 🏢 {FORMAT_LABELS[job.work_format] ?? job.work_format}
  </span>
  )}
  {job.employment_type && (
  <span className="px-3 py-1.5 rounded-full text-sm"
  style={{ background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.6)", border: "1px solid rgba(255,255,255,0.1)" }}>
- {EMP_LABELS[job.employment_type] ?? job.employment_type}
+ ⏰ {EMP_LABELS[job.employment_type] ?? job.employment_type}
  </span>
  )}
  {job.experience_level && (
  <span className="px-3 py-1.5 rounded-full text-sm"
  style={{ background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.6)", border: "1px solid rgba(255,255,255,0.1)" }}>
- {EXP_LABELS[job.experience_level] ?? job.experience_level}
+ 💼 {EXP_LABELS[job.experience_level] ?? job.experience_level}
  </span>
  )}
  {job.education_level && (
  <span className="px-3 py-1.5 rounded-full text-sm"
  style={{ background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.6)", border: "1px solid rgba(255,255,255,0.1)" }}>
- {EDU_LABELS[job.education_level] ?? job.education_level}
+ 🎓 {EDU_LABELS[job.education_level] ?? job.education_level}
  </span>
  )}
  </div>
@@ -171,7 +173,10 @@ export default async function JobDetailsPage({ params }: { params: Promise<{ id:
  {/* Описание */}
  {job.description && (
  <div className="rounded-2xl p-6" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
- <h2 className="font-semibold mb-3 text-lg">О вакансии</h2>
+ <h2 className="font-semibold mb-3 text-lg flex items-center gap-2">
+ <span className="text-xl">📝</span>
+ О вакансии
+ </h2>
  <p className="text-sm leading-relaxed whitespace-pre-wrap" style={{ color: "rgba(255,255,255,0.7)" }}>
  {job.description}
  </p>
@@ -181,12 +186,15 @@ export default async function JobDetailsPage({ params }: { params: Promise<{ id:
  {/* Обязанности */}
  {responsibilityList.length > 0 && (
  <div className="rounded-2xl p-6" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
- <h2 className="font-semibold mb-4 text-lg"> Обязанности</h2>
- <ul className="space-y-2">
+ <h2 className="font-semibold mb-4 text-lg flex items-center gap-2">
+ <span className="text-xl">✅</span>
+ Обязанности
+ </h2>
+ <ul className="space-y-3">
  {responsibilityList.map((item, i) => (
- <li key={i} className="flex items-start gap-2 text-sm" style={{ color: "rgba(255,255,255,0.7)" }}>
+ <li key={i} className="flex items-start gap-3 text-sm" style={{ color: "rgba(255,255,255,0.7)" }}>
  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: "#C4ADFF" }} />
- {item}
+ <span className="flex-1">{item}</span>
  </li>
  ))}
  </ul>
@@ -194,9 +202,27 @@ export default async function JobDetailsPage({ params }: { params: Promise<{ id:
  )}
 
  {/* Требования */}
- {job.requirements && (
+ {requirementsList.length > 0 ? (
  <div className="rounded-2xl p-6" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
- <h2 className="font-semibold mb-3 text-lg"> Требования</h2>
+ <h2 className="font-semibold mb-4 text-lg flex items-center gap-2">
+ <span className="text-xl">🎯</span>
+ Требования
+ </h2>
+ <ul className="space-y-3">
+ {requirementsList.map((item, i) => (
+ <li key={i} className="flex items-start gap-3 text-sm" style={{ color: "rgba(255,255,255,0.7)" }}>
+ <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: "#C4ADFF" }} />
+ <span className="flex-1">{item}</span>
+ </li>
+ ))}
+ </ul>
+ </div>
+ ) : job.requirements && (
+ <div className="rounded-2xl p-6" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
+ <h2 className="font-semibold mb-3 text-lg flex items-center gap-2">
+ <span className="text-xl">🎯</span>
+ Требования
+ </h2>
  <p className="text-sm leading-relaxed whitespace-pre-wrap" style={{ color: "rgba(255,255,255,0.7)" }}>
  {job.requirements}
  </p>
@@ -204,9 +230,27 @@ export default async function JobDetailsPage({ params }: { params: Promise<{ id:
  )}
 
  {/* Бенефиты */}
- {job.benefits && (
+ {benefitsList.length > 0 ? (
  <div className="rounded-2xl p-6" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
- <h2 className="font-semibold mb-3 text-lg"> Условия</h2>
+ <h2 className="font-semibold mb-4 text-lg flex items-center gap-2">
+ <span className="text-xl">🎁</span>
+ Условия и бенефиты
+ </h2>
+ <ul className="space-y-3">
+ {benefitsList.map((item, i) => (
+ <li key={i} className="flex items-start gap-3 text-sm" style={{ color: "rgba(255,255,255,0.7)" }}>
+ <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: "#4ade80" }} />
+ <span className="flex-1">{item}</span>
+ </li>
+ ))}
+ </ul>
+ </div>
+ ) : job.benefits && (
+ <div className="rounded-2xl p-6" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
+ <h2 className="font-semibold mb-3 text-lg flex items-center gap-2">
+ <span className="text-xl">🎁</span>
+ Условия
+ </h2>
  <p className="text-sm leading-relaxed whitespace-pre-wrap" style={{ color: "rgba(255,255,255,0.7)" }}>
  {job.benefits}
  </p>
@@ -216,7 +260,10 @@ export default async function JobDetailsPage({ params }: { params: Promise<{ id:
  {/* Теги/навыки */}
  {job.tags && job.tags.length > 0 && (
  <div className="rounded-2xl p-6" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
- <h2 className="font-semibold mb-3 text-lg"> Навыки</h2>
+ <h2 className="font-semibold mb-3 text-lg flex items-center gap-2">
+ <span className="text-xl">🛠️</span>
+ Навыки и технологии
+ </h2>
  <div className="flex flex-wrap gap-2">
  {job.tags.map((tag) => (
  <span key={tag} className="px-3 py-1 rounded-full text-sm"
@@ -237,47 +284,93 @@ export default async function JobDetailsPage({ params }: { params: Promise<{ id:
  <ApplyButton jobId={job.id} />
  </div>
 
- {/* О компании */}
+ {/* О компании - ИСПРАВЛЕНО: Теперь кликабельная карточка */}
  {job.company && (
- <div className="rounded-2xl p-5" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
- <h3 className="font-semibold mb-3">О компании</h3>
- <div className="h-12 w-12 rounded-xl overflow-hidden flex items-center justify-center text-lg font-bold mb-3"
- style={{ background: job.company.logo_url ? "white" : "rgba(92,46,204,0.2)", color: "#C4ADFF", border: "1px solid rgba(92,46,204,0.3)" }}>
- {job.company.logo_url ? (
- <img src={job.company.logo_url} alt={job.company.name ?? ""} className="w-full h-full object-contain p-1" />
- ) : (
- (job.company.name ?? "?")[0].toUpperCase()
- )}
+ <Link href={`/companies/${job.company.id}`} className="block rounded-2xl p-5 transition-all hover:scale-[1.02]" 
+ style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
+ <h3 className="font-semibold mb-3 flex items-center justify-between">
+ <span>🏢 О компании</span>
+ <span className="text-xs" style={{ color: "#C4ADFF" }}>Подробнее →</span>
+ </h3>
+ <div className="h-12 w-12 rounded-xl flex items-center justify-center text-lg font-bold mb-3"
+ style={{ background: "rgba(92,46,204,0.2)", color: "#C4ADFF" }}>
+ {(job.company.name ?? "?")[0].toUpperCase()}
  </div>
- <div className="font-medium">{job.company.name}</div>
+ <div className="font-medium text-white">{job.company.name}</div>
+ {job.company.industry && (
+ <div className="text-xs mt-1" style={{ color: "rgba(255,255,255,0.4)" }}>
+ {job.company.industry}
+ </div>
+ )}
  {job.company.city && (
- <div className="text-sm mt-1" style={{ color: "rgba(255,255,255,0.5)" }}>
+ <div className="text-sm mt-1 flex items-center gap-1" style={{ color: "rgba(255,255,255,0.5)" }}>
+ <span>📍</span>
  {job.company.city}
  </div>
  )}
+ {job.company.employees_count && (
+ <div className="text-sm mt-1 flex items-center gap-1" style={{ color: "rgba(255,255,255,0.5)" }}>
+ <span>👥</span>
+ {job.company.employees_count} сотрудников
+ </div>
+ )}
  {job.company.description && (
- <p className="text-sm mt-3 leading-relaxed" style={{ color: "rgba(255,255,255,0.6)" }}>
- {job.company.description.slice(0, 200)}{job.company.description.length > 200 ? "..." : ""}
+ <p className="text-sm mt-3 leading-relaxed line-clamp-3" style={{ color: "rgba(255,255,255,0.6)" }}>
+ {job.company.description}
  </p>
  )}
- {job.company.slug && (
- <Link href={`/company/${job.company.slug}`}
- className="mt-3 inline-block text-sm" style={{ color: "#C4ADFF" }}>
- Страница компании →
- </Link>
- )}
+ {job.company.website && (
+ <div className="mt-3 text-sm flex items-center gap-1" style={{ color: "#C4ADFF" }}>
+ <span>🌐</span>
+ <span>Сайт компании</span>
  </div>
+ )}
+ </Link>
  )}
 
  {/* Детали */}
  <div className="rounded-2xl p-5" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
- <h3 className="font-semibold mb-3">Детали</h3>
- <div className="space-y-2 text-sm" style={{ color: "rgba(255,255,255,0.6)" }}>
- {job.city && <div className="flex justify-between"><span>Город</span><span className="text-white">{job.city}</span></div>}
- {job.work_format && <div className="flex justify-between"><span>Формат</span><span className="text-white">{FORMAT_LABELS[job.work_format] ?? job.work_format}</span></div>}
- {job.employment_type && <div className="flex justify-between"><span>Занятость</span><span className="text-white">{EMP_LABELS[job.employment_type] ?? job.employment_type}</span></div>}
- {job.experience_level && <div className="flex justify-between"><span>Опыт</span><span className="text-white">{EXP_LABELS[job.experience_level] ?? job.experience_level}</span></div>}
- {job.education_level && <div className="flex justify-between"><span>Образование</span><span className="text-white">{EDU_LABELS[job.education_level] ?? job.education_level}</span></div>}
+ <h3 className="font-semibold mb-3 flex items-center gap-2">
+ <span>ℹ️</span>
+ Детали вакансии
+ </h3>
+ <div className="space-y-3 text-sm">
+ {job.city && (
+ <div className="flex justify-between items-center">
+ <span style={{ color: "rgba(255,255,255,0.6)" }}>Город</span>
+ <span className="text-white font-medium">{job.city}</span>
+ </div>
+ )}
+ {job.work_format && (
+ <div className="flex justify-between items-center">
+ <span style={{ color: "rgba(255,255,255,0.6)" }}>Формат работы</span>
+ <span className="text-white font-medium">{FORMAT_LABELS[job.work_format] ?? job.work_format}</span>
+ </div>
+ )}
+ {job.employment_type && (
+ <div className="flex justify-between items-center">
+ <span style={{ color: "rgba(255,255,255,0.6)" }}>Тип занятости</span>
+ <span className="text-white font-medium">{EMP_LABELS[job.employment_type] ?? job.employment_type}</span>
+ </div>
+ )}
+ {job.experience_level && (
+ <div className="flex justify-between items-center">
+ <span style={{ color: "rgba(255,255,255,0.6)" }}>Требуемый опыт</span>
+ <span className="text-white font-medium">{EXP_LABELS[job.experience_level] ?? job.experience_level}</span>
+ </div>
+ )}
+ {job.education_level && (
+ <div className="flex justify-between items-center">
+ <span style={{ color: "rgba(255,255,255,0.6)" }}>Образование</span>
+ <span className="text-white font-medium">{EDU_LABELS[job.education_level] ?? job.education_level}</span>
+ </div>
+ )}
+ <div className="pt-2 border-t" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
+ <div className="flex justify-between items-center">
+ <span style={{ color: "rgba(255,255,255,0.6)" }}>Опубликовано</span>
+ <span className="text-white font-medium">{formatDate(job.created_at)}</span>
+ </div>
+ </div>
  </div>
  </div>
  </div>

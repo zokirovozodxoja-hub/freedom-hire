@@ -7,15 +7,18 @@ const ADMIN_EMAILS = ["zokirovozodxoja@gmail.com"];
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
+  // Публичные пути - пропускаем без проверки
   if (
     pathname.startsWith("/_next") ||
     pathname.startsWith("/api") ||
     pathname.includes(".") ||
     pathname.startsWith("/auth") ||
-    pathname.startsWith("/company") ||
+    pathname.startsWith("/company") ||      // Единственное число
+    pathname.startsWith("/companies") ||    // Множественное число - ИСПРАВЛЕНО!
     pathname.startsWith("/jobs") ||
     pathname.startsWith("/about") ||
-    pathname.startsWith("/employers")
+    pathname.startsWith("/employers") ||
+    pathname.startsWith("/candidates")      // Добавлено для профилей кандидатов
   ) {
     return NextResponse.next();
   }
