@@ -28,6 +28,8 @@ type Job = {
  description: string | null;
  city: string | null;
  website: string | null;
+ logo_url: string | null;
+ slug: string | null;
  } | null;
 };
 
@@ -83,7 +85,7 @@ export default async function JobDetailsPage({ params }: { params: Promise<{ id:
  id, title, city, description, requirements, responsibilities, benefits,
  created_at, salary_from, salary_to, salary_negotiable,
  is_active, employment_type, work_format, experience_level, education_level, tags,
- company:companies(id, name, description, city, website)
+ company:companies(id, name, description, city, website, logo_url, slug)
  `)
  .eq("id", id)
  .maybeSingle();
@@ -238,10 +240,14 @@ export default async function JobDetailsPage({ params }: { params: Promise<{ id:
  {/* О компании */}
  {job.company && (
  <div className="rounded-2xl p-5" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
- <h3 className="font-semibold mb-3"> О компании</h3>
- <div className="h-12 w-12 rounded-xl flex items-center justify-center text-lg font-bold mb-3"
- style={{ background: "rgba(92,46,204,0.2)", color: "#C4ADFF" }}>
- {(job.company.name ?? "?")[0].toUpperCase()}
+ <h3 className="font-semibold mb-3">О компании</h3>
+ <div className="h-12 w-12 rounded-xl overflow-hidden flex items-center justify-center text-lg font-bold mb-3"
+ style={{ background: job.company.logo_url ? "white" : "rgba(92,46,204,0.2)", color: "#C4ADFF", border: "1px solid rgba(92,46,204,0.3)" }}>
+ {job.company.logo_url ? (
+ <img src={job.company.logo_url} alt={job.company.name ?? ""} className="w-full h-full object-contain p-1" />
+ ) : (
+ (job.company.name ?? "?")[0].toUpperCase()
+ )}
  </div>
  <div className="font-medium">{job.company.name}</div>
  {job.company.city && (
@@ -254,11 +260,11 @@ export default async function JobDetailsPage({ params }: { params: Promise<{ id:
  {job.company.description.slice(0, 200)}{job.company.description.length > 200 ? "..." : ""}
  </p>
  )}
- {job.company.website && (
- <a href={job.company.website} target="_blank" rel="noopener noreferrer"
+ {job.company.slug && (
+ <Link href={`/company/${job.company.slug}`}
  className="mt-3 inline-block text-sm" style={{ color: "#C4ADFF" }}>
- Сайт компании →
- </a>
+ Страница компании →
+ </Link>
  )}
  </div>
  )}
