@@ -242,8 +242,9 @@ export default function JobsPage() {
                   const expLevel = t.jobs.experienceLevels[job.experience_level as keyof typeof t.jobs.experienceLevels];
                   const wFormat = t.jobs.formats[job.work_format as keyof typeof t.jobs.formats];
                   const dateStr = daysSince(job.created_at, t.jobs.today, t.jobs.yesterday, t.jobs.daysAgo, locale);
-                  const companyName = (job.company as any)?.[0]?.name;
-                  const companyLogo = (job.company as any)?.[0]?.logo_url;
+                  const companyRaw = job.company;
+                  const companyName = Array.isArray(companyRaw) ? companyRaw[0]?.name : (companyRaw as any)?.name;
+                  const companyLogo = Array.isArray(companyRaw) ? companyRaw[0]?.logo_url : (companyRaw as any)?.logo_url;
                   const descriptionText = stripHtml(job.description);
 
                   return (
