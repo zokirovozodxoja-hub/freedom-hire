@@ -19,6 +19,19 @@
  --brand-core-rgb: 91, 46, 204;
  --lavender-rgb: 196, 173, 255;
  --gold-rgb: 201, 168, 76;
+ /* Theme-aware aliases (dark by default) */
+ --text-primary: #F6F2FF;
+ --text-secondary: rgba(255,255,255,0.5);
+ --text-muted: rgba(255,255,255,0.28);
+ --surface: rgba(255,255,255,0.04);
+ --border: rgba(196,173,255,0.12);
+ --border-hover: rgba(196,173,255,0.3);
+ --search-bg: rgba(255,255,255,0.05);
+ --badge-bg: rgba(92,46,204,0.12);
+ --badge-border: rgba(92,46,204,0.25);
+ --how-num: rgba(92,46,204,0.14);
+ --ticker-bg: rgba(255,255,255,0.04);
+ --ticker-border: rgba(196,173,255,0.1);
 }
 
 html, body {
@@ -152,25 +165,32 @@ input::placeholder, textarea::placeholder {
    LIGHT / DARK THEME VARIABLES
 ══════════════════════════════════ */
 
+/* Dark (default) */
 :root, [data-theme="dark"] {
   --bg: #0A0618;
   --surface: rgba(255,255,255,0.04);
+  --surface-hover: rgba(255,255,255,0.07);
   --border: rgba(196,173,255,0.12);
   --border-hover: rgba(196,173,255,0.3);
   --text-primary: #F6F2FF;
   --text-secondary: rgba(255,255,255,0.5);
   --text-muted: rgba(255,255,255,0.28);
+  --lavender: #C4ADFF;
+  --gold: #C9A84C;
   --badge-bg: rgba(92,46,204,0.12);
   --badge-border: rgba(92,46,204,0.25);
   --how-num: rgba(92,46,204,0.14);
   --search-bg: rgba(255,255,255,0.05);
   --ticker-bg: rgba(255,255,255,0.04);
   --ticker-border: rgba(196,173,255,0.1);
+  --nav-bg: rgba(7,6,15,0.85);
 }
 
+/* Light */
 [data-theme="light"] {
   --bg: #EDE9F8;
   --surface: rgba(255,255,255,0.85);
+  --surface-hover: #ffffff;
   --border: rgba(91,46,204,0.14);
   --border-hover: rgba(91,46,204,0.4);
   --text-primary: #160A32;
@@ -178,16 +198,15 @@ input::placeholder, textarea::placeholder {
   --text-muted: rgba(22,10,50,0.35);
   --lavender: #5B2ECC;
   --gold: #8A6010;
-  --chalk: #160A32;
   --badge-bg: rgba(91,46,204,0.08);
   --badge-border: rgba(91,46,204,0.2);
   --how-num: rgba(91,46,204,0.08);
   --search-bg: rgba(255,255,255,0.9);
   --ticker-bg: rgba(255,255,255,0.7);
   --ticker-border: rgba(91,46,204,0.1);
+  --nav-bg: rgba(237,233,248,0.9);
 }
 
-[data-theme="light"] body { background: var(--bg); color: var(--text-primary); }
 [data-theme="light"] body::before {
   background:
     radial-gradient(ellipse 70% 60% at -5% 10%, rgba(92,46,204,0.1) 0%, transparent 55%),
@@ -199,16 +218,28 @@ input::placeholder, textarea::placeholder {
     linear-gradient(90deg, rgba(91,46,204,0.05) 1px, transparent 1px);
   background-size: 60px 60px;
 }
-[data-theme="light"] .brand-card {
-  background: rgba(255,255,255,0.8) !important;
-  border-color: rgba(91,46,204,0.14) !important;
+[data-theme="light"] html,
+[data-theme="light"] body {
+  background: var(--bg);
+  color: var(--text-primary);
 }
 
-/* Company ticker animation */
+/* brand-card adapts to theme */
+.brand-card {
+  background: var(--surface) !important;
+  border-color: var(--border) !important;
+}
+.brand-card:hover {
+  border-color: var(--border-hover) !important;
+}
+
+/* Ticker animation */
 .ticker-track {
   animation: ticker 30s linear infinite;
 }
-.ticker-track:hover { animation-play-state: paused; }
+.ticker-track:hover {
+  animation-play-state: paused;
+}
 @keyframes ticker {
   from { transform: translateX(0); }
   to   { transform: translateX(-50%); }
@@ -221,4 +252,117 @@ input::placeholder, textarea::placeholder {
 .ticker-item:hover {
   background: var(--badge-bg);
   border-color: var(--border-hover);
+}
+
+/* ══════════════════════════════════════════════════════
+   LIGHT THEME — GLOBAL OVERRIDES FOR ALL PAGES
+   Перекрывает все hardcoded text-white и rgba(255,255,255)
+══════════════════════════════════════════════════════ */
+
+[data-theme="light"] body,
+[data-theme="light"] main,
+[data-theme="light"] header,
+[data-theme="light"] footer,
+[data-theme="light"] section,
+[data-theme="light"] div,
+[data-theme="light"] article {
+  color: inherit;
+}
+
+/* Основной фон и текст */
+[data-theme="light"] {
+  background: var(--bg);
+  color: var(--text-primary);
+}
+
+/* Все элементы с text-white классами */
+[data-theme="light"] .text-white,
+[data-theme="light"] .text-white\/80,
+[data-theme="light"] .text-white\/70,
+[data-theme="light"] .text-white\/60,
+[data-theme="light"] .text-white\/50,
+[data-theme="light"] .text-white\/40,
+[data-theme="light"] .text-white\/30 {
+  color: var(--text-primary) !important;
+}
+
+/* Карточки и поверхности */
+[data-theme="light"] .brand-card,
+[data-theme="light"] [style*="rgba(255,255,255,0.04)"],
+[data-theme="light"] [style*="rgba(255,255,255,0.06)"],
+[data-theme="light"] [style*="rgba(255,255,255,0.07)"],
+[data-theme="light"] [style*="rgba(255,255,255,0.08)"] {
+  background: rgba(255,255,255,0.85) !important;
+}
+
+/* Инпуты */
+[data-theme="light"] input,
+[data-theme="light"] textarea,
+[data-theme="light"] select {
+  color: var(--text-primary) !important;
+  background: rgba(255,255,255,0.9) !important;
+  border-color: rgba(91,46,204,0.2) !important;
+}
+[data-theme="light"] input::placeholder,
+[data-theme="light"] textarea::placeholder {
+  color: rgba(22,10,50,0.35) !important;
+}
+
+/* Навигационные ссылки */
+[data-theme="light"] nav a,
+[data-theme="light"] nav button {
+  color: rgba(22,10,50,0.65) !important;
+}
+
+/* Фон страниц */
+[data-theme="light"] .min-h-screen,
+[data-theme="light"] [style*="background: \"var(--bg)\""],
+[data-theme="light"] [style*="background: var(--bg)"],
+[data-theme="light"] [style*="var(--ink)"] {
+  background: var(--bg) !important;
+}
+
+/* Поисковые поля и фильтры */
+[data-theme="light"] [style*="rgba(255,255,255,0.05)"],
+[data-theme="light"] [style*="rgba(255,255,255,0.03)"] {
+  background: rgba(255,255,255,0.9) !important;
+  border-color: rgba(91,46,204,0.15) !important;
+}
+
+/* Бейджи и теги */
+[data-theme="light"] [style*="rgba(196,173,255,0.08)"] {
+  background: rgba(91,46,204,0.08) !important;
+}
+
+/* Бордеры */
+[data-theme="light"] [style*="rgba(196,173,255,0.12)"],
+[data-theme="light"] [style*="rgba(196,173,255,0.2)"] {
+  border-color: rgba(91,46,204,0.15) !important;
+}
+
+/* Заголовки страниц */
+[data-theme="light"] h1,
+[data-theme="light"] h2,
+[data-theme="light"] h3,
+[data-theme="light"] h4 {
+  color: var(--text-primary) !important;
+}
+
+/* Модальные окна и дропдауны */
+[data-theme="light"] [style*="#0f1929"],
+[data-theme="light"] [style*="background: \"#0f"],
+[data-theme="light"] [style*="background: \"#12"],
+[data-theme="light"] [style*="background: \"#1E"] {
+  background: #ffffff !important;
+  border-color: rgba(91,46,204,0.15) !important;
+}
+
+/* Скроллбар в светлой теме */
+[data-theme="light"] ::-webkit-scrollbar-thumb {
+  background: rgba(91,46,204,0.2);
+}
+
+/* Поисковая строка на главной — фикс видимости */
+[data-theme="light"] .search-input {
+  color: #160A32 !important;
 }
