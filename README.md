@@ -1,36 +1,128 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 📁 ТОЧНАЯ СТРУКТУРА ДЛЯ ВАШЕГО РЕПОЗИТОРИЯ
 
-## Getting Started
+## ✅ ВАША ТЕКУЩАЯ СТРУКТУРА:
 
-First, run the development server:
-
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+```
+freedom-hire/
+├── middleware.ts                     ← Корень проекта
+├── src/
+│   └── app/
+│       ├── jobs/
+│       │   └── [id]/
+│       │       ├── ApplyButton.tsx   ← УЖЕ ЕСТЬ
+│       │       ├── JobViewTracker.tsx ← УЖЕ ЕСТЬ  
+│       │       └── page.tsx          ← ЗАМЕНИТЬ
+│       │
+│       └── company/
+│           └── [slug]/
+│               └── page.tsx          ← Редактирование (приватно)
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 🎯 ЧТО НУЖНО СДЕЛАТЬ:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 1. Заменить страницу вакансии
+Файл: `src/app/jobs/[id]/page.tsx`
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+**Windows команда:**
+```cmd
+copy jobs-id\page.tsx src\app\jobs\[id]\page.tsx
+```
 
-## Learn More
+**Или вручную:**
+- Откройте `src/app/jobs/[id]/page.tsx`
+- Скопируйте содержимое из `jobs-id/page.tsx`
+- Вставьте и сохраните
 
-To learn more about Next.js, take a look at the following resources:
+### 2. Создать новую папку для публичной страницы компании
+**Важно:** Это НОВАЯ папка, не путайте с `/company/[slug]`!
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+**Windows команды:**
+```cmd
+mkdir src\app\companies
+mkdir src\app\companies\[id]
+copy companies-id\page.tsx src\app\companies\[id]\page.tsx
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+**Или вручную:**
+1. Создайте папку `src/app/companies/`
+2. Внутри создайте папку `[id]` (с квадратными скобками!)
+3. Внутри `[id]` создайте файл `page.tsx`
+4. Скопируйте содержимое из `companies-id/page.tsx`
 
-## Deploy on Vercel
+### 3. Обновить middleware.ts
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```cmd
+copy middleware-FIXED.ts middleware.ts
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## ✅ ИТОГОВАЯ СТРУКТУРА:
+
+```
+freedom-hire/
+├── middleware.ts                     ← ОБНОВЛЕНО
+├── src/
+│   └── app/
+│       ├── jobs/
+│       │   └── [id]/
+│       │       ├── ApplyButton.tsx
+│       │       ├── JobViewTracker.tsx
+│       │       └── page.tsx          ← ОБНОВЛЕНО
+│       │
+│       ├── company/                  ← СТАРОЕ (для редактирования)
+│       │   └── [slug]/
+│       │       └── page.tsx
+│       │
+│       └── companies/                ← НОВОЕ! (для просмотра)
+│           └── [id]/
+│               └── page.tsx          ← НОВЫЙ ФАЙЛ
+```
+
+## 📝 РАЗНИЦА МЕЖДУ /company И /companies:
+
+| Путь | Назначение | Доступ | Параметр |
+|------|------------|--------|----------|
+| `/company/[slug]` | Редактирование компании | Приватный (требует авторизацию) | slug |
+| `/companies/[id]` | Просмотр компании | Публичный | id |
+
+## 🚀 ФИНАЛЬНЫЕ КОМАНДЫ:
+
+```cmd
+cd C:\Users\User\freedom-hire
+
+# 1. Замените страницу вакансии
+copy jobs-id\page.tsx src\app\jobs\[id]\page.tsx
+
+# 2. Создайте страницу компании
+mkdir src\app\companies
+mkdir src\app\companies\[id]
+copy companies-id\page.tsx src\app\companies\[id]\page.tsx
+
+# 3. Обновите middleware
+copy middleware-FIXED.ts middleware.ts
+
+# 4. Проверьте что создалось
+dir src\app\companies\[id]
+
+# 5. Git
+git add .
+git status
+git commit -m "fix: добавлена публичная страница компаний /companies/[id]"
+git push
+```
+
+## ⚠️ ВАЖНО:
+
+1. **НЕ УДАЛЯЙТЕ** `/company/[slug]` - это страница редактирования
+2. **СОЗДАЙТЕ НОВУЮ** `/companies/[id]` - это страница просмотра
+3. Обе папки должны существовать одновременно!
+
+## ✅ ПРОВЕРКА:
+
+После деплоя:
+
+1. `/company/abc` → Редактирование (требует авторизацию) ✅
+2. `/companies/d4176568-2af6-43d0-b9b8-3db37a80aafa` → Просмотр (публично) ✅
+
+---
+
+**Теперь структура 100% правильная!** 🎯
