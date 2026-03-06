@@ -5,6 +5,7 @@ import Link from "next/link";
 import { getMyProfile, updateMyProfile, type Status } from "@/lib/profile";
 import { listMyExperiences, addExperience, updateExperience, deleteExperience, type Experience } from "@/lib/experiences";
 import { listMySkills, addSkill, deleteSkill, type Skill, type SkillLevel } from "@/lib/skills";
+import { ResumeAI } from "@/components/ResumeAI";
 
 /* ═══════════════════════════════════════════════════════════════════ */
 /* HELPERS */
@@ -331,6 +332,9 @@ export default function ResumePage() {
   const [skillName, setSkillName] = useState("");
   const [skillLevel, setSkillLevel] = useState<SkillLevel>("intermediate");
 
+  // AI Assistant
+  const [aiSection, setAiSection] = useState<"basic" | "experience" | "skills" | null>(null);
+
   const notify = useCallback((msg: string, type: "ok" | "err" = "ok") => {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 3000);
@@ -466,6 +470,49 @@ export default function ResumePage() {
 
   function aiNotReady() { notify("AI-помощник скоро будет доступен"); }
 
+  async function handleAIApply(result: any) {
+    setAiSection(null);
+    // Basic info
+    if (result.full_name !== undefined) setFullName(result.full_name ?? "");
+    if (result.headline !== undefined) setHeadline(result.headline ?? "");
+    if (result.city !== undefined) setCity(result.city ?? "");
+    if (result.about !== undefined) setAbout(result.about ?? "");
+    if (result.full_name || result.headline || result.city || result.about) {
+      await updateMyProfile({
+        full_name: result.full_name?.trim() || null,
+        headline: result.headline?.trim() || null,
+        city: result.city?.trim() || null,
+        about: result.about?.trim() || null,
+        job_search_status: status,
+        salary_expectation: salaryNum,
+        salary_currency: currency,
+        role: "candidate",
+      });
+    }
+    // Experiences
+    if (result.experiences?.length) {
+      for (const exp of result.experiences) {
+        await addExperience({
+          company: exp.company,
+          position: exp.position,
+          start_date: exp.start_date,
+          end_date: exp.end_date ?? null,
+        });
+      }
+      const ex = await listMyExperiences();
+      setExperiences(ex.items ?? []);
+    }
+    // Skills
+    if (result.skills?.length) {
+      for (const sk of result.skills) {
+        await addSkill(sk.name, sk.level as SkillLevel);
+      }
+      const sk = await listMySkills();
+      setSkills(sk.items ?? []);
+    }
+    notify("✓ Данные применены");
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -476,6 +523,15 @@ export default function ResumePage() {
 
   return (
     <div className="min-h-screen pb-20">
+      {/* AI Modal */}
+      {aiSection && (
+        <ResumeAI
+          section={aiSection}
+          onApply={handleAIApply}
+          onClose={() => setAiSection(null)}
+        />
+      )}
+
       {/* Toast */}
       {toast && (
         <div className="fixed top-5 right-5 z-50 px-4 py-3 rounded-xl text-sm font-medium"
@@ -569,7 +625,18 @@ export default function ResumePage() {
 
         {/* ОСНОВНАЯ ИНФОРМАЦИЯ */}
         <Card>
-          <SectionHeader icon="user" title="Основная информация" subtitle="Базовые данные для работодателей" />
+          <SectionHeader icon="user" title="Основная информация" subtitle="Базовые данные для работодателей"
+            action={
+              <button onClick={() => setAiSection("basic")}
+                className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg transition hover:scale-105"
+                style={{ background: "linear-gradient(135deg, rgba(92,46,204,0.3), rgba(124,74,232,0.3))", color: "var(--lavender)", border: "1px solid rgba(92,46,204,0.3)" }}>
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+                ИИ-помощник
+              </button>
+            }
+          />
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input label="ФИО" value={fullName} onChange={setFullName} placeholder="Иванов Иван Иванович" />
             <Input label="Желаемая должность" value={headline} onChange={setHeadline} placeholder="Менеджер по продажам" aiButton onAi={aiNotReady} />
@@ -599,7 +666,19 @@ export default function ResumePage() {
         {/* ОПЫТ РАБОТЫ */}
         <Card>
           <SectionHeader icon="briefcase" title="Опыт работы" subtitle={experiences.length ? `${experiences.length} места работы` : "Добавьте свой опыт"}
-            action={!showExpForm && <Button size="sm" variant="secondary" onClick={() => setShowExpForm(true)}><Icon name="plus" className="w-4 h-4" /> Добавить</Button>} />
+            action={
+              <div className="flex gap-2">
+                <button onClick={() => setAiSection("experience")}
+                  className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg transition hover:scale-105"
+                  style={{ background: "linear-gradient(135deg, rgba(92,46,204,0.3), rgba(124,74,232,0.3))", color: "var(--lavender)", border: "1px solid rgba(92,46,204,0.3)" }}>
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                  ИИ
+                </button>
+                {!showExpForm && <Button size="sm" variant="secondary" onClick={() => setShowExpForm(true)}><Icon name="plus" className="w-4 h-4" /> Добавить</Button>}
+              </div>
+            } />
           
           {showExpForm && (
             <div className="mb-5 p-4 rounded-xl" style={{ background: "rgba(92,46,204,0.08)", border: "1px solid rgba(92,46,204,0.2)" }}>
@@ -642,7 +721,19 @@ export default function ResumePage() {
         {/* НАВЫКИ */}
         <Card>
           <SectionHeader icon="star" title="Навыки" subtitle={skills.length ? `${skills.length} навыков` : "Укажите ваши навыки"}
-            action={!showSkillForm && <Button size="sm" variant="secondary" onClick={() => setShowSkillForm(true)}><Icon name="plus" className="w-4 h-4" /> Добавить</Button>} />
+            action={
+              <div className="flex gap-2">
+                <button onClick={() => setAiSection("skills")}
+                  className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg transition hover:scale-105"
+                  style={{ background: "linear-gradient(135deg, rgba(92,46,204,0.3), rgba(124,74,232,0.3))", color: "var(--lavender)", border: "1px solid rgba(92,46,204,0.3)" }}>
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                  ИИ
+                </button>
+                {!showSkillForm && <Button size="sm" variant="secondary" onClick={() => setShowSkillForm(true)}><Icon name="plus" className="w-4 h-4" /> Добавить</Button>}
+              </div>
+            } />
           
           {showSkillForm && (
             <div className="mb-5 p-4 rounded-xl" style={{ background: "rgba(92,46,204,0.08)", border: "1px solid rgba(92,46,204,0.2)" }}>
