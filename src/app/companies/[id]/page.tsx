@@ -87,6 +87,10 @@ export default async function CompanyPage({ params }: { params: Promise<{ id: st
 
   return (
     <div className="min-h-screen" style={{ background: "var(--ink)", color: "#fff" }}>
+      <style>{`
+        .job-card-hover { transition: background 0.2s, border-color 0.2s; }
+        .job-card-hover:hover { background: rgba(255,255,255,0.06) !important; border-color: rgba(196,173,255,0.25) !important; }
+      `}</style>
 
       {/* ══════════════════════════════════
           BANNER
@@ -336,18 +340,10 @@ export default async function CompanyPage({ params }: { params: Promise<{ id: st
                       <Link
                         key={job.id}
                         href={`/jobs/${job.id}`}
-                        className="block rounded-2xl p-5 transition-all"
+                        className="job-card-hover block rounded-2xl p-5"
                         style={{
                           background: "rgba(255,255,255,0.04)",
                           border: "1px solid rgba(255,255,255,0.08)",
-                        }}
-                        onMouseEnter={(e) => {
-                          (e.currentTarget as HTMLElement).style.borderColor = "rgba(196,173,255,0.25)";
-                          (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.06)";
-                        }}
-                        onMouseLeave={(e) => {
-                          (e.currentTarget as HTMLElement).style.borderColor = "rgba(255,255,255,0.08)";
-                          (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.04)";
                         }}
                       >
                         <div className="flex items-start justify-between gap-4">
