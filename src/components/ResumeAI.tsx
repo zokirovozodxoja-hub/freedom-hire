@@ -1,6 +1,53 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
+
+// ═══════════════════════════════════════════════════════
+// RATE LIMITING
+// ═══════════════════════════════════════════════════════
+
+const DAILY_LIMIT = 10;        // максимум запросов в день
+const COOLDOWN_SEC = 30;       // секунд между запросами
+const STORAGE_KEY = "ai_usage";
+
+type UsageData = {
+  count: number;       // сколько запросов сегодня
+  date: string;        // YYYY-MM-DD
+  lastAt: number;      // timestamp последнего запроса
+};
+
+function getUsage(): UsageData {
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return { count: 0, date: today, lastAt: 0 };
+    const data = JSON.parse(raw) as UsageData;
+    // Сброс если новый день
+    if (data.date !== today) return { count: 0, date: today, lastAt: 0 };
+    return data;
+  } catch { return { count: 0, date: new Date().toISOString().slice(0, 10), lastAt: 0 }; }
+}
+
+function saveUsage(data: UsageData) {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch {}
+}
+
+function checkLimit(): { ok: boolean; reason?: string; cooldownLeft?: number } {
+  const usage = getUsage();
+  if (usage.count >= DAILY_LIMIT) {
+    return { ok: false, reason: `Дневной лимит ${DAILY_LIMIT} запросов исчерпан. Приходите завтра.` };
+  }
+  const elapsed = (Date.now() - usage.lastAt) / 1000;
+  if (usage.lastAt && elapsed < COOLDOWN_SEC) {
+    return { ok: false, reason: "cooldown", cooldownLeft: Math.ceil(COOLDOWN_SEC - elapsed) };
+  }
+  return { ok: true };
+}
+
+function incrementUsage() {
+  const usage = getUsage();
+  saveUsage({ ...usage, count: usage.count + 1, lastAt: Date.now() });
+}
 
 // ═══════════════════════════════════════════════════════
 // TYPES
@@ -130,12 +177,37 @@ export function ResumeAI({ section, onApply, onClose }: ResumeAIProps) {
   const [parsed, setParsed] = useState<AIResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const [cooldown, setCooldown] = useState(0);
+  const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Cooldown timer
+  function startCooldownTimer(seconds: number) {
+    setCooldown(seconds);
+    if (cooldownRef.current) clearInterval(cooldownRef.current);
+    cooldownRef.current = setInterval(() => {
+      setCooldown(prev => {
+        if (prev <= 1) { clearInterval(cooldownRef.current!); return 0; }
+        return prev - 1;
+      });
+    }, 1000);
+  }
+
+  // Usage info
+  const usage = typeof window !== "undefined" ? getUsage() : { count: 0, date: "", lastAt: 0 };
+  const remaining = DAILY_LIMIT - usage.count;
 
   // Start chat mode — AI asks first question
   async function startChat() {
+    const check = checkLimit();
+    if (!check.ok) {
+      if (check.cooldownLeft) { startCooldownTimer(check.cooldownLeft); }
+      else setError(check.reason ?? "Лимит исчерпан");
+      return;
+    }
     setMode("chat");
     setLoading(true);
     try {
+      incrementUsage();
       const res = await callClaude([
         { role: "user", content: "Начни" }
       ], SYSTEM_PROMPTS[section]);
@@ -149,12 +221,18 @@ export function ResumeAI({ section, onApply, onClose }: ResumeAIProps) {
   // Send message in chat
   async function sendMessage() {
     if (!input.trim() || loading) return;
+    const check = checkLimit();
+    if (!check.ok) {
+      if (check.cooldownLeft) { startCooldownTimer(check.cooldownLeft); }
+      else setError(check.reason ?? "Лимит исчерпан");
+      return;
+    }
     const userMsg = input.trim();
     setInput("");
     const newMessages: Message[] = [...messages, { role: "user", text: userMsg }];
     setMessages(newMessages);
     setLoading(true);
-
+    incrementUsage();
     try {
       const history = newMessages.map(m => ({
         role: m.role === "ai" ? "assistant" : "user" as "user" | "assistant",
@@ -162,12 +240,8 @@ export function ResumeAI({ section, onApply, onClose }: ResumeAIProps) {
       }));
       const res = await callClaude(history, SYSTEM_PROMPTS[section]);
       setMessages(prev => [...prev, { role: "ai", text: res }]);
-
-      // Check if AI returned JSON result
       const result = tryParseJSON(res);
-      if (result && hasData(result)) {
-        setParsed(result);
-      }
+      if (result && hasData(result)) { setParsed(result); }
     } catch {
       setError("Ошибка. Попробуйте ещё раз.");
     }
@@ -178,8 +252,15 @@ export function ResumeAI({ section, onApply, onClose }: ResumeAIProps) {
   // Parse pasted text
   async function parsePaste() {
     if (!pasteText.trim()) return;
+    const check = checkLimit();
+    if (!check.ok) {
+      if (check.cooldownLeft) { startCooldownTimer(check.cooldownLeft); }
+      else setError(check.reason ?? "Лимит исчерпан");
+      return;
+    }
     setLoading(true);
     setError(null);
+    incrementUsage();
     try {
       const res = await callClaude([
         { role: "user", content: pasteText }
@@ -223,13 +304,42 @@ export function ResumeAI({ section, onApply, onClose }: ResumeAIProps) {
               <div className="text-xs" style={{ color: "rgba(255,255,255,0.4)" }}>Заполнение: {SECTION_LABELS[section]}</div>
             </div>
           </div>
-          <button onClick={onClose} className="w-8 h-8 rounded-lg flex items-center justify-center transition hover:bg-white/10"
-            style={{ color: "rgba(255,255,255,0.5)" }}>
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+          <div className="flex items-center gap-3">
+            {/* Usage counter */}
+            <div className="text-xs px-2 py-1 rounded-lg"
+              style={{ background: remaining <= 3 ? "rgba(239,68,68,0.1)" : "rgba(255,255,255,0.05)", color: remaining <= 3 ? "#f87171" : "rgba(255,255,255,0.4)", border: `1px solid ${remaining <= 3 ? "rgba(239,68,68,0.2)" : "rgba(255,255,255,0.08)"}` }}>
+              {remaining}/{DAILY_LIMIT} сегодня
+            </div>
+            <button onClick={onClose} className="w-8 h-8 rounded-lg flex items-center justify-center transition hover:bg-white/10"
+              style={{ color: "rgba(255,255,255,0.5)" }}>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
         </div>
+
+        {/* Cooldown banner */}
+        {cooldown > 0 && (
+          <div className="px-5 py-3 text-sm flex items-center gap-2"
+            style={{ background: "rgba(251,191,36,0.08)", borderBottom: "1px solid rgba(251,191,36,0.15)", color: "#fbbf24" }}>
+            <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Следующий запрос через {cooldown} сек.
+          </div>
+        )}
+
+        {/* Limit reached */}
+        {remaining <= 0 && (
+          <div className="px-5 py-3 text-sm flex items-center gap-2"
+            style={{ background: "rgba(239,68,68,0.08)", borderBottom: "1px solid rgba(239,68,68,0.15)", color: "#f87171" }}>
+            <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+            </svg>
+            Дневной лимит исчерпан. Приходите завтра.
+          </div>
+        )}
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto">
