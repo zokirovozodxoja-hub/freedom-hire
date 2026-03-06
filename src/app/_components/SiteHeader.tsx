@@ -11,24 +11,24 @@ const ADMIN_EMAILS = ["zokirovozodxoja@gmail.com"];
 const HIDDEN_PREFIXES = ["/admin", "/onboarding"];
 
 type AuthUser = {
- email: string;
- role: "candidate" | "employer" | "admin";
- fullName: string | null;
+  email: string;
+  role: "candidate" | "employer" | "admin";
+  fullName: string | null;
 };
 
 export default function SiteHeader() {
- const pathname = usePathname();
- const router = useRouter();
- const { t, lang, setLang } = useI18n();
- const supabaseRef = useRef(createClient());
- const [authUser, setAuthUser] = useState<AuthUser | null | undefined>(undefined);
- const [menuOpen, setMenuOpen] = useState(false);
+  const pathname = usePathname();
+  const router = useRouter();
+  const { t, lang, setLang } = useI18n();
+  const supabaseRef = useRef(createClient());
+  const [authUser, setAuthUser] = useState<AuthUser | null | undefined>(undefined);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [unreadChats, setUnreadChats] = useState(0);
-  const [theme, setTheme] = useState<"dark"|"light">("dark");
+  const [theme, setTheme] = useState<"dark" | "light">("dark");
 
-  // Восстанавливаем тему при загрузке
+  // Load saved theme on mount
   useEffect(() => {
-    const saved = (localStorage.getItem("fh-theme") ?? "dark") as "dark"|"light";
+    const saved = (localStorage.getItem("fh-theme") ?? "dark") as "dark" | "light";
     setTheme(saved);
     document.documentElement.setAttribute("data-theme", saved);
   }, []);
@@ -41,243 +41,268 @@ export default function SiteHeader() {
   }
 
   const navItems = [
- { href: "/jobs", label: t.nav.jobs },
- { href: "/employers", label: t.nav.employers },
- { href: "/about", label: t.nav.about },
- ];
+    { href: "/jobs", label: t.nav.jobs },
+    { href: "/employers", label: t.nav.employers },
+    { href: "/about", label: t.nav.about },
+  ];
 
- const isHidden = HIDDEN_PREFIXES.some((p) => pathname.startsWith(p));
+  const isHidden = HIDDEN_PREFIXES.some((p) => pathname.startsWith(p));
 
- useEffect(() => {
- const supabase = supabaseRef.current;
+  useEffect(() => {
+    const supabase = supabaseRef.current;
 
- async function loadUser() {
- const { data } = await supabase.auth.getUser();
- if (!data.user) { setAuthUser(null); return; }
+    async function loadUser() {
+      const { data } = await supabase.auth.getUser();
+      if (!data.user) { setAuthUser(null); return; }
 
- const email = data.user.email ?? "";
- if (ADMIN_EMAILS.includes(email)) {
- setAuthUser({ email, role: "admin", fullName: null });
- return;
- }
+      const email = data.user.email ?? "";
+      if (ADMIN_EMAILS.includes(email)) {
+        setAuthUser({ email, role: "admin", fullName: null });
+        return;
+      }
 
- const { data: profile } = await supabase
- .from("profiles")
- .select("role, full_name")
- .eq("id", data.user.id)
- .maybeSingle();
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role, full_name")
+        .eq("id", data.user.id)
+        .maybeSingle();
 
- const role = (profile?.role as "candidate" | "employer" | null) ?? "candidate";
- setAuthUser({ email, role, fullName: profile?.full_name ?? null });
- }
+      const role = (profile?.role as "candidate" | "employer" | null) ?? "candidate";
+      setAuthUser({ email, role, fullName: profile?.full_name ?? null });
+    }
 
- loadUser();
+    loadUser();
+    getUnreadCount().then(setUnreadChats);
 
- const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
- if (!session) setAuthUser(null);
- else loadUser();
- });
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!session) setAuthUser(null);
+      else loadUser();
+    });
 
- return () => listener.subscription.unsubscribe();
- }, []);
+    return () => listener.subscription.unsubscribe();
+  }, []);
 
- async function handleLogout() {
- setMenuOpen(false);
- await supabaseRef.current.auth.signOut();
- setAuthUser(null);
- router.replace("/");
- router.refresh();
- }
+  async function handleLogout() {
+    setMenuOpen(false);
+    await supabaseRef.current.auth.signOut();
+    setAuthUser(null);
+    router.replace("/");
+    router.refresh();
+  }
 
- function getDashboardLink() {
- if (!authUser) return "/auth";
- if (authUser.role === "admin") return "/admin";
- if (authUser.role === "employer") return "/employer";
- return "/resume";
- }
+  function getDashboardLink() {
+    if (!authUser) return "/auth";
+    if (authUser.role === "admin") return "/admin";
+    if (authUser.role === "employer") return "/employer";
+    return "/resume";
+  }
 
- const isActive = (href: string) =>
- pathname === href || pathname.startsWith(`${href}/`);
+  const isActive = (href: string) =>
+    pathname === href || pathname.startsWith(`${href}/`);
 
- if (isHidden) return null;
+  if (isHidden) return null;
+
+  const displayName = authUser?.fullName || authUser?.email || "";
+  const initials = displayName ? displayName[0].toUpperCase() : "?";
 
   const isDark = theme === "dark";
-  const displayName = authUser?.fullName || authUser?.email || "";
- const initials = displayName ? displayName[0].toUpperCase() : "?";
 
- const roleBadge = {
- admin: { label: t.roles.admin, cls: "bg-red-600/30 text-red-300" },
- employer: { label: t.roles.employer, cls: "bg-blue-600/30 text-blue-300" },
- candidate: { label: t.roles.candidate, cls: "bg-violet-600/30 text-violet-300" },
- };
+  const roleBadge = {
+    admin: { label: t.roles.admin, cls: "bg-red-600/30 text-red-300" },
+    employer: { label: t.roles.employer, cls: "bg-blue-600/30 text-blue-300" },
+    candidate: { label: t.roles.candidate, cls: "bg-violet-600/30 text-violet-300" },
+  };
 
- return (
- <header
- className="sticky top-0 z-50 border-b border-white/10 backdrop-blur"
- style={{ background: isDark ? "rgba(7,6,15,0.85)" : "rgba(237,233,248,0.92)", borderColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(91,46,204,0.12)", transition: "background .3s" }}
- >
- <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
+  // Theme-aware style helpers
+  const navBg = "var(--nav-bg)";
+  const navBorder = "var(--nav-border)";
+  // All colors from CSS variables
+  const iconBg = "var(--surface)";
+  const iconBorder = "var(--border)";
+  const logoSubColor = "var(--text-muted)";
+  const userBg = "var(--surface)";
+  const userBorder = "var(--border)";
+  const userNameColor = "var(--text-secondary)";
+  const dropdownBg = "var(--dropdown-bg)";
+  const dropdownBorder = "var(--border)";
+  const dropdownLinkColor = "var(--text-secondary)";
+  const logoTextColor = "var(--text-primary)";
+  const activeNavColor = "var(--text-primary)";
 
- {/* LOGO */}
- <Link href="/" className="flex items-center gap-3">
- <div
- className="relative flex h-10 w-10 items-center justify-center rounded-xl overflow-hidden shrink-0"
- style={{ background: "linear-gradient(145deg, #1A0044, #4A1FCC, #7C3AED)", boxShadow: "0 4px 16px rgba(92,46,204,0.5)" }}
- >
- <span style={{ fontFamily: "Georgia, serif", fontWeight: 700, fontSize: "16px", color: "#fff", letterSpacing: "-1px" }}>FH</span>
- </div>
- <div className="leading-tight">
- <div className="font-display font-bold text-white" style={{ fontSize: "15px", letterSpacing: "-0.3px" }}>
- Freedom<span className="font-accent text-xs ml-0.5" style={{ color: "var(--lavender)", letterSpacing: "0.15em", verticalAlign: "baseline" }}>HIRE</span>
- </div>
- <div className="text-xs" style={{ color: "rgba(255,255,255,0.4)" }}>freedomhire.uz</div>
- </div>
- </Link>
+  return (
+    <header
+      className="sticky top-0 z-50 backdrop-blur"
+      style={{ background: navBg, borderBottom: `1px solid ${navBorder}`, transition: "background .3s, border-color .3s" }}
+    >
+      <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
 
- {/* NAV */}
- <nav className="hidden items-center gap-6 text-sm text-white/70 md:flex">
- {navItems.map((item) => (
- <Link
- key={item.href}
- href={item.href}
- className={`transition ${isActive(item.href) ? "text-white font-medium" : "hover:text-white"}`}
- >
- {item.label}
- </Link>
- ))}
- </nav>
+        {/* LOGO */}
+        <Link href="/" className="flex items-center gap-3">
+          <div
+            className="relative flex h-10 w-10 items-center justify-center rounded-xl overflow-hidden shrink-0"
+            style={{ background: "linear-gradient(145deg, #1A0044, #4A1FCC, #7C3AED)", boxShadow: "0 4px 16px rgba(92,46,204,0.5)" }}
+          >
+            <span style={{ fontFamily: "Georgia, serif", fontWeight: 700, fontSize: "16px", color: "#fff", letterSpacing: "-1px" }}>FH</span>
+          </div>
+          <div className="leading-tight">
+            <div className="font-display font-bold" style={{ fontSize: "15px", letterSpacing: "-0.3px", color: "var(--text-primary)" }}>
+              Freedom<span className="font-accent text-xs ml-0.5" style={{ color: "var(--lavender)", letterSpacing: "0.15em", verticalAlign: "baseline" }}>HIRE</span>
+            </div>
+            <div className="text-xs" style={{ color: "var(--text-muted)" }}>freedomhire.uz</div>
+          </div>
+        </Link>
 
- {/* RIGHT: LANG SWITCHER + USER */}
- <div className="flex items-center gap-2">
+        {/* NAV */}
+        <nav className="hidden items-center gap-6 text-sm md:flex">
+          {navItems.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              style={{ color: isActive(item.href) ? "var(--text-primary)" : "var(--text-secondary)", fontWeight: isActive(item.href) ? 500 : 400, transition: "color .2s" }}
+            >
+              {item.label}
+            </Link>
+          ))}
+        </nav>
 
- {/* Theme toggle */}
+        {/* RIGHT */}
+        <div className="flex items-center gap-2">
+
+          {/* Theme toggle */}
           <button
             onClick={toggleTheme}
             title={isDark ? "Светлая тема" : "Тёмная тема"}
-            style={{ width: 36, height: 36, borderRadius: 10, background: isDark ? "rgba(255,255,255,0.06)" : "rgba(91,46,204,0.06)", border: isDark ? "1px solid rgba(255,255,255,0.1)" : "1px solid rgba(91,46,204,0.14)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "all .2s", flexShrink: 0 }}
+            style={{ width: 36, height: 36, borderRadius: 10, background: "var(--surface)", border: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "all .2s", flexShrink: 0 }}
           >
             {isDark
-              ? <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
-              : <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgba(22,10,50,0.6)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+              ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="5"/>
+                  <line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
+                  <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+                  <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
+                  <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+                </svg>
+              : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                </svg>
             }
           </button>
 
           {/* Chat icon */}
-              {authUser && (
-                <Link
-                  href="/chat"
-                  style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center", width: 36, height: 36, borderRadius: 10, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", textDecoration: "none", flexShrink: 0, transition: "all .2s" }}
-                  onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "rgba(92,46,204,0.2)"; }}
-                  onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.06)"; }}
-                >
-                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.65)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-                  </svg>
-                  {unreadChats > 0 && (
-                    <div style={{ position: "absolute", top: -5, right: -5, background: "#C4ADFF", color: "#0A0618", borderRadius: 99, fontSize: 9, fontWeight: 800, minWidth: 16, height: 16, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 3px", border: "2px solid rgba(7,6,15,0.85)" }}>
-                      {unreadChats > 9 ? "9+" : unreadChats}
-                    </div>
-                  )}
-                </Link>
+          {authUser && (
+            <Link
+              href="/chat"
+              style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center", width: 36, height: 36, borderRadius: 10, background: "var(--surface)", border: "1px solid var(--border)", textDecoration: "none", flexShrink: 0, transition: "all .2s" }}
+            >
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+              </svg>
+              {unreadChats > 0 && (
+                <div style={{ position: "absolute", top: -5, right: -5, background: "var(--brand-core)", color: "#fff", borderRadius: 99, fontSize: 9, fontWeight: 800, minWidth: 16, height: 16, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 3px", border: `2px solid ${navBg}` }}>
+                  {unreadChats > 9 ? "9+" : unreadChats}
+                </div>
               )}
+            </Link>
+          )}
 
-              {/* Language Switcher */}
- <div
- className="flex items-center rounded-xl overflow-hidden shrink-0"
- style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}
- >
- {(["ru", "uz"] as Lang[]).map((l) => (
- <button
- key={l}
- onClick={() => setLang(l)}
- className="px-3 py-1.5 text-xs font-semibold transition"
- style={{
- background: lang === l ? "rgba(92,46,204,0.5)" : "transparent",
- color: lang === l ? "#fff" : "rgba(255,255,255,0.45)",
- borderRight: l === "ru" ? "1px solid rgba(255,255,255,0.1)" : undefined,
- }}
- >
- {l.toUpperCase()}
- </button>
- ))}
- </div>
+          {/* Language Switcher */}
+          <div
+            className="flex items-center rounded-xl overflow-hidden shrink-0"
+            style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
+          >
+            {(["ru", "uz"] as Lang[]).map((l) => (
+              <button
+                key={l}
+                onClick={() => setLang(l)}
+                className="px-3 py-1.5 text-xs font-semibold transition"
+                style={{
+                  background: lang === l ? "rgba(92,46,204,0.5)" : "transparent",
+                  color: lang === l ? "#fff" : "var(--text-secondary)",
+                  borderRight: l === "ru" ? `1px solid ${iconBorder}` : undefined,
+                }}
+              >
+                {l.toUpperCase()}
+              </button>
+            ))}
+          </div>
 
- {/* User */}
- {authUser === undefined ? (
- <div className="h-9 w-24 rounded-2xl animate-pulse" style={{ background: "rgba(255,255,255,0.06)" }} />
- ) : authUser ? (
- <div className="relative">
- <button
- onClick={() => setMenuOpen((v) => !v)}
- className="flex items-center gap-2 rounded-2xl px-3 py-2 transition hover:bg-white/8"
- style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}
- >
- <div className={`flex h-7 w-7 items-center justify-center rounded-full text-sm font-bold ${
- authUser.role === "admin" ? "bg-red-600" : "bg-violet-600"
- }`}>
- {initials}
- </div>
- <span className="hidden sm:block text-sm text-white/80 max-w-[120px] truncate">
- {displayName}
- </span>
- <svg className="h-4 w-4 text-white/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
- <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
- </svg>
- </button>
+          {/* User */}
+          {authUser === undefined ? (
+            <div className="h-9 w-24 rounded-2xl animate-pulse" style={{ background: iconBg }} />
+          ) : authUser ? (
+            <div className="relative">
+              <button
+                onClick={() => setMenuOpen((v) => !v)}
+                className="flex items-center gap-2 rounded-2xl px-3 py-2 transition"
+                style={{ background: userBg, border: `1px solid ${userBorder}` }}
+              >
+                <div className={`flex h-7 w-7 items-center justify-center rounded-full text-sm font-bold ${
+                  authUser.role === "admin" ? "bg-red-600" : "bg-violet-600"
+                }`}>
+                  {initials}
+                </div>
+                <span className="hidden sm:block text-sm max-w-[120px] truncate" style={{ color: userNameColor }}>
+                  {displayName}
+                </span>
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
 
- {menuOpen && (
- <>
- <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
- <div
- className="absolute right-0 top-full mt-2 w-52 rounded-2xl shadow-2xl z-50 overflow-hidden"
- style={{ background: "#0f1929", border: "1px solid rgba(255,255,255,0.1)" }}
- >
- <div className="px-4 py-3" style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
- <div className="text-sm font-semibold text-white truncate">{displayName}</div>
- <div className="text-xs text-white/40 mt-0.5 truncate">{authUser.email}</div>
- <div className={`mt-1.5 inline-block text-xs px-2 py-0.5 rounded-full ${roleBadge[authUser.role].cls}`}>
- {roleBadge[authUser.role].label}
- </div>
- </div>
- <div className="p-2 space-y-0.5">
- <Link
- href={getDashboardLink()}
- onClick={() => setMenuOpen(false)}
- className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm text-white/70 transition hover:bg-white/8 hover:text-white"
- >
- {authUser.role === "admin" ? ` ${t.nav.adminPanel}` : ` ${t.nav.dashboard}`}
- </Link>
- <button
- onClick={handleLogout}
- className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-sm text-red-400 transition hover:bg-red-500/10"
- >
- {t.nav.logout}
- </button>
- </div>
- </div>
- </>
- )}
- </div>
- ) : (
- <>
- <Link
- href="/auth"
- className="rounded-2xl px-5 py-2 text-sm font-semibold text-white/80 transition hover:text-white"
- style={{ border: "1px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.04)" }}
- >
- {t.nav.login}
- </Link>
- <Link
- href="/auth?mode=signup"
- className="rounded-2xl px-5 py-2 text-sm font-semibold text-white transition"
- style={{ background: "linear-gradient(135deg, #5B2ECC, #7C4AE8)", boxShadow: "0 4px 16px rgba(92,46,204,0.4)" }}
- >
- {t.nav.register}
- </Link>
- </>
- )}
- </div>
- </div>
- </header>
- );
+              {menuOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
+                  <div
+                    className="absolute right-0 top-full mt-2 w-52 rounded-2xl shadow-2xl z-50 overflow-hidden"
+                    style={{ background: dropdownBg, border: `1px solid ${dropdownBorder}` }}
+                  >
+                    <div className="px-4 py-3" style={{ borderBottom: `1px solid ${dropdownBorder}` }}>
+                      <div className="text-sm font-semibold truncate" style={{ color: isDark ? "#fff" : "#160A32" }}>{displayName}</div>
+                      <div className="text-xs mt-0.5 truncate" style={{ color: isDark ? "rgba(255,255,255,0.4)" : "rgba(22,10,50,0.4)" }}>{authUser.email}</div>
+                      <div className={`mt-1.5 inline-block text-xs px-2 py-0.5 rounded-full ${roleBadge[authUser.role].cls}`}>
+                        {roleBadge[authUser.role].label}
+                      </div>
+                    </div>
+                    <div className="p-2 space-y-0.5">
+                      <Link
+                        href={getDashboardLink()}
+                        onClick={() => setMenuOpen(false)}
+                        className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm transition hover:bg-white/8"
+                        style={{ color: dropdownLinkColor }}
+                      >
+                        {authUser.role === "admin" ? ` ${t.nav.adminPanel}` : ` ${t.nav.dashboard}`}
+                      </Link>
+                      <button
+                        onClick={handleLogout}
+                        className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-sm text-red-400 transition hover:bg-red-500/10"
+                      >
+                        {t.nav.logout}
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          ) : (
+            <>
+              <Link
+                href="/auth"
+                className="rounded-2xl px-5 py-2 text-sm font-semibold transition"
+                style={{ border: `1px solid ${iconBorder}`, background: iconBg, color: isDark ? "rgba(255,255,255,0.8)" : "rgba(22,10,50,0.8)" }}
+              >
+                {t.nav.login}
+              </Link>
+              <Link
+                href="/auth?mode=signup"
+                className="rounded-2xl px-5 py-2 text-sm font-semibold text-white transition"
+                style={{ background: "linear-gradient(135deg, #5B2ECC, #7C4AE8)", boxShadow: "0 4px 16px rgba(92,46,204,0.4)" }}
+              >
+                {t.nav.register}
+              </Link>
+            </>
+          )}
+        </div>
+      </div>
+    </header>
+  );
 }
