@@ -1,9 +1,58 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 import { useEffect, useState } from "react";
 import { useI18n } from "@/i18n/context";
+
+type Company = { id: string; name: string | null; logo_url: string | null; job_count: number };
+
+const AV_COLORS = [
+  "linear-gradient(135deg,#5B2ECC,#7C4AE8)","linear-gradient(135deg,#059669,#10b981)",
+  "linear-gradient(135deg,#dc2626,#f87171)","linear-gradient(135deg,#d97706,#fbbf24)",
+  "linear-gradient(135deg,#2563eb,#60a5fa)","linear-gradient(135deg,#0f766e,#2dd4bf)",
+];
+function avColor(id: string) {
+  let h = 0; for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) % AV_COLORS.length;
+  return AV_COLORS[h];
+}
+
+function CompanyTicker({ companies }: { companies: Company[] }) {
+  if (companies.length === 0) return null;
+  const items = [...companies, ...companies];
+  return (
+    <section style={{ overflow: "hidden" }}>
+      <p className="font-accent text-xs text-center mb-5" style={{ color: "var(--text-muted, rgba(255,255,255,0.28))", letterSpacing: "0.1em" }}>
+        Работодатели которые нанимают через нас
+      </p>
+      <div style={{ position: "relative" }}>
+        <div style={{ position:"absolute",left:0,top:0,bottom:0,width:80,zIndex:2,background:"linear-gradient(to right,var(--bg),transparent)",pointerEvents:"none" }}/>
+        <div style={{ position:"absolute",right:0,top:0,bottom:0,width:80,zIndex:2,background:"linear-gradient(to left,var(--bg),transparent)",pointerEvents:"none" }}/>
+        <div style={{ overflow:"hidden" }}>
+          <div className="ticker-track" style={{ display:"flex",gap:12,width:"max-content" }}>
+            {items.map((c, i) => (
+              <Link key={`${c.id}-${i}`} href={`/companies/${c.id}`} className="ticker-item"
+                style={{ display:"flex",alignItems:"center",gap:10,borderRadius:12,padding:"9px 16px",whiteSpace:"nowrap",flexShrink:0,textDecoration:"none" }}>
+                <div style={{ width:28,height:28,borderRadius:7,flexShrink:0,overflow:"hidden",display:"flex",alignItems:"center",justifyContent:"center",background:c.logo_url?"white":avColor(c.id),fontSize:11,fontWeight:800,color:"#fff" }}>
+                  {c.logo_url
+                    ? <img src={c.logo_url} alt="" style={{ width:"100%",height:"100%",objectFit:"contain",padding:2 }}/>
+                    : (c.name??"?")[0].toUpperCase()}
+                </div>
+                <div>
+                  <div style={{ fontSize:13,fontWeight:500,color:"var(--text-primary, #F6F2FF)" }}>{c.name}</div>
+                  <div style={{ fontSize:11,color:"var(--lavender)" }}>
+                    {c.job_count} {c.job_count===1?"вакансия":c.job_count<5?"вакансии":"вакансий"}
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
 
 type Job = {
  id: string;
@@ -58,6 +107,9 @@ export default function HomePage() {
  const { t, lang } = useI18n();
  const [counts, setCounts] = useState<Counts>({ jobs: 0, companies: 0, candidates: 0 });
  const [jobs, setJobs] = useState<Job[]>([]);
+ const [companies, setCompanies] = useState<Company[]>([]);
+ const [search, setSearch] = useState("");
+ const router = useRouter();
 
  useEffect(() => {
  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -119,7 +171,23 @@ export default function HomePage() {
  ))}
  </p>
 
- <div className="flex flex-wrap items-center justify-center gap-3">
+         {/* Search bar */}
+        <form onSubmit={handleSearch}
+          className="flex items-center gap-2 max-w-xl mx-auto mb-8 rounded-2xl p-2"
+          style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(196,173,255,0.15)" }}>
+          <svg className="w-5 h-5 ml-2 shrink-0" style={{ color: "rgba(255,255,255,0.3)" }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <circle cx="11" cy="11" r="8" strokeWidth={2}/><path d="M21 21l-4.35-4.35" strokeWidth={2} strokeLinecap="round"/>
+          </svg>
+          <input value={search} onChange={(e) => setSearch(e.target.value)}
+            placeholder="Должность, навык, компания..."
+            className="flex-1 bg-transparent text-sm outline-none font-body py-1"
+            style={{ color: "var(--chalk)" }} />
+          <button type="submit" className="btn-primary rounded-xl px-5 py-2.5 font-body font-semibold text-white text-sm shrink-0">
+            Найти
+          </button>
+        </form>
+
+<div className="flex flex-wrap items-center justify-center gap-3">
  <Link href="/jobs"
  className="btn-primary inline-flex items-center gap-2 rounded-2xl px-7 py-3.5 font-body font-semibold text-white">
  {t.home.findJob}
@@ -143,6 +211,28 @@ export default function HomePage() {
  <div className="font-body text-sm leading-relaxed" style={{ color: "rgba(255,255,255,0.4)" }}>{f.desc}</div>
  </div>
  ))}
+ </section>
+
+ {/* ═══ HOW IT WORKS ═══ */}
+ <section>
+  <div className="mb-8">
+   <div className="font-accent text-xs mb-2" style={{ color: "var(--lavender)" }}>КАК ЭТО РАБОТАЕТ</div>
+   <h2 className="font-display text-3xl sm:text-4xl" style={{ color: "var(--chalk)" }}>Три шага до работы</h2>
+  </div>
+  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+   {[
+    { num:"01", title:"Создайте профиль", desc:"Зарегистрируйтесь и заполните резюме за 5 минут.", icon:<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--lavender)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> },
+    { num:"02", title:"Найдите вакансию", desc:"Просматривайте актуальные предложения. Фильтруйте по городу и формату.", icon:<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--lavender)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg> },
+    { num:"03", title:"Откликнитесь", desc:"Один клик — и ваше резюме у работодателя. Общайтесь в чате.", icon:<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--lavender)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> },
+   ].map((step) => (
+    <div key={step.num} className="brand-card rounded-2xl p-6 relative overflow-hidden">
+     <div className="absolute top-4 right-5 font-display font-bold select-none pointer-events-none" style={{ fontSize:64, color:"rgba(92,46,204,0.14)", lineHeight:1 }}>{step.num}</div>
+     <div className="w-11 h-11 rounded-xl flex items-center justify-center mb-4" style={{ background:"rgba(92,46,204,0.12)", border:"1px solid rgba(92,46,204,0.25)" }}>{step.icon}</div>
+     <div className="font-body font-semibold mb-2" style={{ color:"var(--chalk)" }}>{step.title}</div>
+     <div className="font-body text-sm leading-relaxed" style={{ color:"rgba(255,255,255,0.45)" }}>{step.desc}</div>
+    </div>
+   ))}
+  </div>
  </section>
 
  {/* ═══ FRESH JOBS ═══ */}

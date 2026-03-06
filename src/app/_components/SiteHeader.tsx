@@ -24,8 +24,23 @@ export default function SiteHeader() {
  const [authUser, setAuthUser] = useState<AuthUser | null | undefined>(undefined);
  const [menuOpen, setMenuOpen] = useState(false);
   const [unreadChats, setUnreadChats] = useState(0);
+  const [theme, setTheme] = useState<"dark"|"light">("dark");
 
- const navItems = [
+  // Восстанавливаем тему при загрузке
+  useEffect(() => {
+    const saved = (localStorage.getItem("fh-theme") ?? "dark") as "dark"|"light";
+    setTheme(saved);
+    document.documentElement.setAttribute("data-theme", saved);
+  }, []);
+
+  function toggleTheme() {
+    const next = theme === "dark" ? "light" : "dark";
+    setTheme(next);
+    document.documentElement.setAttribute("data-theme", next);
+    localStorage.setItem("fh-theme", next);
+  }
+
+  const navItems = [
  { href: "/jobs", label: t.nav.jobs },
  { href: "/employers", label: t.nav.employers },
  { href: "/about", label: t.nav.about },
@@ -86,7 +101,8 @@ export default function SiteHeader() {
 
  if (isHidden) return null;
 
- const displayName = authUser?.fullName || authUser?.email || "";
+  const isDark = theme === "dark";
+  const displayName = authUser?.fullName || authUser?.email || "";
  const initials = displayName ? displayName[0].toUpperCase() : "?";
 
  const roleBadge = {
@@ -98,7 +114,7 @@ export default function SiteHeader() {
  return (
  <header
  className="sticky top-0 z-50 border-b border-white/10 backdrop-blur"
- style={{ background: "rgba(7,6,15,0.85)" }}
+ style={{ background: isDark ? "rgba(7,6,15,0.85)" : "rgba(237,233,248,0.92)", borderColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(91,46,204,0.12)", transition: "background .3s" }}
  >
  <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
 
@@ -134,7 +150,19 @@ export default function SiteHeader() {
  {/* RIGHT: LANG SWITCHER + USER */}
  <div className="flex items-center gap-2">
 
- {/* Chat icon */}
+ {/* Theme toggle */}
+          <button
+            onClick={toggleTheme}
+            title={isDark ? "Светлая тема" : "Тёмная тема"}
+            style={{ width: 36, height: 36, borderRadius: 10, background: isDark ? "rgba(255,255,255,0.06)" : "rgba(91,46,204,0.06)", border: isDark ? "1px solid rgba(255,255,255,0.1)" : "1px solid rgba(91,46,204,0.14)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "all .2s", flexShrink: 0 }}
+          >
+            {isDark
+              ? <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+              : <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgba(22,10,50,0.6)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+            }
+          </button>
+
+          {/* Chat icon */}
               {authUser && (
                 <Link
                   href="/chat"

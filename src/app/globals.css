@@ -147,3 +147,78 @@ textarea { resize: vertical; }
 input::placeholder, textarea::placeholder {
   color: rgba(255,255,255,0.22);
 }
+
+/* ══════════════════════════════════
+   LIGHT / DARK THEME VARIABLES
+══════════════════════════════════ */
+
+:root, [data-theme="dark"] {
+  --bg: #0A0618;
+  --surface: rgba(255,255,255,0.04);
+  --border: rgba(196,173,255,0.12);
+  --border-hover: rgba(196,173,255,0.3);
+  --text-primary: #F6F2FF;
+  --text-secondary: rgba(255,255,255,0.5);
+  --text-muted: rgba(255,255,255,0.28);
+  --badge-bg: rgba(92,46,204,0.12);
+  --badge-border: rgba(92,46,204,0.25);
+  --how-num: rgba(92,46,204,0.14);
+  --search-bg: rgba(255,255,255,0.05);
+  --ticker-bg: rgba(255,255,255,0.04);
+  --ticker-border: rgba(196,173,255,0.1);
+}
+
+[data-theme="light"] {
+  --bg: #EDE9F8;
+  --surface: rgba(255,255,255,0.85);
+  --border: rgba(91,46,204,0.14);
+  --border-hover: rgba(91,46,204,0.4);
+  --text-primary: #160A32;
+  --text-secondary: rgba(22,10,50,0.55);
+  --text-muted: rgba(22,10,50,0.35);
+  --lavender: #5B2ECC;
+  --gold: #8A6010;
+  --chalk: #160A32;
+  --badge-bg: rgba(91,46,204,0.08);
+  --badge-border: rgba(91,46,204,0.2);
+  --how-num: rgba(91,46,204,0.08);
+  --search-bg: rgba(255,255,255,0.9);
+  --ticker-bg: rgba(255,255,255,0.7);
+  --ticker-border: rgba(91,46,204,0.1);
+}
+
+[data-theme="light"] body { background: var(--bg); color: var(--text-primary); }
+[data-theme="light"] body::before {
+  background:
+    radial-gradient(ellipse 70% 60% at -5% 10%, rgba(92,46,204,0.1) 0%, transparent 55%),
+    radial-gradient(ellipse 50% 45% at 105% 85%, rgba(124,74,232,0.08) 0%, transparent 50%);
+}
+[data-theme="light"] body::after {
+  background-image:
+    linear-gradient(rgba(91,46,204,0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(91,46,204,0.05) 1px, transparent 1px);
+  background-size: 60px 60px;
+}
+[data-theme="light"] .brand-card {
+  background: rgba(255,255,255,0.8) !important;
+  border-color: rgba(91,46,204,0.14) !important;
+}
+
+/* Company ticker animation */
+.ticker-track {
+  animation: ticker 30s linear infinite;
+}
+.ticker-track:hover { animation-play-state: paused; }
+@keyframes ticker {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+.ticker-item {
+  background: var(--ticker-bg);
+  border: 1px solid var(--ticker-border);
+  transition: background .2s, border-color .2s;
+}
+.ticker-item:hover {
+  background: var(--badge-bg);
+  border-color: var(--border-hover);
+}
