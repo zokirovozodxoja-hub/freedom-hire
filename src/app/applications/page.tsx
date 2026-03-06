@@ -168,14 +168,40 @@ export default function ApplicationsPage() {
                     <span className="text-xs font-body" style={{ color: "rgba(255,255,255,0.25)" }}>
                       {formatDate(app.created_at)}
                     </span>
-                    <Link href={`/chat/${app.id}`}
+                    <button
+                      onClick={async () => {
+                        // Find conversation by application_id or job+candidate pair
+                        const { data: { user } } = await supabase.auth.getUser();
+                        if (!user) return;
+                        // Try by application_id first
+                        let { data: conv } = await supabase
+                          .from("conversations")
+                          .select("id")
+                          .eq("application_id", app.id)
+                          .maybeSingle();
+                        // Fallback: by job_id + candidate_id
+                        if (!conv) {
+                          const res = await supabase
+                            .from("conversations")
+                            .select("id")
+                            .eq("job_id", app.job_id)
+                            .eq("candidate_id", user.id)
+                            .maybeSingle();
+                          conv = res.data;
+                        }
+                        if (conv?.id) {
+                          router.push(`/chat/${conv.id}`);
+                        } else {
+                          router.push("/chat");
+                        }
+                      }}
                       className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-xl transition font-body"
-                      style={{ background: "rgba(92,46,204,0.15)", color: "var(--lavender)", border: "1px solid rgba(92,46,204,0.25)" }}>
+                      style={{ background: "rgba(92,46,204,0.15)", color: "var(--lavender)", border: "1px solid rgba(92,46,204,0.25)", cursor: "pointer" }}>
                       <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
                       </svg>
                       Чат с работодателем
-                    </Link>
+                    </button>
                   </div>
                 </div>
               );
