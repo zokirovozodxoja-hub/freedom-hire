@@ -139,6 +139,11 @@ export default function HomePage() {
 
  const locale = lang === "uz" ? "uz-UZ" : "ru-RU";
 
+ function handleSearch(e: React.FormEvent) {
+  e.preventDefault();
+  router.push(search.trim() ? `/jobs?q=${encodeURIComponent(search.trim())}` : "/jobs");
+ }
+
  return (
  <div className="min-h-screen" style={{ background: "var(--bg)" }}>
 
