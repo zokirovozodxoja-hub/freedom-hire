@@ -10,6 +10,7 @@ type Company = {
   website: string | null;
   industry: string | null;
   employees_count: string | null;
+  logo_url: string | null;
   created_at: string;
 };
 
@@ -90,10 +91,19 @@ export default async function CompanyPage({ params }: { params: Promise<{ id: st
         <div className="rounded-2xl p-8 mb-6" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(196,173,255,0.12)" }}>
           <div className="flex items-start gap-6">
             {/* Логотип */}
-            <div className="h-24 w-24 shrink-0 rounded-2xl flex items-center justify-center text-3xl font-bold"
-              style={{ background: "rgba(92,46,204,0.25)", color: "#C4ADFF", border: "2px solid rgba(92,46,204,0.4)" }}>
-              {(companyData.name ?? "?")[0].toUpperCase()}
-            </div>
+            {companyData.logo_url ? (
+              <img 
+                src={companyData.logo_url} 
+                alt={companyData.name || "Company logo"} 
+                className="h-24 w-24 shrink-0 rounded-2xl object-cover"
+                style={{ border: "2px solid rgba(92,46,204,0.4)" }}
+              />
+            ) : (
+              <div className="h-24 w-24 shrink-0 rounded-2xl flex items-center justify-center text-3xl font-bold"
+                style={{ background: "rgba(92,46,204,0.25)", color: "#C4ADFF", border: "2px solid rgba(92,46,204,0.4)" }}>
+                {(companyData.name ?? "?")[0].toUpperCase()}
+              </div>
+            )}
 
             {/* Информация */}
             <div className="flex-1">

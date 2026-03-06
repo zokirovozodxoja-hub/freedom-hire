@@ -30,6 +30,7 @@ type Job = {
  website: string | null;
  industry: string | null;
  employees_count: string | null;
+ logo_url: string | null;
  } | null;
 };
 
@@ -85,7 +86,7 @@ export default async function JobDetailsPage({ params }: { params: Promise<{ id:
  id, title, city, description, requirements, responsibilities, benefits,
  created_at, salary_from, salary_to, salary_negotiable,
  is_active, employment_type, work_format, experience_level, education_level, tags,
- company:companies(id, name, description, city, website, industry, employees_count)
+ company:companies(id, name, description, city, website, industry, employees_count, logo_url)
  `)
  .eq("id", id)
  .maybeSingle();
@@ -271,10 +272,18 @@ export default async function JobDetailsPage({ params }: { params: Promise<{ id:
  <span>О компании</span>
  <span className="text-xs" style={{ color: "#C4ADFF" }}>Подробнее →</span>
  </h3>
+ {job.company.logo_url ? (
+ <img 
+ src={job.company.logo_url} 
+ alt={job.company.name || "Company logo"}
+ className="h-12 w-12 rounded-xl object-cover mb-3"
+ />
+ ) : (
  <div className="h-12 w-12 rounded-xl flex items-center justify-center text-lg font-bold mb-3"
  style={{ background: "rgba(92,46,204,0.2)", color: "#C4ADFF" }}>
  {(job.company.name ?? "?")[0].toUpperCase()}
  </div>
+ )}
  <div className="font-medium text-white">{job.company.name}</div>
  {job.company.industry && (
  <div className="text-xs mt-1" style={{ color: "rgba(255,255,255,0.4)" }}>
