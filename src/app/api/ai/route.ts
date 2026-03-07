@@ -8,7 +8,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { messages, system, max_tokens = 1000 } = body;
+    const { messages, system, max_tokens = 1000, temperature = 1 } = body;
 
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -20,6 +20,7 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify({
         model: "claude-haiku-4-5-20251001",
         max_tokens,
+        temperature,
         system,
         messages,
       }),

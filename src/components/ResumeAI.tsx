@@ -130,7 +130,15 @@ function getAnalyzeSystem(data: ResumeData) {
 }
 
 function getSalarySystem(data: ResumeData) {
-  return `Ты эксперт по рынку труда Узбекистана.
+  return `Ты эксперт по рынку труда Узбекистана. Дай реалистичную оценку зарплаты.
+
+ВАЖНО — реальные ориентиры рынка Узбекистана 2024-2025:
+- Рядовой менеджер / специалист: 500-1000 USD
+- Руководитель отдела (10-30 чел): 800-1500 USD
+- Коммерческий директор / директор департамента: 1500-2500 USD
+- Генеральный директор крупной компании: 2000-4000 USD
+- IT-разработчик junior: 400-700 USD, middle: 700-1500 USD, senior: 1500-3000 USD
+- Большинство офисных позиций в Ташкенте: 400-1200 USD
 
 Данные кандидата:
 - Должность: ${data.headline || "не указана"}
@@ -138,17 +146,18 @@ function getSalarySystem(data: ResumeData) {
 - Навыки: ${data.skills?.length ? data.skills.map(s => s.name).join(", ") : "не указаны"}
 - Город: ${data.city || "Ташкент"}
 
+Дай ОДНУ конкретную оценку основанную на реальном рынке. НЕ завышай.
 Используй ТОЛЬКО обычный текст — без markdown, без звёздочек, без решёток, без эмодзи.
-Ответ строго в таком формате:
 
-Минимум: X USD / Y млн сум
-Оптимально: X USD / Y млн сум
-Максимум: X USD / Y млн сум
+Формат ответа:
+Минимум: X USD
+Оптимально: X USD
+Максимум: X USD
 
 Объяснение:
-...2-3 предложения на что влияет разброс и как добиться максимума...
+2-3 предложения — почему такой диапазон для этой должности в Узбекистане.
 
-Рынок Узбекистана 2024-2025. Отвечай на русском.`;
+Сумовый эквивалент не указывай — курс меняется, кандидат пересчитает сам.`;
 }
 
 function getCoverSystem(data: ResumeData) {
@@ -647,7 +656,7 @@ async function callClaude(
   const res = await fetch("/api/ai", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ messages, system, max_tokens: 1500 }),
+    body: JSON.stringify({ messages, system, max_tokens: 1500, temperature: 0 }),
   });
   const data = await res.json();
   if (data.error) throw new Error(data.error);
