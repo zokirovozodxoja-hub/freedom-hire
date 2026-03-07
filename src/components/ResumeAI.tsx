@@ -1,52 +1,48 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState } from "react";
 
 // ═══════════════════════════════════════════════════════
-// RATE LIMITING — только для вставки текста
-// Чат: без лимита
-// Вставка: 5 раз в день + cooldown 30 сек между вставками
+// RATE LIMITING — только для вставки резюме
+// 5 вставок в день + cooldown 30 сек
 // ═══════════════════════════════════════════════════════
 
-const DAILY_LIMIT = 5;
+const PASTE_LIMIT = 5;
 const PASTE_COOLDOWN_SEC = 30;
-const STORAGE_KEY = "ai_usage";
+const STORAGE_KEY = "ai_paste_usage";
 
-type UsageData = { count: number; date: string; lastPasteAt: number };
+type UsageData = { count: number; date: string; lastAt: number };
 
 function getUsage(): UsageData {
   try {
     const today = new Date().toISOString().slice(0, 10);
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { count: 0, date: today, lastPasteAt: 0 };
-    const data = JSON.parse(raw) as UsageData;
-    if (data.date !== today) return { count: 0, date: today, lastPasteAt: 0 };
-    return data;
-  } catch { return { count: 0, date: new Date().toISOString().slice(0, 10), lastPasteAt: 0 }; }
+    if (!raw) return { count: 0, date: today, lastAt: 0 };
+    const d = JSON.parse(raw) as UsageData;
+    if (d.date !== today) return { count: 0, date: today, lastAt: 0 };
+    return d;
+  } catch { return { count: 0, date: new Date().toISOString().slice(0, 10), lastAt: 0 }; }
 }
 function saveUsage(d: UsageData) { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(d)); } catch {} }
-
 function checkPasteLimit(): { ok: boolean; reason?: string } {
   const u = getUsage();
-  if (u.count >= DAILY_LIMIT) return { ok: false, reason: `Лимит ${DAILY_LIMIT} вставок в день исчерпан. Приходите завтра.` };
+  if (u.count >= PASTE_LIMIT) return { ok: false, reason: `Лимит ${PASTE_LIMIT} вставок в день исчерпан. Приходите завтра.` };
   return { ok: true };
 }
-function checkPasteCooldown(): { ok: boolean; cooldownLeft?: number } {
+function checkCooldown(): { ok: boolean; left?: number } {
   const u = getUsage();
-  const elapsed = (Date.now() - u.lastPasteAt) / 1000;
-  if (u.lastPasteAt && elapsed < PASTE_COOLDOWN_SEC) return { ok: false, cooldownLeft: Math.ceil(PASTE_COOLDOWN_SEC - elapsed) };
+  const elapsed = (Date.now() - u.lastAt) / 1000;
+  if (u.lastAt && elapsed < PASTE_COOLDOWN_SEC) return { ok: false, left: Math.ceil(PASTE_COOLDOWN_SEC - elapsed) };
   return { ok: true };
 }
-function markPasteUsed() { const u = getUsage(); saveUsage({ ...u, count: u.count + 1, lastPasteAt: Date.now() }); }
-function getPasteRemaining() { return DAILY_LIMIT - (typeof window !== "undefined" ? getUsage().count : 0); }
+function markUsed() { const u = getUsage(); saveUsage({ ...u, count: u.count + 1, lastAt: Date.now() }); }
+function getRemaining() { return PASTE_LIMIT - (typeof window !== "undefined" ? getUsage().count : 0); }
 
 // ═══════════════════════════════════════════════════════
 // TYPES
 // ═══════════════════════════════════════════════════════
 
-type Tab = "fill" | "analyze" | "salary" | "cover";
-type FillMode = "chat" | "paste";
-type Message = { role: "user" | "ai"; text: string };
+type Tab = "paste" | "analyze" | "salary" | "cover";
 
 export type AIResult = {
   full_name?: string;
@@ -76,48 +72,35 @@ interface ResumeAIProps {
 // SYSTEM PROMPTS
 // ═══════════════════════════════════════════════════════
 
-const CHAT_SYSTEM = `Ты помощник по заполнению резюме. ТОЛЬКО структурируй то что говорит кандидат. НЕ придумывай, НЕ приукрашивай. Исправляй только орфографию.
-
-Задавай вопросы строго по одному:
-1. Как вас зовут?
-2. Какую должность ищете?
-3. В каком городе?
-4. Расскажите о себе в 2-3 предложениях (кто вы, чем занимаетесь)
-5. Опыт работы — по каждому месту: компания, должность, с какого по какой месяц и год
-6. Навыки — перечислите, для каждого уточни уровень: начальный/средний/продвинутый/эксперт
-
-Когда все данные собраны, скажи "Готово! Вот что я записал:" и сразу верни JSON:
-{"full_name":"...","headline":"...","city":"...","about":"...","experiences":[{"company":"...","position":"...","start_date":"YYYY-MM-DD","end_date":"YYYY-MM-DD или null"}],"skills":[{"name":"...","level":"beginner|intermediate|advanced|expert"}]}
-
-Отвечай только на русском.`;
-
-const PASTE_SYSTEM = `Ты парсер резюме. Извлеки данные ТОЧНО как написано. НЕ меняй формулировки.
+const PASTE_SYSTEM = `Ты парсер резюме. Резюме может быть на русском, узбекском или английском языке — читай на любом, отвечай данными в JSON.
 
 КРИТИЧНО — ПРАВИЛА ДАТ:
-Месяцы: Январь=01, Февраль=02, Март=03, Апрель=04, Май=05, Июнь=06, Июль=07, Август=08, Сентябрь=09, Октябрь=10, Ноябрь=11, Декабрь=12
-"настоящее время" / "по настоящее время" / "н.в." = end_date: null
+Месяцы RU: Январь=01, Февраль=02, Март=03, Апрель=04, Май=05, Июнь=06, Июль=07, Август=08, Сентябрь=09, Октябрь=10, Ноябрь=11, Декабрь=12
+Месяцы UZ: Yanvar=01, Fevral=02, Mart=03, Aprel=04, May=05, Iyun=06, Iyul=07, Avgust=08, Sentyabr=09, Oktyabr=10, Noyabr=11, Dekabr=12
+"настоящее время" / "hozirgi vaqt" / "present" / "н.в." = end_date: null
 
-ВАЖНО: каждая запись работы идёт СВЕРХУ ВНИЗ. Даты написаны СЛЕВА от названия компании и относятся ТОЛЬКО к ней.
-Пример правильного чтения:
-  "Январь 2026 — настоящее время  HamkorBank  Руководитель отдела" -> start_date: "2026-01-01", end_date: null
-  "Июнь 2025 — Январь 2026  IPLUS  Руководитель департамента" -> start_date: "2025-06-01", end_date: "2026-01-01"
-  "Август 2024 — Июнь 2025  CENTRAL DISTRIBUTOR  CCO" -> start_date: "2024-08-01", end_date: "2025-06-01"
+Каждая запись работы идёт СВЕРХУ ВНИЗ. Даты написаны СЛЕВА от названия компании и относятся ТОЛЬКО к ней.
+Пример:
+  "Январь 2026 — настоящее время  HamkorBank  Руководитель отдела" -> start: "2026-01-01", end: null
+  "Июнь 2025 — Январь 2026  IPLUS  Руководитель департамента" -> start: "2025-06-01", end: "2026-01-01"
+  "Август 2024 — Июнь 2025  CENTRAL DISTRIBUTOR  CCO" -> start: "2024-08-01", end: "2025-06-01"
 
-НАВЫКИ: все из раздела "Навыки". Языки тоже: A1/Начальный=beginner, B1/B2=intermediate, C1=advanced, C2/Родной=expert. Без уровня = intermediate.
+НАВЫКИ: все из раздела "Навыки" / "Ko'nikmalar" / "Skills".
+Языки: A1/Beginner/Boshlang'ich=beginner, B1/B2/Intermediate/O'rta=intermediate, C1/Advanced/Yuqori=advanced, C2/Native/Ona tili/Родной=expert. Без уровня = intermediate.
 
-ПОЛЯ:
+ПОЛЯ (результат всегда на русском языке):
 - full_name: имя из заголовка
-- headline: первая/главная желаемая должность
+- headline: главная желаемая должность (переведи на русский если на узбекском/английском)
 - city: город проживания
-- about: если есть раздел "О себе" или "Обо мне" — возьми текст оттуда. Если нет — составь 2 предложения из опыта кандидата (должность + ключевые навыки). НЕ оставляй пустым.
+- about: если есть раздел "О себе"/"Men haqimda"/"About" — возьми текст. Если нет — составь 2 предложения из опыта. НЕ оставляй пустым.
 
 Верни ТОЛЬКО JSON без пояснений:
 {"full_name":"...","headline":"...","city":"...","about":"...","experiences":[{"company":"...","position":"...","start_date":"YYYY-MM-DD","end_date":null}],"skills":[{"name":"...","level":"beginner|intermediate|advanced|expert"}]}`;
 
 function getAnalyzeSystem(data: ResumeData) {
-  return `Ты карьерный консультант. Проанализируй резюме и дай конкретные рекомендации.
+  return `Ты карьерный консультант. Проанализируй резюме кандидата.
 
-Резюме кандидата:
+Данные:
 - Имя: ${data.full_name || "не указано"}
 - Должность: ${data.headline || "не указана"}
 - Город: ${data.city || "не указан"}
@@ -125,17 +108,29 @@ function getAnalyzeSystem(data: ResumeData) {
 - Опыт: ${data.experiences?.length ? data.experiences.map(e => `${e.position} в ${e.company}`).join(", ") : "не указан"}
 - Навыки: ${data.skills?.length ? data.skills.map(s => s.name).join(", ") : "не указаны"}
 
-Дай анализ в таком формате:
-✅ Сильные стороны (2-3 пункта)
-⚠️ Что улучшить (2-3 конкретных пункта)
-❌ Чего не хватает (2-3 пункта)
-💡 Главный совет
+Используй ТОЛЬКО обычный текст — без markdown, без звёздочек, без решёток, без эмодзи.
+Ответ строго в таком формате:
 
-Будь конкретным, не общим. Отвечай на русском. Не более 200 слов.`;
+Сильные стороны:
+— ...
+— ...
+
+Что улучшить:
+— ...
+— ...
+
+Чего не хватает:
+— ...
+— ...
+
+Главный совет:
+...
+
+Будь конкретным. Не более 200 слов. Отвечай на русском.`;
 }
 
 function getSalarySystem(data: ResumeData) {
-  return `Ты эксперт по рынку труда Узбекистана. Оцени справедливую зарплату для кандидата.
+  return `Ты эксперт по рынку труда Узбекистана.
 
 Данные кандидата:
 - Должность: ${data.headline || "не указана"}
@@ -143,31 +138,32 @@ function getSalarySystem(data: ResumeData) {
 - Навыки: ${data.skills?.length ? data.skills.map(s => s.name).join(", ") : "не указаны"}
 - Город: ${data.city || "Ташкент"}
 
-Дай оценку в формате:
-💰 Минимум: X USD / Y млн сум
-💰 Оптимально: X USD / Y млн сум
-💰 Максимум: X USD / Y млн сум
+Используй ТОЛЬКО обычный текст — без markdown, без звёздочек, без решёток, без эмодзи.
+Ответ строго в таком формате:
 
-Затем коротко объясни (2-3 предложения) на что влияет разброс и как добиться максимума.
-Основывайся на реальном рынке Узбекистана 2024-2025. Отвечай на русском.`;
+Минимум: X USD / Y млн сум
+Оптимально: X USD / Y млн сум
+Максимум: X USD / Y млн сум
+
+Объяснение:
+...2-3 предложения на что влияет разброс и как добиться максимума...
+
+Рынок Узбекистана 2024-2025. Отвечай на русском.`;
 }
 
 function getCoverSystem(data: ResumeData) {
-  return `Ты помощник по написанию сопроводительных писем. Напиши письмо на основе ТОЛЬКО реального опыта кандидата — НЕ придумывай.
+  return `Ты помощник по написанию сопроводительных писем. Используй ТОЛЬКО реальный опыт кандидата — НЕ придумывай.
 
-Резюме кандидата:
+Резюме:
 - Имя: ${data.full_name || "кандидат"}
 - Должность: ${data.headline || ""}
 - О себе: ${data.about || ""}
 - Опыт: ${data.experiences?.length ? data.experiences.map(e => `${e.position} в ${e.company}`).join("; ") : ""}
 - Навыки: ${data.skills?.length ? data.skills.map(s => s.name).join(", ") : ""}
 
-Когда пользователь пришлёт текст вакансии — напиши сопроводительное письмо (150-200 слов):
-1. Почему подходит именно на ЭТУ вакансию (основываясь на реальном опыте)
-2. Конкретные достижения из резюме которые релевантны
-3. Короткое завершение
-
-Письмо должно быть живым и конкретным. Отвечай на русском.`;
+Используй ТОЛЬКО обычный текст — без markdown, без звёздочек, без решёток, без эмодзи, без нумерации пунктов.
+Напиши письмо 150-200 слов: почему подхожу на эту вакансию, конкретные достижения, завершение.
+Отвечай на русском.`;
 }
 
 // ═══════════════════════════════════════════════════════
@@ -183,37 +179,78 @@ function hasData(r: AIResult) {
     (r.experiences?.length ?? 0) > 0 || (r.skills?.length ?? 0) > 0;
 }
 
-const TABS: { id: Tab; label: string; icon: string; desc: string; color: string }[] = [
-  { id: "fill",    label: "Заполнить", icon: "✍️", desc: "Заполнить резюме",        color: "#7C4AE8" },
-  { id: "analyze", label: "Анализ",    icon: "🔍", desc: "Что улучшить",            color: "#06b6d4" },
-  { id: "salary",  label: "Зарплата",  icon: "💰", desc: "Оценка по рынку УЗ",      color: "#f59e0b" },
-  { id: "cover",   label: "Письмо",    icon: "✉️", desc: "Сопроводительное письмо", color: "#22c55e" },
+// ═══════════════════════════════════════════════════════
+// TAB ICONS (SVG)
+// ═══════════════════════════════════════════════════════
+
+function TabIcon({ id, size = 14 }: { id: Tab; size?: number }) {
+  const s = { width: size, height: size };
+  if (id === "paste") return (
+    <svg style={s} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+    </svg>
+  );
+  if (id === "analyze") return (
+    <svg style={s} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+    </svg>
+  );
+  if (id === "salary") return (
+    <svg style={s} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  );
+  return (
+    <svg style={s} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+    </svg>
+  );
+}
+
+const TABS: { id: Tab; label: string; desc: string; color: string }[] = [
+  { id: "paste",   label: "Импорт",   desc: "Вставить из старого резюме", color: "#7C4AE8" },
+  { id: "analyze", label: "Анализ",   desc: "Что улучшить",               color: "#06b6d4" },
+  { id: "salary",  label: "Зарплата", desc: "Оценка по рынку УЗ",         color: "#f59e0b" },
+  { id: "cover",   label: "Письмо",   desc: "Сопроводительное письмо",    color: "#22c55e" },
 ];
+
+// ═══════════════════════════════════════════════════════
+// SPINNER
+// ═══════════════════════════════════════════════════════
+
+function Spinner({ text }: { text: string }) {
+  return (
+    <span className="flex items-center justify-center gap-2">
+      <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+      {text}
+    </span>
+  );
+}
 
 // ═══════════════════════════════════════════════════════
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════
 
 export function ResumeAI({ onApply, onClose, resumeData = {} }: ResumeAIProps) {
-  const [tab, setTab] = useState<Tab>("fill");
-  const [fillMode, setFillMode] = useState<FillMode | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState("");
-  const [pasteText, setPasteText] = useState("");
+  const [tab, setTab] = useState<Tab>("paste");
   const [loading, setLoading] = useState(false);
-  const [parsed, setParsed] = useState<AIResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [cooldown, setCooldown] = useState(0);
+  const cooldownRef = { current: null as ReturnType<typeof setInterval> | null };
+
+  // Paste tab
+  const [pasteText, setPasteText] = useState("");
+  const [parsed, setParsed] = useState<AIResult | null>(null);
+
+  // Analyze / Salary / Cover
   const [analysisResult, setAnalysisResult] = useState("");
   const [salaryResult, setSalaryResult] = useState("");
   const [vacancyText, setVacancyText] = useState("");
   const [coverResult, setCoverResult] = useState("");
-  const bottomRef = useRef<HTMLDivElement>(null);
-  const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const pasteRemaining = getPasteRemaining();
+  const remaining = getRemaining();
 
-  function startCooldownTimer(s: number) {
+  function startCooldown(s: number) {
     setCooldown(s);
     if (cooldownRef.current) clearInterval(cooldownRef.current);
     cooldownRef.current = setInterval(() => {
@@ -222,51 +259,15 @@ export function ResumeAI({ onApply, onClose, resumeData = {} }: ResumeAIProps) {
   }
 
   function switchTab(t: Tab) {
-    setTab(t); setError(null); setMessages([]);
-    setFillMode(null); setParsed(null);
-    setAnalysisResult(""); setSalaryResult(""); setCoverResult("");
-  }
-
-  async function startChat() {
-    setFillMode("chat");
-    setLoading(true);
-    try {
-      const res = await callClaude([{ role: "user", content: "Начни" }], CHAT_SYSTEM);
-      setMessages([{ role: "ai", text: res }]);
-    } catch { setError("Ошибка подключения к ИИ"); }
-    setLoading(false);
-  }
-
-  async function sendChatMsg() {
-    if (!input.trim() || loading) return;
-    const userMsg = input.trim();
-    setInput("");
-    const msgs: Message[] = [...messages, { role: "user", text: userMsg }];
-    setMessages(msgs);
-    setLoading(true);
-    try {
-      const history = msgs.map(m => ({
-        role: m.role === "ai" ? "assistant" : "user" as "user" | "assistant",
-        content: m.text,
-      }));
-      const res = await callClaude(history, CHAT_SYSTEM);
-      setMessages(p => [...p, { role: "ai", text: res }]);
-      const r = tryParseJSON(res);
-      if (r && hasData(r)) setParsed(r);
-    } catch { setError("Ошибка. Попробуйте ещё раз."); }
-    setLoading(false);
-    setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+    setTab(t); setError(null);
+    setParsed(null); setAnalysisResult(""); setSalaryResult(""); setCoverResult("");
   }
 
   async function parsePaste() {
     if (!pasteText.trim()) return;
-    const limitCheck = checkPasteLimit();
-    if (!limitCheck.ok) { setError(limitCheck.reason ?? "Лимит исчерпан"); return; }
-    const cooldownCheck = checkPasteCooldown();
-    if (!cooldownCheck.ok) { startCooldownTimer(cooldownCheck.cooldownLeft!); return; }
-    setLoading(true);
-    setError(null);
-    markPasteUsed();
+    const lim = checkPasteLimit(); if (!lim.ok) { setError(lim.reason ?? "Лимит исчерпан"); return; }
+    const cd = checkCooldown(); if (!cd.ok) { startCooldown(cd.left!); return; }
+    setLoading(true); setError(null); markUsed();
     try {
       const res = await callClaude([{ role: "user", content: pasteText }], PASTE_SYSTEM);
       const r = tryParseJSON(res);
@@ -279,7 +280,7 @@ export function ResumeAI({ onApply, onClose, resumeData = {} }: ResumeAIProps) {
   async function runAnalysis() {
     setLoading(true); setError(null);
     try {
-      const res = await callClaude([{ role: "user", content: "Проанализируй моё резюме" }], getAnalyzeSystem(resumeData));
+      const res = await callClaude([{ role: "user", content: "Проанализируй резюме" }], getAnalyzeSystem(resumeData));
       setAnalysisResult(res);
     } catch { setError("Ошибка подключения"); }
     setLoading(false);
@@ -298,7 +299,7 @@ export function ResumeAI({ onApply, onClose, resumeData = {} }: ResumeAIProps) {
     if (!vacancyText.trim()) return;
     setLoading(true); setError(null);
     try {
-      const res = await callClaude([{ role: "user", content: `Вот текст вакансии:\n\n${vacancyText}` }], getCoverSystem(resumeData));
+      const res = await callClaude([{ role: "user", content: `Вакансия:\n\n${vacancyText}` }], getCoverSystem(resumeData));
       setCoverResult(res);
     } catch { setError("Ошибка подключения"); }
     setLoading(false);
@@ -312,51 +313,42 @@ export function ResumeAI({ onApply, onClose, resumeData = {} }: ResumeAIProps) {
       <div className="w-full max-w-lg rounded-2xl overflow-hidden flex flex-col"
         style={{ background: "#0D0B1A", border: "1px solid rgba(196,173,255,0.2)", maxHeight: "92vh" }}>
 
-        {/* Header */}
+        {/* ── Header ── */}
         <div className="px-5 pt-4 pb-0">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg flex items-center justify-center text-base"
-                style={{ background: `${activeTab.color}25`, border: `1px solid ${activeTab.color}40` }}>
-                {activeTab.icon}
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center"
+                style={{ background: `${activeTab.color}20`, border: `1px solid ${activeTab.color}35` }}>
+                <span style={{ color: activeTab.color }}><TabIcon id={tab} size={16} /></span>
               </div>
               <div>
                 <div className="text-sm font-semibold text-white">ИИ-помощник</div>
                 <div className="text-xs" style={{ color: "rgba(255,255,255,0.4)" }}>{activeTab.desc}</div>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              {tab === "fill" && fillMode === "paste" && (
-                <div className="text-xs px-2 py-1 rounded-lg"
-                  style={{
-                    background: pasteRemaining <= 2 ? "rgba(239,68,68,0.1)" : "rgba(255,255,255,0.05)",
-                    color: pasteRemaining <= 2 ? "#f87171" : "rgba(255,255,255,0.4)",
-                    border: `1px solid ${pasteRemaining <= 2 ? "rgba(239,68,68,0.2)" : "rgba(255,255,255,0.08)"}`,
-                  }}>
-                  вставок: {pasteRemaining}/{DAILY_LIMIT}
-                </div>
-              )}
-              <button onClick={onClose}
-                className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-white/10 transition"
-                style={{ color: "rgba(255,255,255,0.5)" }}>
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
+            <button onClick={onClose}
+              className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-white/10 transition"
+              style={{ color: "rgba(255,255,255,0.5)" }}>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
           </div>
 
           {/* Tabs */}
           <div className="flex gap-1">
             {TABS.map(t => (
               <button key={t.id} onClick={() => switchTab(t.id)}
-                className="flex-1 py-2 rounded-t-xl text-xs font-medium transition"
+                className="flex-1 py-2 rounded-t-xl text-xs font-medium transition flex items-center justify-center gap-1.5"
                 style={{
                   background: tab === t.id ? "rgba(255,255,255,0.06)" : "transparent",
                   color: tab === t.id ? "white" : "rgba(255,255,255,0.4)",
                   borderBottom: tab === t.id ? `2px solid ${t.color}` : "2px solid transparent",
                 }}>
-                <span className="mr-1">{t.icon}</span>{t.label}
+                <span style={{ color: tab === t.id ? t.color : "currentColor" }}>
+                  <TabIcon id={t.id} size={13} />
+                </span>
+                {t.label}
               </button>
             ))}
           </div>
@@ -366,84 +358,70 @@ export function ResumeAI({ onApply, onClose, resumeData = {} }: ResumeAIProps) {
         {cooldown > 0 && (
           <div className="px-5 py-2 text-xs flex items-center gap-2"
             style={{ background: "rgba(251,191,36,0.08)", color: "#fbbf24", borderTop: "1px solid rgba(251,191,36,0.15)" }}>
-            ⏱ Следующая вставка через {cooldown} сек.
+            <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Следующая вставка через {cooldown} сек.
           </div>
         )}
 
-        {/* Content */}
+        {/* ── Content ── */}
         <div className="flex-1 overflow-y-auto" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
 
-          {/* ══ FILL ══ */}
-          {tab === "fill" && !fillMode && !parsed && (
+          {/* ══ PASTE TAB ══ */}
+          {tab === "paste" && !parsed && (
             <div className="p-5 space-y-3">
-              <p className="text-xs text-center mb-2" style={{ color: "rgba(255,255,255,0.4)" }}>
-                Структурирует только ваши слова — без приукрашивания
-              </p>
-              <button onClick={startChat}
-                className="w-full flex items-center gap-4 p-4 rounded-xl transition hover:scale-[1.01]"
-                style={{ background: "rgba(92,46,204,0.15)", border: "1px solid rgba(92,46,204,0.3)" }}>
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl shrink-0"
-                  style={{ background: "rgba(92,46,204,0.25)" }}>💬</div>
-                <div className="text-left">
-                  <div className="text-sm font-semibold text-white">Заполнить через чат</div>
-                  <div className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.4)" }}>ИИ задаёт вопросы — без лимита</div>
-                </div>
-              </button>
-              <button onClick={() => setFillMode("paste")} disabled={pasteRemaining <= 0}
-                className="w-full flex items-center gap-4 p-4 rounded-xl transition hover:scale-[1.01] disabled:opacity-50"
-                style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}>
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl shrink-0"
-                  style={{ background: "rgba(255,255,255,0.06)" }}>📄</div>
-                <div className="text-left">
-                  <div className="text-sm font-semibold text-white">Вставить старое резюме</div>
-                  <div className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.4)" }}>
-                    ИИ разберёт текст по всем полям · {pasteRemaining}/{DAILY_LIMIT} вставок сегодня
-                  </div>
-                </div>
-              </button>
-            </div>
-          )}
+              <div className="rounded-xl p-3 text-xs flex items-start gap-2.5"
+                style={{ background: "rgba(124,74,232,0.08)", border: "1px solid rgba(124,74,232,0.2)" }}>
+                <svg className="w-4 h-4 shrink-0 mt-0.5" style={{ color: "#C4ADFF" }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span style={{ color: "rgba(255,255,255,0.6)" }}>
+                  Вставьте текст старого резюме — ИИ извлечёт все данные и заполнит профиль.
+                  Поддерживаются резюме на <span className="text-white">русском, узбекском и английском</span> языках.
+                </span>
+              </div>
 
-          {tab === "fill" && fillMode === "paste" && !parsed && (
-            <div className="p-5 space-y-3">
-              <p className="text-xs" style={{ color: "rgba(255,255,255,0.4)" }}>
-                Вставьте текст резюме — ИИ заполнит все поля включая «О себе»
-              </p>
               <textarea value={pasteText} onChange={e => setPasteText(e.target.value)}
-                placeholder="Вставьте текст резюме сюда..." rows={9}
+                placeholder="Вставьте текст резюме сюда..." rows={10}
                 className="w-full rounded-xl px-4 py-3 text-sm text-white placeholder-white/20 outline-none resize-none"
                 style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(196,173,255,0.12)" }} />
+
               {error && <p className="text-xs text-red-400">{error}</p>}
-              <div className="flex gap-2">
-                <button onClick={parsePaste} disabled={loading || !pasteText.trim()}
-                  className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-50"
+
+              <div className="flex items-center justify-between">
+                <span className="text-xs" style={{ color: "rgba(255,255,255,0.3)" }}>
+                  {remaining}/{PASTE_LIMIT} вставок сегодня
+                </span>
+                <button onClick={parsePaste} disabled={loading || !pasteText.trim() || remaining <= 0}
+                  className="px-5 py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-50"
                   style={{ background: "linear-gradient(135deg, #5B2ECC, #7C4AE8)" }}>
                   {loading ? <Spinner text="Анализирую..." /> : "Извлечь данные"}
-                </button>
-                <button onClick={() => setFillMode(null)} className="px-4 py-2.5 rounded-xl text-sm"
-                  style={{ background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.5)" }}>
-                  Назад
                 </button>
               </div>
             </div>
           )}
 
-          {tab === "fill" && fillMode === "chat" && !parsed && (
-            <ChatView messages={messages} loading={loading} error={error}
-              input={input} onInput={setInput} onSend={sendChatMsg} bottomRef={bottomRef} />
-          )}
-
-          {tab === "fill" && parsed && (
+          {/* PASTE result */}
+          {tab === "paste" && parsed && (
             <div className="p-5 space-y-4">
-              <span className="text-green-400 font-semibold text-sm">✓ Данные готовы</span>
+              <div className="flex items-center gap-2">
+                <div className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: "rgba(34,197,94,0.15)" }}>
+                  <svg className="w-3 h-3 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+                <span className="text-sm font-semibold text-green-400">Данные извлечены</span>
+              </div>
+
               <div className="rounded-xl p-4 space-y-2 text-sm"
                 style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
-                {parsed.full_name && <Row label="Имя" value={parsed.full_name} />}
-                {parsed.headline && <Row label="Должность" value={parsed.headline} />}
-                {parsed.city && <Row label="Город" value={parsed.city} />}
-                {parsed.about && <Row label="О себе" value={parsed.about} />}
+                {parsed.full_name && <PRow label="Имя" value={parsed.full_name} />}
+                {parsed.headline && <PRow label="Должность" value={parsed.headline} />}
+                {parsed.city && <PRow label="Город" value={parsed.city} />}
+                {parsed.about && <PRow label="О себе" value={parsed.about} />}
                 {parsed.experiences?.map((e, i) => (
-                  <Row key={i} label={`Опыт ${i + 1}`} value={`${e.position} в ${e.company}`} />
+                  <PRow key={i} label={`Опыт ${i + 1}`} value={`${e.position} — ${e.company}`} />
                 ))}
                 {parsed.skills && parsed.skills.length > 0 && (
                   <div className="flex flex-wrap gap-1.5 pt-1">
@@ -454,39 +432,62 @@ export function ResumeAI({ onApply, onClose, resumeData = {} }: ResumeAIProps) {
                   </div>
                 )}
               </div>
-              <p className="text-xs" style={{ color: "rgba(255,255,255,0.35)" }}>Данные будут применены как есть</p>
+
+              <p className="text-xs" style={{ color: "rgba(255,255,255,0.3)" }}>
+                Данные заменят текущие поля профиля
+              </p>
+
               <div className="flex gap-2">
                 <button onClick={() => onApply(parsed)}
                   className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white"
-                  style={{ background: "linear-gradient(135deg, #5B2ECC, #7C4AE8)" }}>Применить</button>
-                <button onClick={() => { setParsed(null); setFillMode(null); }}
+                  style={{ background: "linear-gradient(135deg, #5B2ECC, #7C4AE8)" }}>
+                  Применить к профилю
+                </button>
+                <button onClick={() => { setParsed(null); setPasteText(""); }}
                   className="px-4 py-2.5 rounded-xl text-sm"
-                  style={{ background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.5)" }}>Заново</button>
+                  style={{ background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.5)" }}>
+                  Заново
+                </button>
               </div>
             </div>
           )}
 
-          {/* ══ ANALYZE ══ */}
+          {/* ══ ANALYZE TAB ══ */}
           {tab === "analyze" && (
             <div className="p-5 space-y-4">
               {!analysisResult ? (
                 <>
                   <div className="rounded-xl p-4 text-sm space-y-2"
-                    style={{ background: "rgba(6,182,212,0.08)", border: "1px solid rgba(6,182,212,0.2)" }}>
-                    <p className="font-semibold" style={{ color: "#22d3ee" }}>Что анализирует ИИ:</p>
-                    <p style={{ color: "rgba(255,255,255,0.6)" }}>• Полноту заполнения резюме</p>
-                    <p style={{ color: "rgba(255,255,255,0.6)" }}>• Сильные и слабые стороны</p>
-                    <p style={{ color: "rgba(255,255,255,0.6)" }}>• Чего не хватает для должности</p>
-                    <p style={{ color: "rgba(255,255,255,0.6)" }}>• Конкретные советы по улучшению</p>
+                    style={{ background: "rgba(6,182,212,0.07)", border: "1px solid rgba(6,182,212,0.18)" }}>
+                    <p className="font-medium" style={{ color: "#67e8f9" }}>ИИ проверит:</p>
+                    {["Полноту заполнения резюме", "Сильные и слабые стороны", "Чего не хватает для должности", "Конкретные советы по улучшению"].map(t => (
+                      <div key={t} className="flex items-center gap-2" style={{ color: "rgba(255,255,255,0.6)" }}>
+                        <svg className="w-3 h-3 shrink-0" style={{ color: "#06b6d4" }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                        </svg>
+                        {t}
+                      </div>
+                    ))}
                   </div>
                   {!resumeData.headline && !resumeData.experiences?.length && (
-                    <p className="text-xs text-amber-400">⚠️ Сначала заполните резюме — анализ будет точнее</p>
+                    <div className="rounded-xl p-3 text-xs flex items-center gap-2"
+                      style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.2)", color: "#fbbf24" }}>
+                      <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                      Сначала заполните резюме — анализ будет точнее
+                    </div>
                   )}
                   {error && <p className="text-xs text-red-400">{error}</p>}
                   <button onClick={runAnalysis} disabled={loading}
-                    className="w-full py-3 rounded-xl text-sm font-semibold text-white disabled:opacity-50"
+                    className="w-full py-3 rounded-xl text-sm font-semibold text-white disabled:opacity-50 flex items-center justify-center gap-2"
                     style={{ background: "linear-gradient(135deg, #0891b2, #06b6d4)" }}>
-                    {loading ? <Spinner text="Анализирую резюме..." /> : "🔍 Проанализировать резюме"}
+                    {loading ? <Spinner text="Анализирую резюме..." /> : (
+                      <>
+                        <TabIcon id="analyze" size={16} />
+                        Проанализировать резюме
+                      </>
+                    )}
                   </button>
                 </>
               ) : (
@@ -495,8 +496,12 @@ export function ResumeAI({ onApply, onClose, resumeData = {} }: ResumeAIProps) {
                     style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.85)" }}>
                     {analysisResult}
                   </div>
-                  <button onClick={() => setAnalysisResult("")} className="w-full py-2.5 rounded-xl text-sm"
+                  <button onClick={() => setAnalysisResult("")}
+                    className="w-full py-2.5 rounded-xl text-sm flex items-center justify-center gap-2"
                     style={{ background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.5)" }}>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
                     Обновить анализ
                   </button>
                 </>
@@ -504,26 +509,42 @@ export function ResumeAI({ onApply, onClose, resumeData = {} }: ResumeAIProps) {
             </div>
           )}
 
-          {/* ══ SALARY ══ */}
+          {/* ══ SALARY TAB ══ */}
           {tab === "salary" && (
             <div className="p-5 space-y-4">
               {!salaryResult ? (
                 <>
                   <div className="rounded-xl p-4 text-sm space-y-2"
-                    style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.2)" }}>
-                    <p className="font-semibold" style={{ color: "#fbbf24" }}>Оценка по рынку Узбекистана:</p>
-                    <p style={{ color: "rgba(255,255,255,0.6)" }}>• Диапазон зарплат для вашей должности</p>
-                    <p style={{ color: "rgba(255,255,255,0.6)" }}>• Сравнение с уровнем опыта</p>
-                    <p style={{ color: "rgba(255,255,255,0.6)" }}>• Как получить максимум</p>
+                    style={{ background: "rgba(245,158,11,0.07)", border: "1px solid rgba(245,158,11,0.18)" }}>
+                    <p className="font-medium" style={{ color: "#fcd34d" }}>Оценка по рынку Узбекистана:</p>
+                    {["Диапазон зарплат для вашей должности", "Учитывает опыт и навыки", "Как получить максимум"].map(t => (
+                      <div key={t} className="flex items-center gap-2" style={{ color: "rgba(255,255,255,0.6)" }}>
+                        <svg className="w-3 h-3 shrink-0" style={{ color: "#f59e0b" }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                        </svg>
+                        {t}
+                      </div>
+                    ))}
                   </div>
                   {!resumeData.headline && (
-                    <p className="text-xs text-amber-400">⚠️ Укажите желаемую должность для точной оценки</p>
+                    <div className="rounded-xl p-3 text-xs flex items-center gap-2"
+                      style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.2)", color: "#fbbf24" }}>
+                      <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                      Укажите желаемую должность для точной оценки
+                    </div>
                   )}
                   {error && <p className="text-xs text-red-400">{error}</p>}
                   <button onClick={runSalary} disabled={loading}
-                    className="w-full py-3 rounded-xl text-sm font-semibold text-white disabled:opacity-50"
+                    className="w-full py-3 rounded-xl text-sm font-semibold text-white disabled:opacity-50 flex items-center justify-center gap-2"
                     style={{ background: "linear-gradient(135deg, #d97706, #f59e0b)" }}>
-                    {loading ? <Spinner text="Анализирую рынок..." /> : "💰 Оценить зарплату"}
+                    {loading ? <Spinner text="Анализирую рынок..." /> : (
+                      <>
+                        <TabIcon id="salary" size={16} />
+                        Оценить зарплату
+                      </>
+                    )}
                   </button>
                 </>
               ) : (
@@ -532,8 +553,12 @@ export function ResumeAI({ onApply, onClose, resumeData = {} }: ResumeAIProps) {
                     style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.85)" }}>
                     {salaryResult}
                   </div>
-                  <button onClick={() => setSalaryResult("")} className="w-full py-2.5 rounded-xl text-sm"
+                  <button onClick={() => setSalaryResult("")}
+                    className="w-full py-2.5 rounded-xl text-sm flex items-center justify-center gap-2"
                     style={{ background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.5)" }}>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
                     Пересчитать
                   </button>
                 </>
@@ -541,26 +566,37 @@ export function ResumeAI({ onApply, onClose, resumeData = {} }: ResumeAIProps) {
             </div>
           )}
 
-          {/* ══ COVER LETTER ══ */}
+          {/* ══ COVER LETTER TAB ══ */}
           {tab === "cover" && (
             <div className="p-5 space-y-4">
               {!coverResult ? (
                 <>
                   <p className="text-xs" style={{ color: "rgba(255,255,255,0.5)" }}>
-                    Вставьте текст вакансии — ИИ напишет письмо на основе вашего реального опыта
+                    Вставьте описание вакансии — ИИ напишет письмо на основе вашего реального опыта
                   </p>
                   <textarea value={vacancyText} onChange={e => setVacancyText(e.target.value)}
                     placeholder="Вставьте описание вакансии сюда..." rows={7}
                     className="w-full rounded-xl px-4 py-3 text-sm text-white placeholder-white/20 outline-none resize-none"
                     style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(196,173,255,0.12)" }} />
                   {!resumeData.experiences?.length && (
-                    <p className="text-xs text-amber-400">⚠️ Заполните опыт работы для более точного письма</p>
+                    <div className="rounded-xl p-3 text-xs flex items-center gap-2"
+                      style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.2)", color: "#fbbf24" }}>
+                      <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                      Заполните опыт работы для более точного письма
+                    </div>
                   )}
                   {error && <p className="text-xs text-red-400">{error}</p>}
                   <button onClick={runCoverLetter} disabled={loading || !vacancyText.trim()}
-                    className="w-full py-3 rounded-xl text-sm font-semibold text-white disabled:opacity-50"
+                    className="w-full py-3 rounded-xl text-sm font-semibold text-white disabled:opacity-50 flex items-center justify-center gap-2"
                     style={{ background: "linear-gradient(135deg, #16a34a, #22c55e)" }}>
-                    {loading ? <Spinner text="Пишу письмо..." /> : "✉️ Написать письмо"}
+                    {loading ? <Spinner text="Пишу письмо..." /> : (
+                      <>
+                        <TabIcon id="cover" size={16} />
+                        Написать письмо
+                      </>
+                    )}
                   </button>
                 </>
               ) : (
@@ -571,9 +607,12 @@ export function ResumeAI({ onApply, onClose, resumeData = {} }: ResumeAIProps) {
                   </div>
                   <div className="flex gap-2">
                     <button onClick={() => navigator.clipboard.writeText(coverResult)}
-                      className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white"
+                      className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-2"
                       style={{ background: "linear-gradient(135deg, #16a34a, #22c55e)" }}>
-                      📋 Скопировать
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                      </svg>
+                      Скопировать
                     </button>
                     <button onClick={() => { setCoverResult(""); setVacancyText(""); }}
                       className="px-4 py-2.5 rounded-xl text-sm"
@@ -592,88 +631,14 @@ export function ResumeAI({ onApply, onClose, resumeData = {} }: ResumeAIProps) {
   );
 }
 
-// ═══════════════════════════════════════════════════════
-// SUB-COMPONENTS
-// ═══════════════════════════════════════════════════════
-
-function ChatView({ messages, loading, error, input, onInput, onSend, bottomRef }: {
-  messages: Message[];
-  loading: boolean;
-  error: string | null;
-  input: string;
-  onInput: (v: string) => void;
-  onSend: () => void;
-  bottomRef: React.RefObject<HTMLDivElement | null>;
-}) {
+function PRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex flex-col" style={{ height: "380px" }}>
-      <div className="flex-1 overflow-y-auto p-4 space-y-3">
-        {messages.map((m, i) => (
-          <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
-            <div className="max-w-[85%] px-4 py-2.5 text-sm whitespace-pre-wrap"
-              style={{
-                background: m.role === "user" ? "rgba(92,46,204,0.4)" : "rgba(255,255,255,0.06)",
-                color: "rgba(255,255,255,0.9)",
-                borderRadius: m.role === "user" ? "18px 18px 4px 18px" : "18px 18px 18px 4px",
-              }}>
-              {m.text}
-            </div>
-          </div>
-        ))}
-        {loading && (
-          <div className="flex justify-start">
-            <div className="px-4 py-3 rounded-2xl" style={{ background: "rgba(255,255,255,0.06)" }}>
-              <div className="flex gap-1">
-                {[0, 1, 2].map(i => (
-                  <span key={i} className="w-1.5 h-1.5 rounded-full animate-bounce"
-                    style={{ background: "#C4ADFF", animationDelay: `${i * 0.15}s` }} />
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-        {error && <p className="text-xs text-red-400 px-1">{error}</p>}
-        <div ref={bottomRef} />
-      </div>
-      <div className="p-3 flex gap-2" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
-        <input value={input} onChange={e => onInput(e.target.value)}
-          onKeyDown={e => e.key === "Enter" && !e.shiftKey && onSend()}
-          placeholder="Ваш ответ..." disabled={loading}
-          className="flex-1 rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/25 outline-none"
-          style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(196,173,255,0.12)" }} />
-        <button onClick={onSend} disabled={loading || !input.trim()}
-          className="w-10 h-10 rounded-xl flex items-center justify-center disabled:opacity-40"
-          style={{ background: "linear-gradient(135deg, #5B2ECC, #7C4AE8)" }}>
-          <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M12 5l7 7-7 7" />
-          </svg>
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function Row({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
+    <div className="text-sm">
       <span style={{ color: "rgba(255,255,255,0.4)" }}>{label}: </span>
       <span className="text-white">{value}</span>
     </div>
   );
 }
-
-function Spinner({ text }: { text: string }) {
-  return (
-    <span className="flex items-center justify-center gap-2">
-      <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-      {text}
-    </span>
-  );
-}
-
-// ═══════════════════════════════════════════════════════
-// API CALL
-// ═══════════════════════════════════════════════════════
 
 async function callClaude(
   messages: { role: "user" | "assistant"; content: string }[],
