@@ -444,6 +444,22 @@ export default function EmployerApplicationsPage() {
               </svg>
               AI-анализ
             </button>
+            {selectedJobId && Object.keys(aiScores).length > 0 && (
+              <a
+                href={`/employer/shortlist/${selectedJobId}`}
+                className="flex items-center gap-1.5 text-sm px-4 py-2 rounded-xl font-medium transition"
+                style={{
+                  background: "rgba(34,197,94,0.12)",
+                  border: "1px solid rgba(34,197,94,0.25)",
+                  color: "#22c55e",
+                }}>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
+                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                </svg>
+                Шортлист
+              </a>
+            )}
           </div>
         </div>
         <p className="text-sm mb-6" style={{ color: "rgba(255,255,255,0.4)" }}>
