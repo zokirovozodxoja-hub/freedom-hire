@@ -60,10 +60,12 @@ export default function ShortlistPage() {
   const [error, setError] = useState<string | null>(null);
   const [limit, setLimit] = useState(5);
   const [jobTitle, setJobTitle] = useState("");
+  const [hasScores, setHasScores] = useState(false); // есть ли AI-оценки в БД
 
   useEffect(() => {
     loadShortlist();
     loadJobTitle();
+    checkScores();
   }, [jobId]);
 
   async function loadJobTitle() {
@@ -72,13 +74,22 @@ export default function ShortlistPage() {
     if (data?.title) setJobTitle(data.title);
   }
 
+  // Проверяем есть ли оценки в БД для этой вакансии
+  async function checkScores() {
+    const supabase = createClient();
+    const { count } = await supabase
+      .from("ai_candidate_scores")
+      .select("id", { count: "exact", head: true })
+      .eq("job_id", jobId);
+    setHasScores((count ?? 0) > 0);
+  }
+
   async function loadShortlist() {
     setLoading(true);
     try {
       const res = await fetch(`/api/ai/shortlist?job_id=${jobId}`);
       const json = await res.json();
       if (json.ok && json.data) {
-        // Преобразуем формат из БД
         const d = json.data;
         setShortlist({
           shortlist_id: d.id,
@@ -220,7 +231,7 @@ export default function ShortlistPage() {
               <div className="rounded-xl px-4 py-3 text-sm mb-4 text-left"
                 style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", color: "#f87171" }}>
                 {error}
-                {error.includes("AI-анализ") && (
+                {!hasScores && (
                   <Link href="/employer/applications"
                     className="block mt-2 underline" style={{ color: "var(--lavender)" }}>
                     → Перейти к откликам и запустить анализ
@@ -229,7 +240,17 @@ export default function ShortlistPage() {
               </div>
             )}
 
-            <button onClick={generateShortlist} disabled={generating}
+            {!hasScores && !error && (
+              <div className="rounded-xl px-4 py-3 text-sm mb-4"
+                style={{ background: "rgba(251,191,36,0.08)", border: "1px solid rgba(251,191,36,0.2)", color: "#fbbf24" }}>
+                AI-анализ для этой вакансии ещё не запущен.{" "}
+                <Link href="/employer/applications" className="underline" style={{ color: "var(--lavender)" }}>
+                  Запустить анализ →
+                </Link>
+              </div>
+            )}
+
+            <button onClick={generateShortlist} disabled={generating || !hasScores}
               className="px-8 py-3 rounded-xl text-sm font-semibold text-white disabled:opacity-50 flex items-center gap-2 mx-auto transition"
               style={{ background: "linear-gradient(135deg, var(--brand-core), var(--brand-light))" }}>
               {generating ? (

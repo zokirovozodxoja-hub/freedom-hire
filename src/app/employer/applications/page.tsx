@@ -53,6 +53,72 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
+// ─── Стилизованный dropdown для выбора вакансии ──────
+
+function JobSelector({
+  jobs,
+  value,
+  onChange,
+}: {
+  jobs: { id: string; title: string | null }[];
+  value: string;
+  onChange: (id: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const selected = jobs.find(j => j.id === value);
+
+  return (
+    <div className="relative mb-5" style={{ maxWidth: 320 }}>
+      <button
+        onClick={() => setOpen(v => !v)}
+        className="w-full flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl text-sm transition"
+        style={{
+          background: "rgba(255,255,255,0.05)",
+          border: "1px solid rgba(196,173,255,0.2)",
+          color: "rgba(255,255,255,0.85)",
+        }}>
+        <span className="truncate">{selected?.title ?? "Выберите вакансию"}</span>
+        <svg
+          className="w-4 h-4 shrink-0 transition-transform"
+          style={{ color: "var(--lavender)", transform: open ? "rotate(180deg)" : "none" }}
+          fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      {open && (
+        <>
+          {/* backdrop */}
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          <div
+            className="absolute left-0 top-full mt-1 w-full rounded-xl overflow-hidden z-20"
+            style={{
+              background: "#1a0f35",
+              border: "1px solid rgba(196,173,255,0.2)",
+              boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
+              maxHeight: 260,
+              overflowY: "auto",
+            }}>
+            {jobs.map(j => (
+              <button
+                key={j.id}
+                onClick={() => { onChange(j.id); setOpen(false); }}
+                className="w-full text-left px-4 py-2.5 text-sm transition hover:bg-white/5"
+                style={{
+                  color: j.id === value ? "var(--lavender)" : "rgba(255,255,255,0.75)",
+                  background: j.id === value ? "rgba(92,46,204,0.15)" : "transparent",
+                  borderBottom: "1px solid rgba(255,255,255,0.04)",
+                }}>
+                {j.title ?? "Без названия"}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function EmployerApplicationsPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -375,7 +441,11 @@ export default function EmployerApplicationsPage() {
   }
 
   const filtered = useMemo(() => {
-    let list = apps.filter((a) => !filter || a.status === filter);
+    let list = apps.filter((a) => {
+      if (selectedJobId && a.job_id !== selectedJobId) return false;
+      if (filter && a.status !== filter) return false;
+      return true;
+    });
     if (sortByAI && Object.keys(aiScores).length > 0) {
       list = [...list].sort((a, b) => {
         const sa = aiScores[a.candidate_id]?.score ?? -1;
@@ -384,9 +454,13 @@ export default function EmployerApplicationsPage() {
       });
     }
     return list;
-  }, [apps, filter, sortByAI, aiScores]);
+  }, [apps, filter, sortByAI, aiScores, selectedJobId]);
 
-  const counts = STATUSES.map((s) => ({ ...s, count: apps.filter((a) => a.status === s.key).length }));
+  const jobApps = useMemo(() =>
+    selectedJobId ? apps.filter(a => a.job_id === selectedJobId) : apps,
+    [apps, selectedJobId]
+  );
+  const counts = STATUSES.map((s) => ({ ...s, count: jobApps.filter((a) => a.status === s.key).length }));
 
   // Данные для AI-панели
   const selectedJob = companyJobs.find(j => j.id === selectedJobId);
@@ -487,29 +561,13 @@ export default function EmployerApplicationsPage() {
           Управляйте откликами на ваши вакансии
         </p>
 
-        {/* Job selector — кастомные кнопки вместо native select */}
-        {companyJobs.length > 1 && (
-          <div className="flex flex-wrap gap-2 mb-5">
-            {companyJobs.map(j => (
-              <button
-                key={j.id}
-                onClick={() => setSelectedJobId(j.id)}
-                className="px-4 py-2 rounded-xl text-sm font-medium transition"
-                style={{
-                  background: selectedJobId === j.id
-                    ? "rgba(92,46,204,0.3)"
-                    : "rgba(255,255,255,0.04)",
-                  color: selectedJobId === j.id
-                    ? "var(--lavender)"
-                    : "rgba(255,255,255,0.5)",
-                  border: selectedJobId === j.id
-                    ? "1px solid rgba(196,173,255,0.3)"
-                    : "1px solid rgba(255,255,255,0.08)",
-                }}>
-                {j.title ?? "Без названия"}
-              </button>
-            ))}
-          </div>
+        {/* Job selector — стилизованный dropdown */}
+        {companyJobs.length >= 1 && (
+          <JobSelector
+            jobs={companyJobs}
+            value={selectedJobId}
+            onChange={setSelectedJobId}
+          />
         )}
 
         {/* AI Panel */}
