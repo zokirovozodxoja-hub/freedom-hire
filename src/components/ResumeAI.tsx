@@ -196,13 +196,6 @@ async function readFileAsBase64(file: File): Promise<string> {
   });
 }
 
-async function readDocxAsText(file: File): Promise<string> {
-  const mammoth = await import("mammoth");
-  const arrayBuffer = await file.arrayBuffer();
-  const result = await mammoth.extractRawText({ arrayBuffer });
-  return result.value;
-}
-
 // ═══════════════════════════════════════════════════════
 // TAB ICONS (SVG)
 // ═══════════════════════════════════════════════════════
@@ -296,18 +289,14 @@ export function ResumeAI({ onApply, onClose, resumeData = {} }: ResumeAIProps) {
       if (file.type === "application/pdf") {
         const base64 = await readFileAsBase64(file);
         setFileData({ type: "pdf", base64 });
-      } else if (file.name.endsWith(".docx")) {
-        const text = await readDocxAsText(file);
-        setFileData({ type: "text", text });
       } else {
-        setError("Поддерживаются только PDF и DOCX файлы");
+        setError("Поддерживаются только PDF файлы");
         setFileName(null);
       }
     } catch {
       setError("Не удалось прочитать файл");
       setFileName(null);
     }
-    // reset input so same file can be re-selected
     e.target.value = "";
   }
 
@@ -481,7 +470,7 @@ export function ResumeAI({ onApply, onClose, resumeData = {} }: ResumeAIProps) {
               {/* FILE mode */}
               {importMode === "file" && (
                 <div>
-                  <input ref={fileInputRef} type="file" accept=".pdf,.docx" className="hidden"
+                  <input ref={fileInputRef} type="file" accept=".pdf" className="hidden"
                     onChange={handleFileSelect} />
                   {!fileName ? (
                     <button onClick={() => fileInputRef.current?.click()}
@@ -495,7 +484,7 @@ export function ResumeAI({ onApply, onClose, resumeData = {} }: ResumeAIProps) {
                       </div>
                       <div className="text-center">
                         <p className="text-sm font-medium text-white">Нажмите чтобы выбрать файл</p>
-                        <p className="text-xs mt-1" style={{ color: "rgba(255,255,255,0.35)" }}>PDF или DOCX · до 5 МБ</p>
+                        <p className="text-xs mt-1" style={{ color: "rgba(255,255,255,0.35)" }}>Только PDF · до 5 МБ</p>
                       </div>
                     </button>
                   ) : (
@@ -521,7 +510,7 @@ export function ResumeAI({ onApply, onClose, resumeData = {} }: ResumeAIProps) {
                     </div>
                   )}
                   <p className="text-xs mt-2" style={{ color: "rgba(255,255,255,0.3)" }}>
-                    Поддерживаются резюме на русском, узбекском и английском языках
+                    Поддерживаются резюме на русском, узбекском и английском
                   </p>
                 </div>
               )}
