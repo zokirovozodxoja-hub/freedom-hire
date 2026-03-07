@@ -504,3 +504,462 @@ textarea { resize: vertical; }
   border: 1px solid #E5E7EB !important;
   color: #111827 !important;
 }
+/* ══════════════════════════════════════════════
+   PURPLE ELEMENTS FIX
+   Добавьте это в САМЫЙ КОНЕЦ globals.css
+══════════════════════════════════════════════ */
+
+/* ═══ УБИВАЕМ ВСЕ ФИОЛЕТОВЫЕ ПЛАШКИ/БЕЙДЖИ ═══ */
+[data-theme="light"] [style*="background: rgba(139,123,255"],
+[data-theme="light"] [style*="background: rgba(109,93,252"],
+[data-theme="light"] [style*="background: rgba(92,46,204"],
+[data-theme="light"] [style*="background:rgba(139,123,255"],
+[data-theme="light"] [style*="background:rgba(109,93,252"],
+[data-theme="light"] [style*="background:rgba(92,46,204"],
+[data-theme="light"] [style*="rgb(139,123,255)"],
+[data-theme="light"] [style*="rgb(109,93,252)"],
+[data-theme="light"] [style*="rgb(92,46,204)"] {
+  background: #F3F1FF !important;
+  color: #6D5DFC !important;
+  border: 1px solid #E9E3FF !important;
+}
+
+/* Фиолетовые с низкой прозрачностью */
+[data-theme="light"] [style*="rgba(139,123,255,0.1)"],
+[data-theme="light"] [style*="rgba(109,93,252,0.1)"],
+[data-theme="light"] [style*="rgba(92,46,204,0.1)"],
+[data-theme="light"] [style*="rgba(139,123,255,0.15)"],
+[data-theme="light"] [style*="rgba(109,93,252,0.15)"],
+[data-theme="light"] [style*="rgba(92,46,204,0.15)"],
+[data-theme="light"] [style*="rgba(139,123,255,0.2)"],
+[data-theme="light"] [style*="rgba(109,93,252,0.2)"],
+[data-theme="light"] [style*="rgba(92,46,204,0.2)"] {
+  background: #F3F1FF !important;
+  color: #6D5DFC !important;
+  border: 1px solid #E9E3FF !important;
+}
+
+/* ═══ КНОПКИ "Любой формат" и подобные ═══ */
+[data-theme="light"] button[style*="background: rgba"],
+[data-theme="light"] button[style*="background:rgba"],
+[data-theme="light"] .filter-button,
+[data-theme="light"] [data-filter="true"] {
+  background: #F3F1FF !important;
+  color: #6D5DFC !important;
+  border: 1px solid #E9E3FF !important;
+}
+
+/* Hover на таких кнопках */
+[data-theme="light"] button[style*="background: rgba"]:hover,
+[data-theme="light"] button[style*="background:rgba"]:hover {
+  background: #E9E3FF !important;
+}
+
+/* ═══ ТАБЫ "Войти" / "Регистрация" ═══ */
+[data-theme="light"] [role="tablist"] button,
+[data-theme="light"] [data-tabs="true"] button,
+[data-theme="light"] .tabs button {
+  background: transparent !important;
+  color: #6B7280 !important;
+  border-bottom: 2px solid transparent !important;
+}
+
+[data-theme="light"] [role="tablist"] button[aria-selected="true"],
+[data-theme="light"] [role="tablist"] button.active,
+[data-theme="light"] [data-tabs="true"] button.active,
+[data-theme="light"] .tabs button.active {
+  background: transparent !important;
+  color: #6D5DFC !important;
+  border-bottom: 2px solid #6D5DFC !important;
+}
+
+/* ═══ БЕЙДЖИ НА КАРТОЧКАХ ВАКАНСИЙ ═══ */
+[data-theme="light"] .badge,
+[data-theme="light"] [data-badge="true"],
+[data-theme="light"] span[style*="padding: 4px"],
+[data-theme="light"] span[style*="padding:4px"],
+[data-theme="light"] span[style*="border-radius: 6px"],
+[data-theme="light"] span[style*="border-radius:6px"] {
+  background: #F3F4F6 !important;
+  color: #6B7280 !important;
+  border: 1px solid #E5E7EB !important;
+}
+
+/* Желтые бейджи (зарплата) остаются желтыми */
+[data-theme="light"] [style*="color: #D97706"],
+[data-theme="light"] [style*="color:#D97706"],
+[data-theme="light"] .badge-salary {
+  background: #FEF3C7 !important;
+  color: #D97706 !important;
+  border: 1px solid #FCD34D !important;
+}
+
+/* ═══ ТЕГИ/ЧИПСЫ (Ташкент, Гибрид и т.д.) ═══ */
+[data-theme="light"] [data-tag="true"],
+[data-theme="light"] .tag,
+[data-theme="light"] .chip {
+  background: #F3F4F6 !important;
+  color: #6B7280 !important;
+  border: 1px solid #E5E7EB !important;
+}
+
+/* ═══ ИСКЛЮЧЕНИЯ - Кнопки с градиентом остаются фиолетовыми ═══ */
+[data-theme="light"] .btn-primary,
+[data-theme="light"] button.btn-primary,
+[data-theme="light"] [data-button="primary"],
+[data-theme="light"] button[style*="linear-gradient"] {
+  background: linear-gradient(135deg, #6D5DFC, #8B7BFF) !important;
+  color: #FFFFFF !important;
+  border: none !important;
+}
+
+/* ═══ ИСХОДЯЩИЕ СООБЩЕНИЯ В ЧАТЕ остаются фиолетовыми ═══ */
+[data-theme="light"] [data-message="outgoing"],
+[data-theme="light"] .message-outgoing {
+  background: linear-gradient(135deg, #6D5DFC, #8B7BFF) !important;
+  color: #FFFFFF !important;
+  border: none !important;
+}
+
+/* ═══ ИКОНКИ В КАРТОЧКАХ ═══ */
+[data-theme="light"] [style*="background: rgba(109,93,252,0.1)"] svg,
+[data-theme="light"] [style*="background:rgba(109,93,252,0.1)"] svg {
+  color: #6D5DFC !important;
+}
+/* ══════════════════════════════════════════════
+   COMPREHENSIVE LIGHT THEME FIX
+   Добавьте это в САМЫЙ КОНЕЦ globals-ULTIMATE.css
+══════════════════════════════════════════════ */
+
+/* ═══════════════════════════════════════════════════════════
+   СТРАНИЦА APPLICATIONS (Отклики)
+   ═══════════════════════════════════════════════════════════ */
+[data-theme="light"] [href="/applications"],
+[data-theme="light"] [href="/saved-jobs"] {
+  background: #F3F1FF !important;
+  color: #6D5DFC !important;
+  border: 1px solid #E9E3FF !important;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   RESUME PAGE (Резюме)
+   ═══════════════════════════════════════════════════════════ */
+/* Все карточки опыта/образования */
+[data-theme="light"] [style*="rgba(255,255,255,0.02)"],
+[data-theme="light"] [style*="rgba(255,255,255,0.03)"] {
+  background: #FFFFFF !important;
+  border: 1px solid #E5E7EB !important;
+}
+
+/* Duration badges */
+[data-theme="light"] [style*="rgba(255,255,255,0.06)"] span {
+  background: #F3F4F6 !important;
+  color: #6B7280 !important;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   CHAT PAGE
+   ═══════════════════════════════════════════════════════════ */
+/* Разделители дат */
+[data-theme="light"] [style*="background: rgba(255,255,255,0.06)"] {
+  background: #E5E7EB !important;
+}
+
+/* Непрочитанные чаты */
+[data-theme="light"] [style*="background: rgba(92,46,204,0.1)"] {
+  background: #F3F1FF !important;
+  border-left: 3px solid #6D5DFC !important;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   EMPLOYER DASHBOARD (Кабинет работодателя)
+   ═══════════════════════════════════════════════════════════ */
+/* Stat cards с иконками */
+[data-theme="light"] [style*="background: rgba(109,93,252,0.1)"],
+[data-theme="light"] [style*="background: rgba(16,185,129,0.1)"],
+[data-theme="light"] [style*="background: rgba(245,158,11,0.1)"],
+[data-theme="light"] [style*="background: rgba(59,130,246,0.1)"] {
+  /* Оставляем как есть - это иконки в stat cards */
+  opacity: 1 !important;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   JOBS PAGE (Список вакансий)
+   ═══════════════════════════════════════════════════════════ */
+/* Фильтры и теги */
+[data-theme="light"] [data-filter="true"],
+[data-theme="light"] .filter-tag {
+  background: #F3F4F6 !important;
+  color: #6B7280 !important;
+  border: 1px solid #E5E7EB !important;
+}
+
+[data-theme="light"] [data-filter="true"]:hover,
+[data-theme="light"] .filter-tag:hover {
+  background: #E5E7EB !important;
+}
+
+/* Активный фильтр */
+[data-theme="light"] [data-filter="true"][data-active="true"],
+[data-theme="light"] .filter-tag.active {
+  background: #F3F1FF !important;
+  color: #6D5DFC !important;
+  border: 1px solid #6D5DFC !important;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   ADMIN PAGES
+   ═══════════════════════════════════════════════════════════ */
+/* Таблицы */
+[data-theme="light"] table {
+  background: #FFFFFF !important;
+  border: 1px solid #E5E7EB !important;
+}
+
+[data-theme="light"] th {
+  background: #F9FAFB !important;
+  color: #111827 !important;
+  border-bottom: 2px solid #E5E7EB !important;
+}
+
+[data-theme="light"] td {
+  border-bottom: 1px solid #F3F4F6 !important;
+  color: #111827 !important;
+}
+
+[data-theme="light"] tr:hover {
+  background: #F9FAFB !important;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   ONBOARDING PAGES
+   ═══════════════════════════════════════════════════════════ */
+/* Карточки выбора роли */
+[data-theme="light"] [data-role-card="true"] {
+  background: #FFFFFF !important;
+  border: 2px solid #E5E7EB !important;
+  transition: all 0.2s;
+}
+
+[data-theme="light"] [data-role-card="true"]:hover {
+  border-color: #6D5DFC !important;
+  box-shadow: 0 8px 20px rgba(109,93,252,0.15) !important;
+}
+
+[data-theme="light"] [data-role-card="true"][data-selected="true"] {
+  background: #F3F1FF !important;
+  border-color: #6D5DFC !important;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   ABOUT PAGE
+   ═══════════════════════════════════════════════════════════ */
+/* Feature cards */
+[data-theme="light"] .feature-card {
+  background: #FFFFFF !important;
+  border: 1px solid #E5E7EB !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   MODALS & DROPDOWNS
+   ═══════════════════════════════════════════════════════════ */
+/* Модальные окна */
+[data-theme="light"] [role="dialog"],
+[data-theme="light"] .modal {
+  background: #FFFFFF !important;
+  border: 1px solid #E5E7EB !important;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.15) !important;
+}
+
+/* Overlay */
+[data-theme="light"] [data-overlay="true"],
+[data-theme="light"] .modal-overlay {
+  background: rgba(17,24,39,0.5) !important;
+}
+
+/* Dropdown меню */
+[data-theme="light"] [role="menu"],
+[data-theme="light"] .dropdown-menu {
+  background: #FFFFFF !important;
+  border: 1px solid #E5E7EB !important;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.1) !important;
+}
+
+[data-theme="light"] [role="menuitem"]:hover,
+[data-theme="light"] .dropdown-item:hover {
+  background: #F9FAFB !important;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   FORMS & INPUTS (все формы)
+   ═══════════════════════════════════════════════════════════ */
+/* Все input, textarea, select */
+[data-theme="light"] input:not([type="checkbox"]):not([type="radio"]),
+[data-theme="light"] textarea,
+[data-theme="light"] select {
+  background: #FFFFFF !important;
+  border: 1px solid #D1D5DB !important;
+  color: #111827 !important;
+}
+
+/* Disabled state */
+[data-theme="light"] input:disabled,
+[data-theme="light"] textarea:disabled,
+[data-theme="light"] select:disabled {
+  background: #F9FAFB !important;
+  color: #9CA3AF !important;
+  cursor: not-allowed;
+}
+
+/* Error state */
+[data-theme="light"] input.error,
+[data-theme="light"] textarea.error,
+[data-theme="light"] input[aria-invalid="true"],
+[data-theme="light"] textarea[aria-invalid="true"] {
+  border-color: #EF4444 !important;
+  box-shadow: 0 0 0 2px rgba(239,68,68,0.15) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   CHECKBOXES & RADIO BUTTONS
+   ═══════════════════════════════════════════════════════════ */
+[data-theme="light"] input[type="checkbox"],
+[data-theme="light"] input[type="radio"] {
+  border: 2px solid #D1D5DB !important;
+  background: #FFFFFF !important;
+}
+
+[data-theme="light"] input[type="checkbox"]:checked,
+[data-theme="light"] input[type="radio"]:checked {
+  background: #6D5DFC !important;
+  border-color: #6D5DFC !important;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   PROGRESS BARS
+   ═══════════════════════════════════════════════════════════ */
+[data-theme="light"] .progress-bar {
+  background: #E5E7EB !important;
+}
+
+[data-theme="light"] .progress-fill {
+  background: linear-gradient(90deg, #6D5DFC, #8B7BFF) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   TOOLTIPS
+   ═══════════════════════════════════════════════════════════ */
+[data-theme="light"] [role="tooltip"],
+[data-theme="light"] .tooltip {
+  background: #1F2937 !important;
+  color: #FFFFFF !important;
+  border: 1px solid #374151 !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   ALERTS & NOTIFICATIONS
+   ═══════════════════════════════════════════════════════════ */
+[data-theme="light"] .alert-success {
+  background: #D1FAE5 !important;
+  color: #065F46 !important;
+  border: 1px solid #6EE7B7 !important;
+}
+
+[data-theme="light"] .alert-error {
+  background: #FEE2E2 !important;
+  color: #991B1B !important;
+  border: 1px solid #FCA5A5 !important;
+}
+
+[data-theme="light"] .alert-warning {
+  background: #FEF3C7 !important;
+  color: #92400E !important;
+  border: 1px solid #FCD34D !important;
+}
+
+[data-theme="light"] .alert-info {
+  background: #DBEAFE !important;
+  color: #1E40AF !important;
+  border: 1px solid #93C5FD !important;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   LOADING STATES
+   ═══════════════════════════════════════════════════════════ */
+[data-theme="light"] .skeleton,
+[data-theme="light"] [data-loading="true"] {
+  background: linear-gradient(90deg, #F3F4F6 25%, #E5E7EB 50%, #F3F4F6 75%) !important;
+  background-size: 200% 100% !important;
+  animation: skeleton-loading 1.5s infinite !important;
+}
+
+@keyframes skeleton-loading {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* Spinner */
+[data-theme="light"] .spinner {
+  border-color: #E5E7EB !important;
+  border-top-color: #6D5DFC !important;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   PAGINATION
+   ═══════════════════════════════════════════════════════════ */
+[data-theme="light"] .pagination button,
+[data-theme="light"] [data-pagination="true"] button {
+  background: #FFFFFF !important;
+  border: 1px solid #E5E7EB !important;
+  color: #6B7280 !important;
+}
+
+[data-theme="light"] .pagination button:hover,
+[data-theme="light"] [data-pagination="true"] button:hover {
+  background: #F9FAFB !important;
+  border-color: #6D5DFC !important;
+}
+
+[data-theme="light"] .pagination button.active,
+[data-theme="light"] [data-pagination="true"] button[data-active="true"] {
+  background: #6D5DFC !important;
+  color: #FFFFFF !important;
+  border-color: #6D5DFC !important;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   BREADCRUMBS
+   ═══════════════════════════════════════════════════════════ */
+[data-theme="light"] .breadcrumb {
+  color: #6B7280 !important;
+}
+
+[data-theme="light"] .breadcrumb a {
+  color: #6D5DFC !important;
+}
+
+[data-theme="light"] .breadcrumb a:hover {
+  color: #5B4DF5 !important;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   FINAL CATCH-ALL
+   ═══════════════════════════════════════════════════════════ */
+/* Любые оставшиеся темные элементы */
+[data-theme="light"] [style*="background: rgba(0,0,0"],
+[data-theme="light"] [style*="background:rgba(0,0,0"],
+[data-theme="light"] [style*="background: rgb(0,0,0"],
+[data-theme="light"] [style*="background:rgb(0,0,0"] {
+  background: #FFFFFF !important;
+  border: 1px solid #E5E7EB !important;
+}
+
+/* Любой текст с очень низким контрастом */
+[data-theme="light"] [style*="color: rgba(255,255,255,0.1)"],
+[data-theme="light"] [style*="color: rgba(255,255,255,0.2)"],
+[data-theme="light"] [style*="color:rgba(255,255,255,0.1)"],
+[data-theme="light"] [style*="color:rgba(255,255,255,0.2)"] {
+  color: #9CA3AF !important;
+}
