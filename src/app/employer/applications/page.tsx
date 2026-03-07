@@ -561,8 +561,7 @@ export default function EmployerApplicationsPage() {
                             );
                           })()}
                         </div>
-
-                      {/* Meta info row */}
+                      </div>
                       <div className="flex flex-wrap items-center gap-2 mt-2 mb-3">
                         {app.candidate?.city && (
                           <span className="text-xs px-2 py-1 rounded-lg font-body"
