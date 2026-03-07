@@ -526,6 +526,19 @@ export default function ResumePage() {
         <ResumeAI
           onApply={handleAIApply}
           onClose={() => setShowAI(false)}
+          resumeData={{
+            full_name: fullName,
+            headline,
+            city,
+            about,
+            experiences: experiences.map(e => ({
+              company: e.company,
+              position: e.position,
+              start_date: e.start_date,
+              end_date: e.end_date ?? null,
+            })),
+            skills: skills.map(s => ({ name: s.name, level: s.level })),
+          }}
         />
       )}
 
