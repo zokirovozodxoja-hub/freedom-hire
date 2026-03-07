@@ -5,8 +5,8 @@
 @tailwind utilities;
 
 /* ══════════════════════════════════════════════
-   FREEDOMHIRE DESIGN SYSTEM
-   АГРЕССИВНЫЕ ПЕРЕОПРЕДЕЛЕНИЯ ДЛЯ LIGHT THEME
+   FREEDOMHIRE - NUCLEAR CSS
+   Максимально агрессивные переопределения
 ══════════════════════════════════════════════ */
 
 /* ══════════════════════════════════════════════
@@ -50,10 +50,9 @@
 }
 
 /* ══════════════════════════════════════════════
-   LIGHT THEME — ПРЕМИАЛЬНЫЙ
+   LIGHT THEME
 ══════════════════════════════════════════════ */
 [data-theme="light"] {
-  /* БРЕНД */
   --brand-core: #6D5DFC;
   --brand-light: #8B7BFF;
   --brand-hover: #5B4DF5;
@@ -61,7 +60,6 @@
   --chalk: #111827;
   --gold: #D97706;
   
-  /* ФОНЫ */
   --bg: #FFFFFF;
   --ink: #FFFFFF;
   --page-bg: #FFFFFF;
@@ -75,17 +73,14 @@
   --search-bg: #FFFFFF;
   --ticker-bg: #FFFFFF;
   
-  /* ТЕНИ */
   --card-shadow: 0 2px 8px rgba(0,0,0,0.08);
   --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
   --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
   
-  /* ТЕКСТ */
   --text-primary: #111827;
   --text-secondary: #6B7280;
   --text-muted: #9CA3AF;
   
-  /* ГРАНИЦЫ */
   --border: #E5E7EB;
   --border-light: #F3F4F6;
   --border-hover: #6D5DFC;
@@ -93,7 +88,6 @@
   --input-border: #D1D5DB;
   --ticker-border: #E5E7EB;
   
-  /* АКЦЕНТЫ */
   --badge-bg: #FEF3C7;
   --badge-border: #FCD34D;
 }
@@ -116,7 +110,7 @@ html, body {
 .font-body { font-family: 'DM Sans', sans-serif; }
 
 /* ══════════════════════════════════════════════
-   DARK THEME BACKGROUNDS
+   DARK THEME BACKGROUNDS (только в тёмной теме!)
 ══════════════════════════════════════════════ */
 body { position: relative; isolation: isolate; }
 
@@ -140,27 +134,42 @@ body:not([data-theme="light"])::after {
 }
 
 /* ══════════════════════════════════════════════
-   LIGHT THEME — АГРЕССИВНЫЕ ПЕРЕОПРЕДЕЛЕНИЯ
+   🔥 NUCLEAR LIGHT THEME OVERRIDES 🔥
+   Убиваем ВСЕ фиолетовые и серые фоны
 ══════════════════════════════════════════════ */
 
-/* ═══ ВСЕ ЭЛЕМЕНТЫ С СЕРЫМ ФОНОМ → БЕЛЫЕ ═══ */
+/* ═══ УБИВАЕМ body::before и ::after В СВЕТЛОЙ ТЕМЕ ═══ */
+[data-theme="light"] body::before,
+[data-theme="light"] body::after {
+  display: none !important;
+  opacity: 0 !important;
+  background: none !important;
+}
+
+/* ═══ ВСЕ ЭЛЕМЕНТЫ - БЕЛЫЙ ФОН ПО УМОЛЧАНИЮ ═══ */
 [data-theme="light"] * {
-  /* Убираем серые фоны */
+  /* Удаляем все фиолетовые градиенты из инлайн стилей */
 }
 
-[data-theme="light"] body,
-[data-theme="light"] html,
-[data-theme="light"] main,
-[data-theme="light"] div {
-  background-color: transparent !important;
-}
-
-/* Основной контейнер */
 [data-theme="light"] body {
   background: #FFFFFF !important;
 }
 
-/* ═══ ВСЕ ТЕМНЫЕ ФОНЫ → БЕЛЫЕ С ГРАНИЦАМИ ═══ */
+[data-theme="light"] main {
+  background: #FFFFFF !important;
+}
+
+/* ═══ УБИВАЕМ ВСЕ ФИОЛЕТОВЫЕ ФОНЫ ═══ */
+[data-theme="light"] [style*="background: radial-gradient"],
+[data-theme="light"] [style*="background: linear-gradient(135deg, #5B2ECC"],
+[data-theme="light"] [style*="background: linear-gradient(135deg, #6D5DFC"],
+[data-theme="light"] [style*="background: linear-gradient(145deg"],
+[data-theme="light"] [style*="background:radial-gradient"],
+[data-theme="light"] [style*="background:linear-gradient"] {
+  background: #FFFFFF !important;
+}
+
+/* ═══ УБИВАЕМ ВСЕ ТЕМНЫЕ RGBA ФОНЫ ═══ */
 [data-theme="light"] [style*="background: rgba(255,255,255,0.04)"],
 [data-theme="light"] [style*="background: rgba(255,255,255,0.05)"],
 [data-theme="light"] [style*="background: rgba(255,255,255,0.06)"],
@@ -170,40 +179,49 @@ body:not([data-theme="light"])::after {
 [data-theme="light"] [style*="background:rgba(255,255,255,0.05)"],
 [data-theme="light"] [style*="background:rgba(255,255,255,0.06)"],
 [data-theme="light"] [style*="background:rgba(255,255,255,0.07)"],
-[data-theme="light"] [style*="background:rgba(255,255,255,0.08)"] {
+[data-theme="light"] [style*="background:rgba(255,255,255,0.08)"],
+[data-theme="light"] [style*="background: rgba(13,15,23"],
+[data-theme="light"] [style*="background: rgba(7,6,15"],
+[data-theme="light"] [style*="background:rgba(13,15,23"],
+[data-theme="light"] [style*="background:rgba(7,6,15"] {
   background: #FFFFFF !important;
   border: 1px solid #E5E7EB !important;
   box-shadow: 0 2px 8px rgba(0,0,0,0.04) !important;
 }
 
-/* ═══ ТЕМНЫЕ DROPDOWN → БЕЛЫЕ ═══ */
+/* ═══ УБИВАЕМ ТЕМНЫЕ DROPDOWN ФОНЫ ═══ */
 [data-theme="light"] [style*="#0f1929"],
 [data-theme="light"] [style*="#120830"],
 [data-theme="light"] [style*="#1E0F44"],
+[data-theme="light"] [style*="#0A0618"],
 [data-theme="light"] [style*="background: #0f"],
 [data-theme="light"] [style*="background: #12"],
 [data-theme="light"] [style*="background: #1E"],
+[data-theme="light"] [style*="background: #0A"],
 [data-theme="light"] [style*="background:#0f"],
 [data-theme="light"] [style*="background:#12"],
-[data-theme="light"] [style*="background:#1E"] {
+[data-theme="light"] [style*="background:#1E"],
+[data-theme="light"] [style*="background:#0A"] {
   background: #FFFFFF !important;
   color: #111827 !important;
   border-color: #E5E7EB !important;
   box-shadow: 0 10px 25px rgba(0,0,0,0.1) !important;
 }
 
-/* ═══ ВСЕ ТЕКСТЫ БЕЛЫЕ → ТЕМНЫЕ ═══ */
+/* ═══ УБИВАЕМ БЕЛЫЙ ТЕКСТ → ТЕМНЫЙ ═══ */
 [data-theme="light"] .text-white,
 [data-theme="light"] [style*="color: #fff"],
 [data-theme="light"] [style*="color: #FFF"],
 [data-theme="light"] [style*="color:#fff"],
 [data-theme="light"] [style*="color:#FFF"],
 [data-theme="light"] [style*="color: white"],
-[data-theme="light"] [style*="color:white"] {
+[data-theme="light"] [style*="color:white"],
+[data-theme="light"] [style*="color: #F6F2FF"],
+[data-theme="light"] [style*="color:#F6F2FF"] {
   color: #111827 !important;
 }
 
-/* Полупрозрачные белые тексты */
+/* Tailwind текст */
 [data-theme="light"] .text-white\/10 { color: rgba(17,24,39,0.1) !important; }
 [data-theme="light"] .text-white\/20 { color: rgba(17,24,39,0.2) !important; }
 [data-theme="light"] .text-white\/30 { color: rgba(17,24,39,0.3) !important; }
@@ -213,6 +231,7 @@ body:not([data-theme="light"])::after {
 [data-theme="light"] .text-white\/70 { color: #6B7280 !important; }
 [data-theme="light"] .text-white\/80 { color: #111827 !important; }
 
+/* RGBA белый текст */
 [data-theme="light"] [style*="rgba(255,255,255,0.22)"],
 [data-theme="light"] [style*="rgba(255,255,255,0.28)"],
 [data-theme="light"] [style*="rgba(255,255,255,0.4)"],
@@ -231,6 +250,15 @@ body:not([data-theme="light"])::after {
 [data-theme="light"] h5,
 [data-theme="light"] h6 {
   color: #111827 !important;
+}
+
+/* ═══ PARAGRAPH ═══ */
+[data-theme="light"] p {
+  color: #111827 !important;
+}
+
+[data-theme="light"] span {
+  color: inherit !important;
 }
 
 /* ═══ ИНПУТЫ ═══ */
@@ -268,7 +296,7 @@ body:not([data-theme="light"])::after {
   box-shadow: 0 2px 8px rgba(0,0,0,0.04) !important;
 }
 
-/* ═══ КНОПКИ ═══ */
+/* ═══ КНОПКИ (только градиент остаётся фиолетовым) ═══ */
 .btn-primary {
   background: linear-gradient(135deg, #6D5DFC, #8B7BFF) !important;
   color: #ffffff !important;
@@ -294,16 +322,24 @@ body:not([data-theme="light"])::after {
   background: #F3F4F6 !important;
 }
 
-/* ═══ SIDEBAR ЧАТА ═══ */
-[data-theme="light"] [style*="background: rgba(13,15,23"] {
-  background: #FFFFFF !important;
-  border-right: 1px solid #E5E7EB !important;
-  color: #111827 !important;
+/* ═══ ЧАТОВЫЕ СООБЩЕНИЯ (градиент только в них) ═══ */
+[data-theme="light"] .message-outgoing,
+[data-theme="light"] [data-message="outgoing"] {
+  background: linear-gradient(135deg, #6D5DFC, #8B7BFF) !important;
+  color: #FFFFFF !important;
 }
 
-/* ═══ HOVER СОСТОЯНИЯ ═══ */
-[data-theme="light"] .hover\:bg-white\/8:hover {
-  background: rgba(109,93,252,0.06) !important;
+[data-theme="light"] .message-incoming {
+  background: #F3F4F6 !important;
+  color: #111827 !important;
+  border: 1px solid #E5E7EB !important;
+}
+
+/* ═══ SIDEBAR ЧАТА ═══ */
+[data-theme="light"] [data-sidebar="true"],
+[data-theme="light"] .sidebar {
+  background: #FFFFFF !important;
+  border-right: 1px solid #E5E7EB !important;
 }
 
 /* ═══ БЕЙДЖИ ═══ */
@@ -317,19 +353,6 @@ body:not([data-theme="light"])::after {
   background: #D1FAE5 !important;
   color: #059669 !important;
   border: 1px solid #6EE7B7 !important;
-}
-
-/* ═══ ЧАТОВЫЕ СООБЩЕНИЯ ═══ */
-[data-theme="light"] .message-outgoing,
-[data-theme="light"] [style*="background: linear-gradient(135deg, #5B2ECC"] {
-  background: linear-gradient(135deg, #6D5DFC, #8B7BFF) !important;
-  color: #FFFFFF !important;
-}
-
-[data-theme="light"] .message-incoming {
-  background: #F3F4F6 !important;
-  color: #111827 !important;
-  border: 1px solid #E5E7EB !important;
 }
 
 /* ═══ STAT CARDS ═══ */
@@ -350,12 +373,9 @@ body:not([data-theme="light"])::after {
   border: 1px solid #E5E7EB !important;
 }
 
-/* ═══ ФИОЛЕТОВЫЕ КАРТОЧКИ НА ДАШБОРДЕ ═══ */
-[data-theme="light"] [style*="background: rgba(109,93,252,0.1)"],
-[data-theme="light"] [style*="background: rgba(16,185,129,0.1)"],
-[data-theme="light"] [style*="background: rgba(245,158,11,0.1)"],
-[data-theme="light"] [style*="background: rgba(59,130,246,0.1)"] {
-  opacity: 1 !important;
+/* ═══ HOVER ═══ */
+[data-theme="light"] .hover\:bg-white\/8:hover {
+  background: rgba(109,93,252,0.06) !important;
 }
 
 /* ══════════════════════════════════════════════
