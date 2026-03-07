@@ -74,14 +74,20 @@ export default function ShortlistPage() {
     if (data?.title) setJobTitle(data.title);
   }
 
-  // Проверяем есть ли оценки в БД для этой вакансии
+  // Проверяем есть ли оценки в localStorage
   async function checkScores() {
-    const supabase = createClient();
-    const { count } = await supabase
-      .from("ai_candidate_scores")
-      .select("id", { count: "exact", head: true })
-      .eq("job_id", jobId);
-    setHasScores((count ?? 0) > 0);
+    try {
+      const saved = localStorage.getItem("fh_ai_scores");
+      const ts = localStorage.getItem("fh_ai_scores_ts");
+      if (saved && ts && Date.now() - Number(ts) < 86400000) {
+        const parsed = JSON.parse(saved);
+        setHasScores(Object.keys(parsed).length > 0);
+      } else {
+        setHasScores(false);
+      }
+    } catch {
+      setHasScores(false);
+    }
   }
 
   async function loadShortlist() {
@@ -107,10 +113,32 @@ export default function ShortlistPage() {
     setGenerating(true);
     setError(null);
     try {
+      // Читаем оценки из localStorage (сохранены при AI-анализе)
+      let scores: { candidate_id: string; score: number; grade: string; summary: string; recommendation: string }[] = [];
+      try {
+        const saved = localStorage.getItem("fh_ai_scores");
+        if (saved) {
+          const parsed = JSON.parse(saved) as Record<string, any>;
+          scores = Object.values(parsed).map((s: any) => ({
+            candidate_id: s.candidate_id,
+            score: s.score,
+            grade: s.grade,
+            summary: s.summary ?? "",
+            recommendation: s.recommendation ?? "consider",
+          }));
+        }
+      } catch {}
+
+      if (!scores.length) {
+        setError("Сначала запустите AI-анализ кандидатов на странице откликов");
+        setGenerating(false);
+        return;
+      }
+
       const res = await fetch("/api/ai/shortlist", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ job_id: jobId, limit }),
+        body: JSON.stringify({ job_id: jobId, limit, scores }),
       });
       const json = await res.json();
       if (!json.ok) {

@@ -1,15 +1,22 @@
 // src/app/api/ai/shortlist/route.ts
-// Создаёт или обновляет шортлист для вакансии.
-// Берёт уже посчитанные оценки из ai_candidate_scores,
-// сортирует и сохраняет топ-N в ai_shortlists.
+// v2: принимает scores прямо в теле запроса — не зависит от ai_candidate_scores.
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import type { AIResponse } from "@/lib/ai/types";
 
+type ScoreEntry = {
+  candidate_id: string;
+  score: number;
+  grade: string;
+  summary: string;
+  recommendation: string;
+};
+
 type RequestBody = {
   job_id: string;
-  limit?: number; // сколько кандидатов в шортлист, default 5
+  limit?: number;
+  scores: ScoreEntry[];
 };
 
 type ShortlistEntry = {
@@ -18,7 +25,6 @@ type ShortlistEntry = {
   grade: string;
   summary: string;
   recommendation: string;
-  // Данные профиля
   full_name: string | null;
   headline: string | null;
   city: string | null;
@@ -55,7 +61,8 @@ export async function POST(
     );
   }
 
-  const { job_id, limit = 5 } = body;
+  const { job_id, limit = 5, scores } = body;
+
   if (!job_id) {
     return NextResponse.json(
       { ok: false, error: { code: "validation_error", message: "job_id required" } },
@@ -63,7 +70,13 @@ export async function POST(
     );
   }
 
-  // Проверяем что вакансия принадлежит этому работодателю
+  if (!scores?.length) {
+    return NextResponse.json(
+      { ok: false, error: { code: "validation_error", message: "Сначала запустите AI-анализ кандидатов" } },
+      { status: 400 }
+    );
+  }
+
   const { data: job } = await supabase.from("jobs")
     .select("id, title, company_id, companies(owner_id)")
     .eq("id", job_id)
@@ -76,22 +89,11 @@ export async function POST(
     );
   }
 
-  // Берём оценки из БД — уже посчитаны на этапе candidate-score
-  const { data: scores } = await supabase.from("ai_candidate_scores")
-    .select("candidate_id, score, grade, summary, recommendation")
-    .eq("job_id", job_id)
-    .order("score", { ascending: false })
-    .limit(limit);
+  const topScores = [...scores]
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit);
 
-  if (!scores?.length) {
-    return NextResponse.json(
-      { ok: false, error: { code: "validation_error", message: "Сначала запустите AI-анализ кандидатов" } },
-      { status: 400 }
-    );
-  }
-
-  // Загружаем профили кандидатов
-  const candidateIds = scores.map(s => s.candidate_id);
+  const candidateIds = topScores.map(s => s.candidate_id);
 
   const [profilesRes, skillsRes] = await Promise.all([
     supabase.from("profiles")
@@ -102,16 +104,15 @@ export async function POST(
       .in("user_id", candidateIds),
   ]);
 
-  const profilesMap = new Map((profilesRes.data ?? []).map(p => [p.id, p]));
+  const profilesMap = new Map((profilesRes.data ?? []).map((p: any) => [p.id, p]));
   const skillsMap = new Map<string, { name: string; level: string }[]>();
   (skillsRes.data ?? []).forEach((s: any) => {
     if (!skillsMap.has(s.user_id)) skillsMap.set(s.user_id, []);
     skillsMap.get(s.user_id)!.push({ name: s.name, level: s.level });
   });
 
-  // Собираем записи шортлиста
-  const entries: ShortlistEntry[] = scores.map(s => {
-    const profile = profilesMap.get(s.candidate_id);
+  const entries: ShortlistEntry[] = topScores.map(s => {
+    const profile = profilesMap.get(s.candidate_id) as any;
     return {
       candidate_id: s.candidate_id,
       score: s.score,
@@ -126,7 +127,6 @@ export async function POST(
     };
   });
 
-  // Сохраняем / обновляем шортлист в БД
   const { data: saved, error: saveErr } = await supabase
     .from("ai_shortlists")
     .upsert({
@@ -158,7 +158,6 @@ export async function POST(
   });
 }
 
-// GET — загрузить существующий шортлист
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -175,6 +174,5 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     .maybeSingle();
 
   if (!data) return NextResponse.json({ ok: true, data: null });
-
   return NextResponse.json({ ok: true, data });
 }
