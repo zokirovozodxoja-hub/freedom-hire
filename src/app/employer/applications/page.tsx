@@ -65,12 +65,33 @@ export default function EmployerApplicationsPage() {
   const [newStatus, setNewStatus] = useState("");
   const [sending, setSending] = useState(false);
 
-  // AI state
+  // AI state — оценки сохраняются в localStorage по ключу job_id
   const [showAIPanel, setShowAIPanel] = useState(false);
-  const [aiScores, setAiScores] = useState<Record<string, CandidateScoreOutput>>({});
+  const [aiScores, setAiScoresRaw] = useState<Record<string, CandidateScoreOutput>>({});
   const [sortByAI, setSortByAI] = useState(false);
   const [companyJobs, setCompanyJobs] = useState<{ id: string; title: string; description: string; requirements: string; tags: string[]; experience_level: string }[]>([]);
   const [selectedJobId, setSelectedJobId] = useState<string>("");
+
+  // Обёртка — сохраняет оценки в localStorage при изменении
+  function setAiScores(scores: Record<string, CandidateScoreOutput>) {
+    setAiScoresRaw(scores);
+    try {
+      localStorage.setItem("fh_ai_scores", JSON.stringify(scores));
+      localStorage.setItem("fh_ai_scores_ts", Date.now().toString());
+    } catch {}
+  }
+
+  // Восстанавливаем оценки из localStorage при монтировании
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("fh_ai_scores");
+      const ts = localStorage.getItem("fh_ai_scores_ts");
+      // Протухает через 24 часа
+      if (saved && ts && Date.now() - Number(ts) < 86400000) {
+        setAiScoresRaw(JSON.parse(saved));
+      }
+    } catch {}
+  }, []);
 
   useEffect(() => { loadApplications(); }, []);
 
@@ -466,18 +487,28 @@ export default function EmployerApplicationsPage() {
           Управляйте откликами на ваши вакансии
         </p>
 
-        {/* Job selector (если несколько вакансий) */}
+        {/* Job selector — кастомные кнопки вместо native select */}
         {companyJobs.length > 1 && (
-          <div className="mb-4">
-            <select
-              value={selectedJobId}
-              onChange={e => setSelectedJobId(e.target.value)}
-              className="text-sm rounded-xl px-3 py-2 outline-none"
-              style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.8)" }}>
-              {companyJobs.map(j => (
-                <option key={j.id} value={j.id}>{j.title}</option>
-              ))}
-            </select>
+          <div className="flex flex-wrap gap-2 mb-5">
+            {companyJobs.map(j => (
+              <button
+                key={j.id}
+                onClick={() => setSelectedJobId(j.id)}
+                className="px-4 py-2 rounded-xl text-sm font-medium transition"
+                style={{
+                  background: selectedJobId === j.id
+                    ? "rgba(92,46,204,0.3)"
+                    : "rgba(255,255,255,0.04)",
+                  color: selectedJobId === j.id
+                    ? "var(--lavender)"
+                    : "rgba(255,255,255,0.5)",
+                  border: selectedJobId === j.id
+                    ? "1px solid rgba(196,173,255,0.3)"
+                    : "1px solid rgba(255,255,255,0.08)",
+                }}>
+                {j.title ?? "Без названия"}
+              </button>
+            ))}
           </div>
         )}
 
