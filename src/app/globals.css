@@ -440,3 +440,67 @@ textarea { resize: vertical; }
 .brand-glow {
   box-shadow: 0 0 60px rgba(92,46,204,0.25), 0 20px 60px rgba(0,0,0,0.5);
 }
+/* ══════════════════════════════════════════════
+   CHAT FIX - Добавьте это в конец globals.css
+══════════════════════════════════════════════ */
+
+/* ═══ ЧАТ - ЛЕВАЯ ПАНЕЛЬ БЕЛАЯ ═══ */
+[data-theme="light"] [style*="background: rgba(13,15,23"] {
+  background: #FFFFFF !important;
+  border-right: 1px solid #E5E7EB !important;
+}
+
+/* Все элементы с темным серым фоном → белые */
+[data-theme="light"] [style*="rgb(55, 55, 64)"],
+[data-theme="light"] [style*="rgb(45, 45, 50)"],
+[data-theme="light"] [style*="rgb(64, 64, 70)"],
+[data-theme="light"] [style*="rgba(55,55,64"],
+[data-theme="light"] [style*="rgba(45,45,50"],
+[data-theme="light"] [style*="rgba(64,64,70"] {
+  background: #FFFFFF !important;
+}
+
+/* Header чата белый */
+[data-theme="light"] header {
+  background: #FFFFFF !important;
+  border-bottom: 1px solid #E5E7EB !important;
+}
+
+/* Sidebar текст темный */
+[data-theme="light"] [data-sidebar="true"] *,
+[data-theme="light"] .sidebar * {
+  color: #111827 !important;
+}
+
+/* Список чатов */
+[data-theme="light"] [data-chatlist="true"],
+[data-theme="light"] .chat-list {
+  background: #FFFFFF !important;
+}
+
+/* Элементы списка чатов */
+[data-theme="light"] [data-chatlist="true"] > *,
+[data-theme="light"] .chat-list > * {
+  background: #FFFFFF !important;
+  border-bottom: 1px solid #F3F4F6 !important;
+}
+
+[data-theme="light"] [data-chatlist="true"] > *:hover,
+[data-theme="light"] .chat-list > *:hover {
+  background: #F9FAFB !important;
+}
+
+/* Активный чат */
+[data-theme="light"] [data-active="true"],
+[data-theme="light"] .chat-active {
+  background: #F3F1FF !important;
+  border-left: 3px solid #6D5DFC !important;
+}
+
+/* Инпут в сайдбаре */
+[data-theme="light"] .sidebar input,
+[data-theme="light"] [data-sidebar="true"] input {
+  background: #F9FAFB !important;
+  border: 1px solid #E5E7EB !important;
+  color: #111827 !important;
+}
