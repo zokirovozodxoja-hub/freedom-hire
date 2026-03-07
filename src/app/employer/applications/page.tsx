@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { CandidateScorePanel, type CandidateForScore, type JobForScore } from "@/components/employer/ai/CandidateScorePanel";
+import { InterviewPanel } from "@/components/employer/ai/InterviewPanel";
 import type { CandidateScoreOutput } from "@/lib/ai/types";
 
 type Application = {
@@ -130,6 +131,9 @@ export default function EmployerApplicationsPage() {
   const [messageText, setMessageText] = useState("");
   const [newStatus, setNewStatus] = useState("");
   const [sending, setSending] = useState(false);
+
+  // Interview state
+  const [interviewApp, setInterviewApp] = useState<Application | null>(null);
 
   // AI state — оценки сохраняются в localStorage по ключу job_id
   const [showAIPanel, setShowAIPanel] = useState(false);
@@ -751,9 +755,20 @@ export default function EmployerApplicationsPage() {
                           onClick={() => openChat(app)}
                           className="inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-body transition"
                           style={{ border: "1px solid rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.7)", background: "rgba(255,255,255,0.04)" }}>
-                          💬 Написать
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                          </svg>
+                          Написать
                         </button>
-
+                        <button
+                          onClick={() => setInterviewApp(app)}
+                          className="inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-body transition"
+                          style={{ border: "1px solid rgba(196,173,255,0.2)", color: "var(--lavender)", background: "rgba(92,46,204,0.1)" }}>
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M8 12h.01M12 12h.01M16 12h.01M21 3H3v13l4 4h14V3z" />
+                          </svg>
+                          AI-интервью
+                        </button>
                         <div className="ml-auto flex flex-wrap gap-1.5">
                           {STATUSES.filter((s) => s.key !== app.status).map((s) => (
                             <button key={s.key} onClick={() => openModal(app, s.key)}
@@ -774,6 +789,18 @@ export default function EmployerApplicationsPage() {
       </div>
 
       {/* Modal */}
+      {/* Interview Modal */}
+      {interviewApp && (
+        <InterviewPanel
+          applicationId={interviewApp.id}
+          jobId={interviewApp.job_id}
+          candidateId={interviewApp.candidate_id}
+          candidateName={interviewApp.candidate?.full_name ?? `Кандидат ${interviewApp.candidate_id.slice(0, 8)}`}
+          jobTitle={interviewApp.jobs?.title ?? "Вакансия"}
+          onClose={() => setInterviewApp(null)}
+        />
+      )}
+
       {showModal && selectedApp && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
           style={{ background: "rgba(7,6,15,0.85)", backdropFilter: "blur(8px)" }}>
