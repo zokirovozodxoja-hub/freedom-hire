@@ -603,7 +603,7 @@ function ChatView({ messages, loading, error, input, onInput, onSend, bottomRef 
   input: string;
   onInput: (v: string) => void;
   onSend: () => void;
-  bottomRef: React.RefObject<HTMLDivElement>;
+  bottomRef: React.RefObject<HTMLDivElement | null>;
 }) {
   return (
     <div className="flex flex-col" style={{ height: "380px" }}>
