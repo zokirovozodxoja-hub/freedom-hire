@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { CandidateScorePanel, type CandidateForScore, type JobForScore } from "@/components/employer/ai/CandidateScorePanel";
+import type { CandidateScoreOutput } from "@/lib/ai/types";
 
 type Application = {
   id: string;
@@ -63,6 +65,13 @@ export default function EmployerApplicationsPage() {
   const [newStatus, setNewStatus] = useState("");
   const [sending, setSending] = useState(false);
 
+  // AI state
+  const [showAIPanel, setShowAIPanel] = useState(false);
+  const [aiScores, setAiScores] = useState<Record<string, CandidateScoreOutput>>({});
+  const [sortByAI, setSortByAI] = useState(false);
+  const [companyJobs, setCompanyJobs] = useState<{ id: string; title: string; description: string; requirements: string; tags: string[]; experience_level: string }[]>([]);
+  const [selectedJobId, setSelectedJobId] = useState<string>("");
+
   useEffect(() => { loadApplications(); }, []);
 
   async function loadApplications() {
@@ -73,9 +82,15 @@ export default function EmployerApplicationsPage() {
     const { data: company } = await supabase.from("companies").select("id").eq("owner_id", userData.user.id).maybeSingle();
     if (!company) { router.replace("/onboarding/employer"); return; }
 
-    const { data: jobsList } = await supabase.from("jobs").select("id").eq("company_id", company.id);
+    const { data: jobsList } = await supabase.from("jobs")
+      .select("id,title,description,requirements,tags,experience_level")
+      .eq("company_id", company.id);
     const jobIds = (jobsList ?? []).map((j) => j.id);
     if (jobIds.length === 0) { setApps([]); setLoading(false); return; }
+
+    // Сохраняем вакансии для AI-анализа
+    setCompanyJobs((jobsList ?? []) as typeof companyJobs);
+    if (jobsList?.[0]) setSelectedJobId(jobsList[0].id);
 
     const { data } = await supabase.from("applications")
       .select("id,job_id,candidate_id,status,created_at,cover_letter,jobs(title)")
@@ -338,8 +353,47 @@ export default function EmployerApplicationsPage() {
     setSending(false);
   }
 
-  const filtered = apps.filter((a) => !filter || a.status === filter);
+  const filtered = useMemo(() => {
+    let list = apps.filter((a) => !filter || a.status === filter);
+    if (sortByAI && Object.keys(aiScores).length > 0) {
+      list = [...list].sort((a, b) => {
+        const sa = aiScores[a.candidate_id]?.score ?? -1;
+        const sb = aiScores[b.candidate_id]?.score ?? -1;
+        return sb - sa;
+      });
+    }
+    return list;
+  }, [apps, filter, sortByAI, aiScores]);
+
   const counts = STATUSES.map((s) => ({ ...s, count: apps.filter((a) => a.status === s.key).length }));
+
+  // Данные для AI-панели
+  const selectedJob = companyJobs.find(j => j.id === selectedJobId);
+  const jobForAI: JobForScore | undefined = selectedJob ? {
+    id: selectedJob.id,
+    title: selectedJob.title ?? "",
+    description: selectedJob.description ?? "",
+    requirements: selectedJob.requirements ?? "",
+    skills: (selectedJob.tags ?? []) as string[],
+    experience_level: selectedJob.experience_level ?? "",
+  } : undefined;
+
+  const candidatesForAI: CandidateForScore[] = apps
+    .filter(a => !selectedJobId || a.job_id === selectedJobId)
+    .map(a => ({
+      candidate_id: a.candidate_id,
+      full_name: a.candidate?.full_name,
+      headline: a.candidate?.headline,
+      about: null,
+      skills: a.skills,
+      experiences: a.lastExperience ? [{
+        company: a.lastExperience.company,
+        position: a.lastExperience.position,
+        start_date: null,
+        end_date: null,
+      }] : [],
+      cover_letter: a.cover_letter,
+    }));
 
   if (loading) {
     return (
@@ -356,12 +410,74 @@ export default function EmployerApplicationsPage() {
   return (
     <div className="min-h-screen p-6">
       <div className="max-w-4xl mx-auto">
-        <h1 className="font-display text-3xl mb-1" style={{ color: "var(--chalk)" }}>
-          Отклики кандидатов
-        </h1>
+        <div className="flex items-start justify-between gap-4 mb-1">
+          <h1 className="font-display text-3xl" style={{ color: "var(--chalk)" }}>
+            Отклики кандидатов
+          </h1>
+          <div className="flex items-center gap-2 mt-1">
+            {Object.keys(aiScores).length > 0 && (
+              <button
+                onClick={() => setSortByAI(v => !v)}
+                className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl transition"
+                style={{
+                  background: sortByAI ? "rgba(92,46,204,0.25)" : "rgba(255,255,255,0.05)",
+                  color: sortByAI ? "var(--lavender)" : "rgba(255,255,255,0.5)",
+                  border: sortByAI ? "1px solid rgba(196,173,255,0.3)" : "1px solid rgba(255,255,255,0.1)",
+                }}>
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
+                </svg>
+                {sortByAI ? "По AI-оценке" : "Обычная сортировка"}
+              </button>
+            )}
+            <button
+              onClick={() => setShowAIPanel(true)}
+              className="flex items-center gap-1.5 text-sm px-4 py-2 rounded-xl font-medium transition"
+              style={{
+                background: "linear-gradient(135deg, rgba(92,46,204,0.3), rgba(124,74,232,0.3))",
+                border: "1px solid rgba(196,173,255,0.25)",
+                color: "var(--lavender)",
+              }}>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
+                  d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+              AI-анализ
+            </button>
+          </div>
+        </div>
         <p className="text-sm mb-6" style={{ color: "rgba(255,255,255,0.4)" }}>
           Управляйте откликами на ваши вакансии
         </p>
+
+        {/* Job selector (если несколько вакансий) */}
+        {companyJobs.length > 1 && (
+          <div className="mb-4">
+            <select
+              value={selectedJobId}
+              onChange={e => setSelectedJobId(e.target.value)}
+              className="text-sm rounded-xl px-3 py-2 outline-none"
+              style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.8)" }}>
+              {companyJobs.map(j => (
+                <option key={j.id} value={j.id}>{j.title}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {/* AI Panel */}
+        {showAIPanel && jobForAI && (
+          <CandidateScorePanel
+            job={jobForAI}
+            candidates={candidatesForAI}
+            onClose={() => setShowAIPanel(false)}
+            onScoresReady={(scores) => {
+              setAiScores(prev => ({ ...prev, ...scores }));
+              setSortByAI(true);
+              setShowAIPanel(false);
+            }}
+          />
+        )}
 
         {/* Filters */}
         <div className="flex flex-wrap gap-2 mb-6">
@@ -430,8 +546,21 @@ export default function EmployerApplicationsPage() {
                             </div>
                           )}
                         </div>
-                        <StatusBadge status={app.status} />
-                      </div>
+                        <div className="flex items-start gap-2">
+                          <StatusBadge status={app.status} />
+                          {aiScores[app.candidate_id] && (() => {
+                            const s = aiScores[app.candidate_id];
+                            const gradeColors: Record<string, string> = { A: "#22c55e", B: "#60a5fa", C: "#fbbf24", D: "#f87171" };
+                            const color = gradeColors[s.grade] ?? "#f87171";
+                            return (
+                              <span className="text-xs font-bold px-2 py-0.5 rounded-lg shrink-0"
+                                style={{ background: `${color}20`, color, border: `1px solid ${color}40` }}
+                                title={s.summary}>
+                                AI {s.grade} · {s.score}%
+                              </span>
+                            );
+                          })()}
+                        </div>
 
                       {/* Meta info row */}
                       <div className="flex flex-wrap items-center gap-2 mt-2 mb-3">
