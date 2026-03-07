@@ -1,10 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 
 // ═══════════════════════════════════════════════════════
-// RATE LIMITING — только для вставки резюме
-// 5 вставок в день + cooldown 30 сек
+// RATE LIMITING
 // ═══════════════════════════════════════════════════════
 
 const PASTE_LIMIT = 5;
@@ -26,7 +25,7 @@ function getUsage(): UsageData {
 function saveUsage(d: UsageData) { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(d)); } catch {} }
 function checkPasteLimit(): { ok: boolean; reason?: string } {
   const u = getUsage();
-  if (u.count >= PASTE_LIMIT) return { ok: false, reason: `Лимит ${PASTE_LIMIT} вставок в день исчерпан. Приходите завтра.` };
+  if (u.count >= PASTE_LIMIT) return { ok: false, reason: `Лимит ${PASTE_LIMIT} импортов в день исчерпан. Приходите завтра.` };
   return { ok: true };
 }
 function checkCooldown(): { ok: boolean; left?: number } {
@@ -43,6 +42,7 @@ function getRemaining() { return PASTE_LIMIT - (typeof window !== "undefined" ? 
 // ═══════════════════════════════════════════════════════
 
 type Tab = "paste" | "analyze" | "salary" | "cover";
+type ImportMode = "text" | "file";
 
 export type AIResult = {
   full_name?: string;
@@ -83,10 +83,9 @@ const PASTE_SYSTEM = `Ты парсер резюме. Резюме может б
 Пример:
   "Январь 2026 — настоящее время  HamkorBank  Руководитель отдела" -> start: "2026-01-01", end: null
   "Июнь 2025 — Январь 2026  IPLUS  Руководитель департамента" -> start: "2025-06-01", end: "2026-01-01"
-  "Август 2024 — Июнь 2025  CENTRAL DISTRIBUTOR  CCO" -> start: "2024-08-01", end: "2025-06-01"
 
 НАВЫКИ: все из раздела "Навыки" / "Ko'nikmalar" / "Skills".
-Языки: A1/Beginner/Boshlang'ich=beginner, B1/B2/Intermediate/O'rta=intermediate, C1/Advanced/Yuqori=advanced, C2/Native/Ona tili/Родной=expert. Без уровня = intermediate.
+Языки: A1/Beginner=beginner, B1/B2/Intermediate=intermediate, C1/Advanced=advanced, C2/Native/Родной=expert. Без уровня = intermediate.
 
 ПОЛЯ (результат всегда на русском языке):
 - full_name: имя из заголовка
@@ -188,6 +187,22 @@ function hasData(r: AIResult) {
     (r.experiences?.length ?? 0) > 0 || (r.skills?.length ?? 0) > 0;
 }
 
+async function readFileAsBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve((reader.result as string).split(",")[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+async function readDocxAsText(file: File): Promise<string> {
+  const mammoth = await import("mammoth");
+  const arrayBuffer = await file.arrayBuffer();
+  const result = await mammoth.extractRawText({ arrayBuffer });
+  return result.value;
+}
+
 // ═══════════════════════════════════════════════════════
 // TAB ICONS (SVG)
 // ═══════════════════════════════════════════════════════
@@ -223,10 +238,6 @@ const TABS: { id: Tab; label: string; desc: string; color: string }[] = [
   { id: "cover",   label: "Письмо",   desc: "Сопроводительное письмо",    color: "#22c55e" },
 ];
 
-// ═══════════════════════════════════════════════════════
-// SPINNER
-// ═══════════════════════════════════════════════════════
-
 function Spinner({ text }: { text: string }) {
   return (
     <span className="flex items-center justify-center gap-2">
@@ -245,11 +256,15 @@ export function ResumeAI({ onApply, onClose, resumeData = {} }: ResumeAIProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [cooldown, setCooldown] = useState(0);
-  const cooldownRef = { current: null as ReturnType<typeof setInterval> | null };
+  const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Paste tab
+  const [importMode, setImportMode] = useState<ImportMode>("text");
   const [pasteText, setPasteText] = useState("");
+  const [fileName, setFileName] = useState<string | null>(null);
+  const [fileData, setFileData] = useState<{ type: "pdf"; base64: string } | { type: "text"; text: string } | null>(null);
   const [parsed, setParsed] = useState<AIResult | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Analyze / Salary / Cover
   const [analysisResult, setAnalysisResult] = useState("");
@@ -272,16 +287,60 @@ export function ResumeAI({ onApply, onClose, resumeData = {} }: ResumeAIProps) {
     setParsed(null); setAnalysisResult(""); setSalaryResult(""); setCoverResult("");
   }
 
-  async function parsePaste() {
-    if (!pasteText.trim()) return;
+  async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setError(null);
+    setFileName(file.name);
+    try {
+      if (file.type === "application/pdf") {
+        const base64 = await readFileAsBase64(file);
+        setFileData({ type: "pdf", base64 });
+      } else if (file.name.endsWith(".docx")) {
+        const text = await readDocxAsText(file);
+        setFileData({ type: "text", text });
+      } else {
+        setError("Поддерживаются только PDF и DOCX файлы");
+        setFileName(null);
+      }
+    } catch {
+      setError("Не удалось прочитать файл");
+      setFileName(null);
+    }
+    // reset input so same file can be re-selected
+    e.target.value = "";
+  }
+
+  async function runImport() {
     const lim = checkPasteLimit(); if (!lim.ok) { setError(lim.reason ?? "Лимит исчерпан"); return; }
     const cd = checkCooldown(); if (!cd.ok) { startCooldown(cd.left!); return; }
+
+    // validate input
+    if (importMode === "text" && !pasteText.trim()) return;
+    if (importMode === "file" && !fileData) return;
+
     setLoading(true); setError(null); markUsed();
+
     try {
-      const res = await callClaude([{ role: "user", content: pasteText }], PASTE_SYSTEM);
+      let messages: object[];
+
+      if (importMode === "file" && fileData?.type === "pdf") {
+        messages = [{
+          role: "user",
+          content: [
+            { type: "document", source: { type: "base64", media_type: "application/pdf", data: fileData.base64 } },
+            { type: "text", text: "Извлеки данные из этого резюме и верни JSON." },
+          ],
+        }];
+      } else {
+        const text = importMode === "text" ? pasteText : (fileData as { type: "text"; text: string }).text;
+        messages = [{ role: "user", content: text }];
+      }
+
+      const res = await callClaude(messages as { role: "user" | "assistant"; content: string }[], PASTE_SYSTEM);
       const r = tryParseJSON(res);
       if (r && hasData(r)) setParsed(r);
-      else setError("Не удалось распознать данные. Попробуйте другой текст.");
+      else setError("Не удалось распознать данные. Попробуйте другой файл или текст.");
     } catch { setError("Ошибка подключения к ИИ"); }
     setLoading(false);
   }
@@ -298,7 +357,7 @@ export function ResumeAI({ onApply, onClose, resumeData = {} }: ResumeAIProps) {
   async function runSalary() {
     setLoading(true); setError(null);
     try {
-      const res = await callClaude([{ role: "user", content: "Оцени зарплату" }], getSalarySystem(resumeData));
+      const res = await callClaude([{ role: "user", content: "Оцени зарплату" }], getSalarySystem(resumeData), 0);
       setSalaryResult(res);
     } catch { setError("Ошибка подключения"); }
     setLoading(false);
@@ -315,6 +374,7 @@ export function ResumeAI({ onApply, onClose, resumeData = {} }: ResumeAIProps) {
   }
 
   const activeTab = TABS.find(t => t.id === tab)!;
+  const canImport = importMode === "text" ? pasteText.trim().length > 0 : fileData !== null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4"
@@ -370,7 +430,7 @@ export function ResumeAI({ onApply, onClose, resumeData = {} }: ResumeAIProps) {
             <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            Следующая вставка через {cooldown} сек.
+            Следующий импорт через {cooldown} сек.
           </div>
         )}
 
@@ -380,29 +440,99 @@ export function ResumeAI({ onApply, onClose, resumeData = {} }: ResumeAIProps) {
           {/* ══ PASTE TAB ══ */}
           {tab === "paste" && !parsed && (
             <div className="p-5 space-y-3">
-              <div className="rounded-xl p-3 text-xs flex items-start gap-2.5"
-                style={{ background: "rgba(124,74,232,0.08)", border: "1px solid rgba(124,74,232,0.2)" }}>
-                <svg className="w-4 h-4 shrink-0 mt-0.5" style={{ color: "#C4ADFF" }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span style={{ color: "rgba(255,255,255,0.6)" }}>
-                  Вставьте текст старого резюме — ИИ извлечёт все данные и заполнит профиль.
-                  Поддерживаются резюме на <span className="text-white">русском, узбекском и английском</span> языках.
-                </span>
+
+              {/* Mode toggle */}
+              <div className="flex rounded-xl p-1 gap-1" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                {(["text", "file"] as ImportMode[]).map(m => (
+                  <button key={m} onClick={() => { setImportMode(m); setError(null); setFileName(null); setFileData(null); }}
+                    className="flex-1 py-2 rounded-lg text-xs font-medium transition flex items-center justify-center gap-1.5"
+                    style={{
+                      background: importMode === m ? "rgba(124,74,232,0.25)" : "transparent",
+                      color: importMode === m ? "#C4ADFF" : "rgba(255,255,255,0.4)",
+                      border: importMode === m ? "1px solid rgba(124,74,232,0.3)" : "1px solid transparent",
+                    }}>
+                    {m === "text" ? (
+                      <>
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h7" />
+                        </svg>
+                        Вставить текст
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                        </svg>
+                        Загрузить файл
+                      </>
+                    )}
+                  </button>
+                ))}
               </div>
 
-              <textarea value={pasteText} onChange={e => setPasteText(e.target.value)}
-                placeholder="Вставьте текст резюме сюда..." rows={10}
-                className="w-full rounded-xl px-4 py-3 text-sm text-white placeholder-white/20 outline-none resize-none"
-                style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(196,173,255,0.12)" }} />
+              {/* TEXT mode */}
+              {importMode === "text" && (
+                <textarea value={pasteText} onChange={e => setPasteText(e.target.value)}
+                  placeholder="Вставьте текст резюме сюда..." rows={10}
+                  className="w-full rounded-xl px-4 py-3 text-sm text-white placeholder-white/20 outline-none resize-none"
+                  style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(196,173,255,0.12)" }} />
+              )}
+
+              {/* FILE mode */}
+              {importMode === "file" && (
+                <div>
+                  <input ref={fileInputRef} type="file" accept=".pdf,.docx" className="hidden"
+                    onChange={handleFileSelect} />
+                  {!fileName ? (
+                    <button onClick={() => fileInputRef.current?.click()}
+                      className="w-full rounded-xl flex flex-col items-center justify-center gap-3 transition hover:border-purple-500/50"
+                      style={{ background: "rgba(255,255,255,0.03)", border: "2px dashed rgba(196,173,255,0.2)", minHeight: "160px" }}>
+                      <div className="w-12 h-12 rounded-xl flex items-center justify-center"
+                        style={{ background: "rgba(124,74,232,0.15)", border: "1px solid rgba(124,74,232,0.25)" }}>
+                        <svg className="w-6 h-6" style={{ color: "#C4ADFF" }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                        </svg>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-sm font-medium text-white">Нажмите чтобы выбрать файл</p>
+                        <p className="text-xs mt-1" style={{ color: "rgba(255,255,255,0.35)" }}>PDF или DOCX · до 5 МБ</p>
+                      </div>
+                    </button>
+                  ) : (
+                    <div className="rounded-xl p-4 flex items-center gap-3"
+                      style={{ background: "rgba(124,74,232,0.1)", border: "1px solid rgba(124,74,232,0.25)" }}>
+                      <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
+                        style={{ background: "rgba(124,74,232,0.2)" }}>
+                        <svg className="w-5 h-5" style={{ color: "#C4ADFF" }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-white truncate">{fileName}</p>
+                        <p className="text-xs" style={{ color: "rgba(255,255,255,0.4)" }}>Готов к анализу</p>
+                      </div>
+                      <button onClick={() => { setFileName(null); setFileData(null); }}
+                        className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-white/10 transition shrink-0"
+                        style={{ color: "rgba(255,255,255,0.4)" }}>
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  )}
+                  <p className="text-xs mt-2" style={{ color: "rgba(255,255,255,0.3)" }}>
+                    Поддерживаются резюме на русском, узбекском и английском языках
+                  </p>
+                </div>
+              )}
 
               {error && <p className="text-xs text-red-400">{error}</p>}
 
               <div className="flex items-center justify-between">
                 <span className="text-xs" style={{ color: "rgba(255,255,255,0.3)" }}>
-                  {remaining}/{PASTE_LIMIT} вставок сегодня
+                  {remaining}/{PASTE_LIMIT} импортов сегодня
                 </span>
-                <button onClick={parsePaste} disabled={loading || !pasteText.trim() || remaining <= 0}
+                <button onClick={runImport} disabled={loading || !canImport || remaining <= 0}
                   className="px-5 py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-50"
                   style={{ background: "linear-gradient(135deg, #5B2ECC, #7C4AE8)" }}>
                   {loading ? <Spinner text="Анализирую..." /> : "Извлечь данные"}
@@ -422,7 +552,6 @@ export function ResumeAI({ onApply, onClose, resumeData = {} }: ResumeAIProps) {
                 </div>
                 <span className="text-sm font-semibold text-green-400">Данные извлечены</span>
               </div>
-
               <div className="rounded-xl p-4 space-y-2 text-sm"
                 style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
                 {parsed.full_name && <PRow label="Имя" value={parsed.full_name} />}
@@ -441,18 +570,14 @@ export function ResumeAI({ onApply, onClose, resumeData = {} }: ResumeAIProps) {
                   </div>
                 )}
               </div>
-
-              <p className="text-xs" style={{ color: "rgba(255,255,255,0.3)" }}>
-                Данные заменят текущие поля профиля
-              </p>
-
+              <p className="text-xs" style={{ color: "rgba(255,255,255,0.3)" }}>Данные заменят текущие поля профиля</p>
               <div className="flex gap-2">
                 <button onClick={() => onApply(parsed)}
                   className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white"
                   style={{ background: "linear-gradient(135deg, #5B2ECC, #7C4AE8)" }}>
                   Применить к профилю
                 </button>
-                <button onClick={() => { setParsed(null); setPasteText(""); }}
+                <button onClick={() => { setParsed(null); setPasteText(""); setFileName(null); setFileData(null); }}
                   className="px-4 py-2.5 rounded-xl text-sm"
                   style={{ background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.5)" }}>
                   Заново
@@ -491,12 +616,7 @@ export function ResumeAI({ onApply, onClose, resumeData = {} }: ResumeAIProps) {
                   <button onClick={runAnalysis} disabled={loading}
                     className="w-full py-3 rounded-xl text-sm font-semibold text-white disabled:opacity-50 flex items-center justify-center gap-2"
                     style={{ background: "linear-gradient(135deg, #0891b2, #06b6d4)" }}>
-                    {loading ? <Spinner text="Анализирую резюме..." /> : (
-                      <>
-                        <TabIcon id="analyze" size={16} />
-                        Проанализировать резюме
-                      </>
-                    )}
+                    {loading ? <Spinner text="Анализирую резюме..." /> : (<><TabIcon id="analyze" size={16} />Проанализировать резюме</>)}
                   </button>
                 </>
               ) : (
@@ -548,12 +668,7 @@ export function ResumeAI({ onApply, onClose, resumeData = {} }: ResumeAIProps) {
                   <button onClick={runSalary} disabled={loading}
                     className="w-full py-3 rounded-xl text-sm font-semibold text-white disabled:opacity-50 flex items-center justify-center gap-2"
                     style={{ background: "linear-gradient(135deg, #d97706, #f59e0b)" }}>
-                    {loading ? <Spinner text="Анализирую рынок..." /> : (
-                      <>
-                        <TabIcon id="salary" size={16} />
-                        Оценить зарплату
-                      </>
-                    )}
+                    {loading ? <Spinner text="Анализирую рынок..." /> : (<><TabIcon id="salary" size={16} />Оценить зарплату</>)}
                   </button>
                 </>
               ) : (
@@ -600,12 +715,7 @@ export function ResumeAI({ onApply, onClose, resumeData = {} }: ResumeAIProps) {
                   <button onClick={runCoverLetter} disabled={loading || !vacancyText.trim()}
                     className="w-full py-3 rounded-xl text-sm font-semibold text-white disabled:opacity-50 flex items-center justify-center gap-2"
                     style={{ background: "linear-gradient(135deg, #16a34a, #22c55e)" }}>
-                    {loading ? <Spinner text="Пишу письмо..." /> : (
-                      <>
-                        <TabIcon id="cover" size={16} />
-                        Написать письмо
-                      </>
-                    )}
+                    {loading ? <Spinner text="Пишу письмо..." /> : (<><TabIcon id="cover" size={16} />Написать письмо</>)}
                   </button>
                 </>
               ) : (
@@ -650,13 +760,16 @@ function PRow({ label, value }: { label: string; value: string }) {
 }
 
 async function callClaude(
-  messages: { role: "user" | "assistant"; content: string }[],
-  system: string
+  messages: { role: "user" | "assistant"; content: any }[],
+  system: string,
+  temperature?: number
 ): Promise<string> {
+  const body: Record<string, unknown> = { messages, system, max_tokens: 1500 };
+  if (temperature !== undefined) body.temperature = temperature;
   const res = await fetch("/api/ai", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ messages, system, max_tokens: 1500, temperature: 0 }),
+    body: JSON.stringify(body),
   });
   const data = await res.json();
   if (data.error) throw new Error(data.error);
