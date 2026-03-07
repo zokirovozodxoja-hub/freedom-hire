@@ -64,7 +64,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       max_tokens: 400,
     });
 
-    if (!res.ok) return NextResponse.json({ ok: false, error: res.error }, { status: 500 });
+    if (!res.ok) return NextResponse.json({ ok: false, error: res.message ?? "API error" }, { status: 500 });
 
     const parsed = parseAIJson<{ question: string; is_final: boolean; topic: string }>(res.text);
     const firstQuestion = parsed?.question ?? "Расскажите о себе и вашем опыте работы.";
@@ -252,7 +252,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       max_tokens: 800,
     });
 
-    if (!evalRes.ok) return NextResponse.json({ ok: false, error: evalRes.error }, { status: 500 });
+    if (!evalRes.ok) return NextResponse.json({ ok: false, error: evalRes.message ?? "API error" }, { status: 500 });
 
     const evaluation = parseAIJson<{
       overall_score: number;
