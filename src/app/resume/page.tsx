@@ -333,7 +333,7 @@ export default function ResumePage() {
   const [skillLevel, setSkillLevel] = useState<SkillLevel>("intermediate");
 
   // AI Assistant
-  const [aiSection, setAiSection] = useState<"basic" | "experience" | "skills" | null>(null);
+  const [showAI, setShowAI] = useState(false);
 
   const notify = useCallback((msg: string, type: "ok" | "err" = "ok") => {
     setToast({ msg, type });
@@ -468,10 +468,8 @@ export default function ResumePage() {
     setSkills(prev => prev.filter(s => s.id !== id));
   }
 
-  function aiNotReady() { notify("AI-помощник скоро будет доступен"); }
-
   async function handleAIApply(result: any) {
-    setAiSection(null);
+    setShowAI(false);
     // Basic info
     if (result.full_name !== undefined) setFullName(result.full_name ?? "");
     if (result.headline !== undefined) setHeadline(result.headline ?? "");
@@ -524,11 +522,10 @@ export default function ResumePage() {
   return (
     <div className="min-h-screen pb-20">
       {/* AI Modal */}
-      {aiSection && (
+      {showAI && (
         <ResumeAI
-          section={aiSection}
           onApply={handleAIApply}
-          onClose={() => setAiSection(null)}
+          onClose={() => setShowAI(false)}
         />
       )}
 
@@ -594,6 +591,14 @@ export default function ResumePage() {
 
             {/* Actions */}
             <div className="flex sm:flex-col gap-2 shrink-0">
+              <button onClick={() => setShowAI(true)}
+                className="flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold transition hover:scale-105"
+                style={{ background: "linear-gradient(135deg, rgba(92,46,204,0.4), rgba(124,74,232,0.4))", border: "1px solid rgba(92,46,204,0.4)", color: "#C4ADFF" }}>
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+                ИИ-помощник
+              </button>
               <Link href="/applications" className="flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-xs transition" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.7)" }}>
                 <Icon name="doc" className="w-4 h-4" /> Отклики
               </Link>
@@ -625,25 +630,14 @@ export default function ResumePage() {
 
         {/* ОСНОВНАЯ ИНФОРМАЦИЯ */}
         <Card>
-          <SectionHeader icon="user" title="Основная информация" subtitle="Базовые данные для работодателей"
-            action={
-              <button onClick={() => setAiSection("basic")}
-                className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg transition hover:scale-105"
-                style={{ background: "linear-gradient(135deg, rgba(92,46,204,0.3), rgba(124,74,232,0.3))", color: "var(--lavender)", border: "1px solid rgba(92,46,204,0.3)" }}>
-                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-                ИИ-помощник
-              </button>
-            }
-          />
+          <SectionHeader icon="user" title="Основная информация" subtitle="Базовые данные для работодателей" />
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input label="ФИО" value={fullName} onChange={setFullName} placeholder="Иванов Иван Иванович" />
-            <Input label="Желаемая должность" value={headline} onChange={setHeadline} placeholder="Менеджер по продажам" aiButton onAi={aiNotReady} />
+            <Input label="Желаемая должность" value={headline} onChange={setHeadline} placeholder="Менеджер по продажам" />
             <Input label="Город" value={city} onChange={setCity} placeholder="Ташкент" />
             <Select label="Статус поиска" value={status} onChange={v => setStatus(v as Status)} options={STATUS_OPTIONS.map(s => ({ value: s.value, label: s.label }))} />
             <div className="sm:col-span-2">
-              <TextArea label="О себе" value={about} onChange={setAbout} placeholder="Расскажите о своём опыте, навыках и целях..." rows={4} aiButton onAi={aiNotReady} />
+              <TextArea label="О себе" value={about} onChange={setAbout} placeholder="Расскажите о своём опыте, навыках и целях..." rows={4} />
             </div>
             <div>
               <label className="block text-xs font-medium mb-1.5" style={{ color: "rgba(255,255,255,0.5)" }}>Желаемая зарплата</label>
@@ -666,19 +660,7 @@ export default function ResumePage() {
         {/* ОПЫТ РАБОТЫ */}
         <Card>
           <SectionHeader icon="briefcase" title="Опыт работы" subtitle={experiences.length ? `${experiences.length} места работы` : "Добавьте свой опыт"}
-            action={
-              <div className="flex gap-2">
-                <button onClick={() => setAiSection("experience")}
-                  className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg transition hover:scale-105"
-                  style={{ background: "linear-gradient(135deg, rgba(92,46,204,0.3), rgba(124,74,232,0.3))", color: "var(--lavender)", border: "1px solid rgba(92,46,204,0.3)" }}>
-                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                  </svg>
-                  ИИ
-                </button>
-                {!showExpForm && <Button size="sm" variant="secondary" onClick={() => setShowExpForm(true)}><Icon name="plus" className="w-4 h-4" /> Добавить</Button>}
-              </div>
-            } />
+            action={!showExpForm && <Button size="sm" variant="secondary" onClick={() => setShowExpForm(true)}><Icon name="plus" className="w-4 h-4" /> Добавить</Button>} />
           
           {showExpForm && (
             <div className="mb-5 p-4 rounded-xl" style={{ background: "rgba(92,46,204,0.08)", border: "1px solid rgba(92,46,204,0.2)" }}>
@@ -721,19 +703,7 @@ export default function ResumePage() {
         {/* НАВЫКИ */}
         <Card>
           <SectionHeader icon="star" title="Навыки" subtitle={skills.length ? `${skills.length} навыков` : "Укажите ваши навыки"}
-            action={
-              <div className="flex gap-2">
-                <button onClick={() => setAiSection("skills")}
-                  className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg transition hover:scale-105"
-                  style={{ background: "linear-gradient(135deg, rgba(92,46,204,0.3), rgba(124,74,232,0.3))", color: "var(--lavender)", border: "1px solid rgba(92,46,204,0.3)" }}>
-                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                  </svg>
-                  ИИ
-                </button>
-                {!showSkillForm && <Button size="sm" variant="secondary" onClick={() => setShowSkillForm(true)}><Icon name="plus" className="w-4 h-4" /> Добавить</Button>}
-              </div>
-            } />
+            action={!showSkillForm && <Button size="sm" variant="secondary" onClick={() => setShowSkillForm(true)}><Icon name="plus" className="w-4 h-4" /> Добавить</Button>} />
           
           {showSkillForm && (
             <div className="mb-5 p-4 rounded-xl" style={{ background: "rgba(92,46,204,0.08)", border: "1px solid rgba(92,46,204,0.2)" }}>
