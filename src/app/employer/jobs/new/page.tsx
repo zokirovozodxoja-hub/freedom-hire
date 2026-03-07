@@ -3,8 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { JobGeneratePanel, type ApplyPayload } from "@/components/employer/ai/JobGeneratePanel";
 
-type Company = { id: string; name: string | null };
+type Company = { id: string; name: string | null; verification_status: string | null };
 
 const EMPLOYMENT_TYPES = [
  { value: "full-time", label: "Полная занятость" },
@@ -55,6 +56,21 @@ export default function NewJobPage() {
  const [msg, setMsg] = useState<string | null>(null);
  const [companies, setCompanies] = useState<Company[]>([]);
  const [companyId, setCompanyId] = useState("");
+ const [showAIPanel, setShowAIPanel] = useState(false);
+
+ // Применяет результат AI-генерации в поля формы
+ function handleAIApply(payload: ApplyPayload) {
+   if (payload.title)           setTitle(payload.title);
+   if (payload.description)     setDescription(payload.description);
+   if (payload.responsibilities) setResponsibilities(payload.responsibilities);
+   if (payload.requirements)    setRequirements(payload.requirements);
+   if (payload.benefits)        setBenefits(payload.benefits);
+   if (payload.company_offers)  setCompanyOffers(payload.company_offers);
+   if (payload.tags.length)     setTagsText(payload.tags.join(", "));
+   if (payload.salary_from)     setSalaryFromText(fmt(String(payload.salary_from)));
+   if (payload.salary_to)       setSalaryToText(fmt(String(payload.salary_to)));
+   setShowAIPanel(false);
+ }
 
  const [title, setTitle] = useState("");
  const [description, setDescription] = useState("");
@@ -83,7 +99,7 @@ export default function NewJobPage() {
 
  const { data: comps, error } = await supabase
  .from("companies")
- .select("id,name")
+ .select("id,name,verification_status")
  .eq("owner_id", userData.user.id)
  .order("created_at", { ascending: false });
 
@@ -91,7 +107,9 @@ export default function NewJobPage() {
 
  const list = (comps ?? []) as Company[];
  setCompanies(list);
- if (list[0]) setCompanyId(list[0].id);
+ // Используем только верифицированные компании
+ const verified = list.filter(c => c.verification_status === 'verified' || c.verification_status === 'approved');
+ if (verified[0]) setCompanyId(verified[0].id);
  if (!list.length) setMsg("Сначала создайте компанию.");
  setLoading(false);
  })();
@@ -156,6 +174,78 @@ export default function NewJobPage() {
  const inputCls = "w-full rounded-2xl bg-black/20 border border-white/10 px-4 py-3 outline-none focus:border-violet-500/50 transition";
  const labelCls = "text-xs text-white/60 block mb-2";
 
+ // Проверяем есть ли верифицированная компания
+ const verifiedCompany = companies.find(c => c.verification_status === 'verified' || c.verification_status === 'approved');
+ const pendingCompany = companies.find(c => c.verification_status === 'pending');
+ const rejectedCompany = companies.find(c => c.verification_status === 'rejected');
+
+ // Если нет верифицированной компании — показываем сообщение
+ if (!verifiedCompany) {
+   return (
+     <div className="min-h-screen text-white p-6" style={{ background: "var(--ink)" }}>
+       <div className="max-w-2xl mx-auto mt-20">
+         <div className="rounded-3xl border p-8 text-center"
+           style={{ 
+             background: pendingCompany ? "rgba(251,191,36,0.05)" : rejectedCompany ? "rgba(239,68,68,0.05)" : "rgba(255,255,255,0.03)",
+             borderColor: pendingCompany ? "rgba(251,191,36,0.2)" : rejectedCompany ? "rgba(239,68,68,0.2)" : "rgba(255,255,255,0.1)"
+           }}>
+           
+           <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4"
+             style={{ 
+               background: pendingCompany ? "rgba(251,191,36,0.15)" : rejectedCompany ? "rgba(239,68,68,0.15)" : "rgba(92,46,204,0.15)",
+             }}>
+             <span className="text-3xl">
+               {pendingCompany ? "⏳" : rejectedCompany ? "❌" : "🏢"}
+             </span>
+           </div>
+
+           {pendingCompany ? (
+             <>
+               <h2 className="text-xl font-semibold mb-2" style={{ color: "#fbbf24" }}>
+                 Компания на проверке
+               </h2>
+               <p className="text-white/60 mb-4">
+                 Ваша компания <strong>"{pendingCompany.name}"</strong> находится на модерации. 
+                 Обычно проверка занимает до 24 часов.
+               </p>
+               <p className="text-white/40 text-sm">
+                 После верификации вы сможете публиковать вакансии.
+               </p>
+             </>
+           ) : rejectedCompany ? (
+             <>
+               <h2 className="text-xl font-semibold mb-2" style={{ color: "#f87171" }}>
+                 Компания отклонена
+               </h2>
+               <p className="text-white/60 mb-4">
+                 К сожалению, компания <strong>"{rejectedCompany.name}"</strong> не прошла проверку.
+               </p>
+               <p className="text-white/40 text-sm mb-4">
+                 Свяжитесь с поддержкой для уточнения причин.
+               </p>
+             </>
+           ) : (
+             <>
+               <h2 className="text-xl font-semibold mb-2">
+                 Создайте компанию
+               </h2>
+               <p className="text-white/60 mb-4">
+                 Для публикации вакансий необходимо сначала зарегистрировать компанию.
+               </p>
+             </>
+           )}
+
+           <button 
+             onClick={() => router.push("/employer")}
+             className="btn-primary rounded-xl px-6 py-2.5 font-semibold text-white mt-2">
+             ← Вернуться в кабинет
+           </button>
+         </div>
+       </div>
+     </div>
+   );
+ }
+
  return (
  <div className="min-h-screen  text-white p-6" style={{ background: "var(--ink)" }}>
  <div className="max-w-4xl mx-auto">
@@ -165,17 +255,42 @@ export default function NewJobPage() {
  <h1 className="text-2xl font-semibold">Новая вакансия</h1>
  <p className="text-white/50 text-sm mt-1">Заполните все обязательные поля</p>
  </div>
- <div className="flex gap-2">
- <button onClick={() => router.push("/employer/jobs")}
- className="rounded-2xl bg-white/10 border border-white/10 px-5 py-2 hover:bg-white/15 transition">
- Отмена
- </button>
- <button onClick={onCreate} disabled={saving || !companyId}
- className="rounded-2xl btn-primary px-5 py-2 font-semibold  transition disabled:opacity-50">
- {saving ? "Сохраняю..." : "Опубликовать"}
- </button>
+ <div className="flex items-center gap-2">
+   <button
+     onClick={() => setShowAIPanel(true)}
+     className="flex items-center gap-1.5 text-sm px-4 py-2 rounded-xl font-medium transition"
+     style={{
+       background: "linear-gradient(135deg, rgba(92,46,204,0.3), rgba(124,74,232,0.3))",
+       border: "1px solid rgba(196,173,255,0.25)",
+       color: "var(--lavender)",
+     }}
+   >
+     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
+         d="M13 10V3L4 14h7v7l9-11h-7z" />
+     </svg>
+     AI-генератор
+   </button>
+   <button onClick={() => router.push("/employer/jobs")}
+   className="rounded-2xl bg-white/10 border border-white/10 px-5 py-2 hover:bg-white/15 transition">
+   Отмена
+   </button>
+   <button onClick={onCreate} disabled={saving || !companyId}
+   className="rounded-2xl btn-primary px-5 py-2 font-semibold transition disabled:opacity-50">
+   {saving ? "Сохраняю..." : "Опубликовать"}
+   </button>
  </div>
  </div>
+
+ {/* AI Panel */}
+ {showAIPanel && (
+   <JobGeneratePanel
+     companyName={companies.find(c => c.id === companyId)?.name ?? undefined}
+     hints={{ title, city, experience_level: experience, employment_type: employmentType }}
+     onApply={handleAIApply}
+     onClose={() => setShowAIPanel(false)}
+   />
+ )}
 
  {msg && (
  <div className="mb-4 rounded-2xl bg-red-500/10 border border-red-500/20 px-4 py-3 text-sm text-red-300">
