@@ -24,21 +24,6 @@ export default function SiteHeader() {
   const [authUser, setAuthUser] = useState<AuthUser | null | undefined>(undefined);
   const [menuOpen, setMenuOpen] = useState(false);
   const [unreadChats, setUnreadChats] = useState(0);
-  const [theme, setTheme] = useState<"dark" | "light">("dark");
-
-  // Load saved theme on mount
-  useEffect(() => {
-    const saved = (localStorage.getItem("fh-theme") ?? "dark") as "dark" | "light";
-    setTheme(saved);
-    document.documentElement.setAttribute("data-theme", saved);
-  }, []);
-
-  function toggleTheme() {
-    const next = theme === "dark" ? "light" : "dark";
-    setTheme(next);
-    document.documentElement.setAttribute("data-theme", next);
-    localStorage.setItem("fh-theme", next);
-  }
 
   const navItems = [
     { href: "/jobs", label: t.nav.jobs },
@@ -105,29 +90,22 @@ export default function SiteHeader() {
   const displayName = authUser?.fullName || authUser?.email || "";
   const initials = displayName ? displayName[0].toUpperCase() : "?";
 
-  const isDark = theme === "dark";
-
   const roleBadge = {
     admin: { label: t.roles.admin, cls: "bg-red-600/30 text-red-300" },
     employer: { label: t.roles.employer, cls: "bg-blue-600/30 text-blue-300" },
     candidate: { label: t.roles.candidate, cls: "bg-violet-600/30 text-violet-300" },
   };
 
-  // Theme-aware style helpers
   const navBg = "var(--nav-bg)";
   const navBorder = "var(--nav-border)";
-  // All colors from CSS variables
   const iconBg = "var(--surface)";
   const iconBorder = "var(--border)";
-  const logoSubColor = "var(--text-muted)";
   const userBg = "var(--surface)";
   const userBorder = "var(--border)";
   const userNameColor = "var(--text-secondary)";
   const dropdownBg = "var(--dropdown-bg)";
   const dropdownBorder = "var(--border)";
   const dropdownLinkColor = "var(--text-secondary)";
-  const logoTextColor = "var(--text-primary)";
-  const activeNavColor = "var(--text-primary)";
 
   return (
     <header
@@ -168,31 +146,11 @@ export default function SiteHeader() {
         {/* RIGHT */}
         <div className="flex items-center gap-2">
 
-          {/* Theme toggle */}
-          <button
-            onClick={toggleTheme}
-            title={isDark ? "Светлая тема" : "Тёмная тема"}
-            style={{ width: 36, height: 36, borderRadius: 10, background: "var(--surface)", border: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "all .2s", flexShrink: 0 }}
-          >
-            {isDark
-              ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="5"/>
-                  <line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
-                  <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-                  <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
-                  <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-                </svg>
-              : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-                </svg>
-            }
-          </button>
-
           {/* Chat icon */}
           {authUser && (
             <Link
               href="/chat"
-              style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center", width: 36, height: 36, borderRadius: 10, background: "var(--surface)", border: "1px solid var(--border)", textDecoration: "none", flexShrink: 0, transition: "all .2s" }}
+              style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center", width: 36, height: 36, borderRadius: 10, background: iconBg, border: `1px solid ${iconBorder}`, textDecoration: "none", flexShrink: 0, transition: "all .2s" }}
             >
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
@@ -208,7 +166,7 @@ export default function SiteHeader() {
           {/* Language Switcher */}
           <div
             className="flex items-center rounded-xl overflow-hidden shrink-0"
-            style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
+            style={{ background: iconBg, border: `1px solid ${iconBorder}` }}
           >
             {(["ru", "uz"] as Lang[]).map((l) => (
               <button
@@ -257,8 +215,8 @@ export default function SiteHeader() {
                     style={{ background: dropdownBg, border: `1px solid ${dropdownBorder}` }}
                   >
                     <div className="px-4 py-3" style={{ borderBottom: `1px solid ${dropdownBorder}` }}>
-                      <div className="text-sm font-semibold truncate" style={{ color: isDark ? "#fff" : "#160A32" }}>{displayName}</div>
-                      <div className="text-xs mt-0.5 truncate" style={{ color: isDark ? "rgba(255,255,255,0.4)" : "rgba(22,10,50,0.4)" }}>{authUser.email}</div>
+                      <div className="text-sm font-semibold truncate" style={{ color: "#fff" }}>{displayName}</div>
+                      <div className="text-xs mt-0.5 truncate" style={{ color: "rgba(255,255,255,0.4)" }}>{authUser.email}</div>
                       <div className={`mt-1.5 inline-block text-xs px-2 py-0.5 rounded-full ${roleBadge[authUser.role].cls}`}>
                         {roleBadge[authUser.role].label}
                       </div>
@@ -270,7 +228,7 @@ export default function SiteHeader() {
                         className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm transition hover:bg-white/8"
                         style={{ color: dropdownLinkColor }}
                       >
-                        {authUser.role === "admin" ? ` ${t.nav.adminPanel}` : ` ${t.nav.dashboard}`}
+                        {authUser.role === "admin" ? t.nav.adminPanel : t.nav.dashboard}
                       </Link>
                       <button
                         onClick={handleLogout}
@@ -288,7 +246,7 @@ export default function SiteHeader() {
               <Link
                 href="/auth"
                 className="rounded-2xl px-5 py-2 text-sm font-semibold transition"
-                style={{ border: `1px solid ${iconBorder}`, background: iconBg, color: isDark ? "rgba(255,255,255,0.8)" : "rgba(22,10,50,0.8)" }}
+                style={{ border: `1px solid ${iconBorder}`, background: iconBg, color: "rgba(255,255,255,0.8)" }}
               >
                 {t.nav.login}
               </Link>
