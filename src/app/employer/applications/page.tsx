@@ -519,7 +519,7 @@ export default function EmployerApplicationsPage() {
             candidates={candidatesForAI}
             onClose={() => setShowAIPanel(false)}
             onScoresReady={(scores) => {
-              setAiScores(prev => ({ ...prev, ...scores }));
+              setAiScores({ ...aiScores, ...scores });
               setSortByAI(true);
               setShowAIPanel(false);
             }}
