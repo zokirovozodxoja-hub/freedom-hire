@@ -18,7 +18,8 @@ export async function middleware(req: NextRequest) {
     pathname.startsWith("/jobs") ||
     pathname.startsWith("/about") ||
     pathname.startsWith("/employers") ||
-    pathname.startsWith("/candidates")      // Добавлено для профилей кандидатов
+    pathname.startsWith("/candidates") ||   // Профили кандидатов
+    pathname.startsWith("/invite")           // Принятие приглашения в команду
   ) {
     return NextResponse.next();
   }

@@ -129,21 +129,41 @@ export default function EmployerOnboardingPage() {
  // 3) Создаём компанию со статусом pending
  const status: VerificationStatus = "pending";
 
- const { error: insErr } = await supabase.from("companies").insert({
- owner_id: data.user.id,
- name: companyName.trim(),
- inn: inn.trim(),
- address: address.trim() || null,
- doc_urls: uploaded, // jsonb
- verification_status: status,
- });
+ const { data: newCompany, error: insErr } = await supabase
+   .from("companies")
+   .insert({
+     owner_id: data.user.id,
+     name: companyName.trim(),
+     inn: inn.trim(),
+     address: address.trim() || null,
+     doc_urls: uploaded, // jsonb
+     verification_status: status,
+   })
+   .select("id")
+   .single();
 
- if (insErr) {
- throw new Error("Не удалось сохранить компанию. Проверьте таблицу companies и RLS.");
+ if (insErr || !newCompany) {
+   throw new Error("Не удалось сохранить компанию. Проверьте таблицу companies и RLS.");
+ }
+
+ // 4) Создаём первого member компании с ролью owner
+ const { error: memberErr } = await supabase
+   .from("company_members")
+   .insert({
+     company_id: newCompany.id,
+     user_id: data.user.id,
+     role: "owner",
+     status: "active",
+     joined_at: new Date().toISOString(),
+   });
+
+ if (memberErr) {
+   // Не блокируем регистрацию — компания уже создана
+   console.error("Не удалось создать company_member:", memberErr);
  }
 
  setNotice("Документы отправлены на проверку. Статус: на модерации.");
- // можно сразу вести в кабинет (там покажешь “pending”)
+ // можно сразу вести в кабинет (там покажешь "pending")
  router.replace("/employer");
  } catch (e: unknown) {
  setError(e instanceof Error ? e.message : "Ошибка отправки данных");
