@@ -24,7 +24,7 @@ type Application = {
     desired_position: string | null;
     job_search_status: string | null;
     salary_expectation: number | null;
-    experience_years: number | null;
+    experience?: string | null;
   };
   skills?: { name: string; level: string }[];
   lastExperience?: { company: string | null; position: string | null };
@@ -190,7 +190,7 @@ export default function EmployerApplicationsPage() {
     console.log("Loading profiles for candidates:", candidateIds);
     
     const { data: profiles, error: profilesErr } = await supabase.from("profiles")
-      .select("id,full_name,email,phone,city,headline,desired_position,job_search_status,salary_expectation,experience_years")
+      .select("id,full_name,email,phone,city,headline,desired_position,job_search_status,salary_expectation,experience")
       .in("id", candidateIds);
     
     // ИСПРАВЛЕНИЕ 2: Обработка ошибок загрузки профилей
@@ -674,10 +674,10 @@ export default function EmployerApplicationsPage() {
                             📍 {app.candidate.city}
                           </span>
                         )}
-                        {app.candidate?.experience_years && (
+                        {app.candidate?.experience && (
                           <span className="text-xs px-2 py-1 rounded-lg font-body"
                             style={{ background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.6)" }}>
-                            💼 {app.candidate.experience_years} лет опыта
+                            💼 {app.candidate.experience}
                           </span>
                         )}
                         {app.candidate?.salary_expectation && (
