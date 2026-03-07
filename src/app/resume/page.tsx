@@ -532,8 +532,8 @@ export default function ResumePage() {
             city,
             about,
             experiences: experiences.map(e => ({
-              company: e.company,
-              position: e.position,
+              company: e.company ?? "",
+              position: e.position ?? "",
               start_date: e.start_date,
               end_date: e.end_date ?? null,
             })),
