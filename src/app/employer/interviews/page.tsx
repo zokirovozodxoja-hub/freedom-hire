@@ -1,358 +1,245 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
-// ─── Types ────────────────────────────────────────────────────────
-
-type Interview = {
-  id: string;
-  application_id: string;
-  job_id: string;
-  candidate_id: string;
-  stage: "stage_1" | "stage_2" | "final";
-  status: "scheduled" | "rescheduled" | "completed" | "cancelled" | "no_show";
-  scheduled_at: string;
-  duration_minutes: number;
-  title: string | null;
-  location: string | null;
-  meeting_link: string | null;
-  created_at: string;
-  jobs: { title: string | null } | null;
-  profiles: { full_name: string | null; email: string | null } | null;
+type Company = {
+ id: string;
+ name: string | null;
+ verification_status: string | null;
 };
 
-// ─── Constants ───────────────────────────────────────────────────
-
-const STAGE_LABELS: Record<string, { label: string; color: string; bg: string }> = {
-  stage_1: { label: "Этап 1", color: "#60a5fa", bg: "rgba(96,165,250,0.12)" },
-  stage_2: { label: "Этап 2", color: "#fbbf24", bg: "rgba(251,191,36,0.12)" },
-  final:   { label: "Финал",  color: "#34d399", bg: "rgba(52,211,153,0.12)" },
+type Stats = {
+ jobs: number;
+ activeJobs: number;
+ applications: number;
 };
 
-const STATUS_LABELS: Record<string, { label: string; color: string }> = {
-  scheduled:   { label: "Запланировано", color: "#60a5fa" },
-  rescheduled: { label: "Перенесено",    color: "#fbbf24" },
-  completed:   { label: "Завершено",     color: "#34d399" },
-  cancelled:   { label: "Отменено",      color: "#f87171" },
-  no_show:     { label: "Не явился",     color: "#e11d48" },
-};
+export default function EmployerDashboard() {
+ const router = useRouter();
+ const supabase = useMemo(() => createClient(), []);
 
-// ─── Components ──────────────────────────────────────────────────
+ const [loading, setLoading] = useState(true);
+ const [company, setCompany] = useState<Company | null>(null);
+ const [stats, setStats] = useState<Stats>({ jobs: 0, activeJobs: 0, applications: 0 });
 
-function StageBadge({ stage }: { stage: string }) {
-  const s = STAGE_LABELS[stage] || STAGE_LABELS.stage_1;
-  return (
-    <span
-      className="text-xs font-semibold px-2.5 py-1 rounded-full"
-      style={{ color: s.color, background: s.bg, border: `1px solid ${s.color}33` }}
-    >
-      {s.label}
-    </span>
-  );
-}
+ useEffect(() => {
+ (async () => {
+ const { data: userData } = await supabase.auth.getUser();
+ if (!userData.user) { router.replace("/auth"); return; }
 
-function StatusBadge({ status }: { status: string }) {
-  const s = STATUS_LABELS[status] || STATUS_LABELS.scheduled;
-  return (
-    <span className="text-xs font-medium" style={{ color: s.color }}>
-      {s.label}
-    </span>
-  );
-}
+ const { data: comp } = await supabase
+ .from("companies")
+ .select("id,name,verification_status")
+ .eq("owner_id", userData.user.id)
+ .maybeSingle();
 
-function Spinner() {
-  return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="flex flex-col items-center gap-3">
-        <div
-          className="w-8 h-8 rounded-full border-2 animate-spin"
-          style={{ borderColor: "rgba(196,173,255,0.2)", borderTopColor: "var(--lavender)" }}
-        />
-        <div className="text-sm" style={{ color: "rgba(255,255,255,0.3)" }}>Загрузка...</div>
-      </div>
-    </div>
-  );
-}
+ if (!comp) {
+ router.replace("/onboarding/employer");
+ return;
+ }
 
-// ─── Main Component ──────────────────────────────────────────────
+ setCompany(comp);
 
-export default function EmployerInterviewsPage() {
-  const router = useRouter();
-  const supabase = useMemo(() => createClient(), []);
+ // Получаем ID всех вакансий компании
+ const { data: jobIds } = await supabase
+ .from("jobs")
+ .select("id")
+ .eq("company_id", comp.id);
 
-  const [loading, setLoading] = useState(true);
-  const [interviews, setInterviews] = useState<Interview[]>([]);
-  const [filterStage, setFilterStage] = useState<string>("all");
-  const [filterStatus, setFilterStatus] = useState<string>("all");
+ const ids = (jobIds ?? []).map((j) => j.id);
 
-  useEffect(() => { void load(); }, []);
+ const [jobsRes, activeRes, appsRes] = await Promise.all([
+ supabase.from("jobs")
+ .select("id", { count: "exact", head: true })
+ .eq("company_id", comp.id),
+ supabase.from("jobs")
+ .select("id", { count: "exact", head: true })
+ .eq("company_id", comp.id)
+ .eq("is_active", true),
+ // Считаем отклики только на вакансии этой компании
+ ids.length > 0
+ ? supabase.from("applications")
+ .select("id", { count: "exact", head: true })
+ .in("job_id", ids)
+ : Promise.resolve({ count: 0 }),
+ ]);
 
-  async function load() {
-    const { data: userData } = await supabase.auth.getUser();
-    if (!userData.user) { router.replace("/auth"); return; }
+ setStats({
+ jobs: jobsRes.count ?? 0,
+ activeJobs: activeRes.count ?? 0,
+ applications: appsRes.count ?? 0,
+ });
 
-    const { data: member } = await supabase
-      .from("company_members")
-      .select("company_id, role")
-      .eq("user_id", userData.user.id)
-      .eq("status", "active")
-      .maybeSingle();
+ setLoading(false);
+ })();
+ }, [router, supabase]);
 
-    if (!member) { router.replace("/onboarding/employer"); return; }
+ async function handleLogout() {
+ await supabase.auth.signOut();
+ router.replace("/");
+ }
 
-    // Загружаем интервью компании
-    const { data } = await supabase
-      .from("interviews")
-      .select(`
-        id, application_id, job_id, candidate_id, stage, status,
-        scheduled_at, duration_minutes, title, location, meeting_link, created_at,
-        jobs(title),
-        profiles:candidate_id(full_name, email)
-      `)
-      .eq("company_id", member.company_id)
-      .order("scheduled_at", { ascending: true });
-
-    setInterviews((data || []) as unknown as Interview[]);
-    setLoading(false);
-  }
-
-  function formatDateTime(iso: string) {
-    const date = new Date(iso);
-    return date.toLocaleDateString("ru-RU", { 
-      day: "numeric", 
-      month: "short", 
-      hour: "2-digit", 
-      minute: "2-digit" 
-    });
-  }
-
-  if (loading) return <Spinner />;
-
-  // Фильтрация
-  const filteredInterviews = interviews.filter(i => {
-    if (filterStage !== "all" && i.stage !== filterStage) return false;
-    if (filterStatus !== "all" && i.status !== filterStatus) return false;
-    return true;
-  });
-
-  // Группировка по датам
-  const upcoming = filteredInterviews.filter(i => 
-    new Date(i.scheduled_at) > new Date() && 
-    i.status === "scheduled"
-  );
-  const past = filteredInterviews.filter(i => 
-    new Date(i.scheduled_at) <= new Date() || 
-    i.status !== "scheduled"
-  );
-
-  return (
-    <div className="min-h-screen text-white p-6" style={{ background: "var(--ink)" }}>
-      <div className="max-w-5xl mx-auto">
-
-        {/* Breadcrumbs */}
-        <div className="flex items-center gap-2 mb-6 text-sm" style={{ color: "rgba(255,255,255,0.4)" }}>
-          <Link href="/employer" className="hover:text-white transition">Кабинет</Link>
-          <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-            <path d="M9 18l6-6-6-6"/>
-          </svg>
-          <span style={{ color: "rgba(255,255,255,0.7)" }}>Интервью</span>
+ if (loading) {
+ return (
+ <div className="min-h-screen flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 rounded-full border-2 animate-spin"
+            style={{ borderColor: "rgba(196,173,255,0.2)", borderTopColor: "var(--lavender)" }} />
+          <div className="text-sm font-body" style={{ color: "rgba(255,255,255,0.3)" }}>Загрузка...</div>
         </div>
-
-        {/* Header */}
-        <div className="flex items-start justify-between gap-4 mb-6">
-          <div>
-            <h1 className="text-2xl font-semibold">Интервью</h1>
-            <p className="mt-1 text-sm" style={{ color: "rgba(255,255,255,0.45)" }}>
-              {interviews.length} {interviews.length === 1 ? "интервью" : "интервью"}
-            </p>
-          </div>
-
-          <Link
-            href="/employer/interviews/new"
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white transition"
-            style={{ background: "linear-gradient(135deg, #5B2ECC, #7C4AE8)" }}
-          >
-            <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-              <path d="M12 4v16m8-8H4"/>
-            </svg>
-            Назначить интервью
-          </Link>
-        </div>
-
-        {/* Filters */}
-        {interviews.length > 0 && (
-          <div className="flex gap-3 mb-6">
-            <select
-              value={filterStage}
-              onChange={(e) => setFilterStage(e.target.value)}
-              className="px-4 py-2.5 rounded-xl text-sm cursor-pointer"
-              style={{
-                background: "rgba(255,255,255,0.04)",
-                border: "1px solid rgba(196,173,255,0.12)",
-                color: "white",
-                outline: "none",
-              }}
-            >
-              <option value="all">Все этапы</option>
-              <option value="stage_1">Этап 1</option>
-              <option value="stage_2">Этап 2</option>
-              <option value="final">Финал</option>
-            </select>
-
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="px-4 py-2.5 rounded-xl text-sm cursor-pointer"
-              style={{
-                background: "rgba(255,255,255,0.04)",
-                border: "1px solid rgba(196,173,255,0.12)",
-                color: "white",
-                outline: "none",
-              }}
-            >
-              <option value="all">Все статусы</option>
-              <option value="scheduled">Запланировано</option>
-              <option value="completed">Завершено</option>
-              <option value="cancelled">Отменено</option>
-            </select>
-          </div>
-        )}
-
-        {/* Upcoming Interviews */}
-        {upcoming.length > 0 && (
-          <div className="mb-8">
-            <h2 className="text-lg font-semibold mb-4" style={{ color: "rgba(255,255,255,0.8)" }}>
-              Предстоящие — {upcoming.length}
-            </h2>
-            <div className="space-y-3">
-              {upcoming.map((interview) => (
-                <Link
-                  key={interview.id}
-                  href={`/employer/interviews/${interview.id}`}
-                  className="block rounded-2xl p-5 transition hover:bg-white/[0.03]"
-                  style={{ border: "1px solid rgba(196,173,255,0.12)", background: "rgba(255,255,255,0.02)" }}
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-2">
-                        <StageBadge stage={interview.stage} />
-                        <StatusBadge status={interview.status} />
-                      </div>
-                      
-                      <h3 className="font-semibold text-white mb-1">
-                        {interview.title || interview.jobs?.title || "Интервью"}
-                      </h3>
-                      
-                      <div className="flex items-center gap-4 text-sm" style={{ color: "rgba(255,255,255,0.4)" }}>
-                        <div className="flex items-center gap-1.5">
-                          <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                            <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/>
-                            <circle cx="12" cy="7" r="4"/>
-                          </svg>
-                          {interview.profiles?.full_name || interview.profiles?.email || "Кандидат"}
-                        </div>
-                        
-                        <div className="flex items-center gap-1.5">
-                          <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                            <circle cx="12" cy="12" r="10"/>
-                            <polyline points="12 6 12 12 16 14"/>
-                          </svg>
-                          {formatDateTime(interview.scheduled_at)}
-                        </div>
-                        
-                        <div className="flex items-center gap-1.5">
-                          <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                            <path d="M12 8v4l3 3"/>
-                            <circle cx="12" cy="12" r="10"/>
-                          </svg>
-                          {interview.duration_minutes} мин
-                        </div>
-                      </div>
-                    </div>
-
-                    <svg width="20" height="20" fill="none" stroke="rgba(196,173,255,0.4)" strokeWidth="2" viewBox="0 0 24 24">
-                      <path d="M9 18l6-6-6-6"/>
-                    </svg>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Past Interviews */}
-        {past.length > 0 && (
-          <div>
-            <h2 className="text-lg font-semibold mb-4" style={{ color: "rgba(255,255,255,0.5)" }}>
-              Прошедшие — {past.length}
-            </h2>
-            <div className="space-y-3">
-              {past.map((interview) => (
-                <Link
-                  key={interview.id}
-                  href={`/employer/interviews/${interview.id}`}
-                  className="block rounded-2xl p-5 transition hover:bg-white/[0.03]"
-                  style={{ border: "1px solid rgba(196,173,255,0.08)", background: "rgba(255,255,255,0.01)" }}
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-2">
-                        <StageBadge stage={interview.stage} />
-                        <StatusBadge status={interview.status} />
-                      </div>
-                      
-                      <h3 className="font-semibold mb-1" style={{ color: "rgba(255,255,255,0.7)" }}>
-                        {interview.title || interview.jobs?.title || "Интервью"}
-                      </h3>
-                      
-                      <div className="flex items-center gap-4 text-sm" style={{ color: "rgba(255,255,255,0.3)" }}>
-                        <span>{interview.profiles?.full_name || interview.profiles?.email}</span>
-                        <span>{formatDateTime(interview.scheduled_at)}</span>
-                      </div>
-                    </div>
-
-                    <svg width="20" height="20" fill="none" stroke="rgba(196,173,255,0.3)" strokeWidth="2" viewBox="0 0 24 24">
-                      <path d="M9 18l6-6-6-6"/>
-                    </svg>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Empty State */}
-        {interviews.length === 0 && (
-          <div
-            className="rounded-2xl p-12 text-center"
-            style={{ border: "1px solid rgba(196,173,255,0.08)", background: "rgba(255,255,255,0.02)" }}
-          >
-            <svg className="w-16 h-16 mx-auto mb-4" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="1.5" viewBox="0 0 24 24">
-              <rect x="3" y="4" width="18" height="18" rx="2"/>
-              <line x1="16" y1="2" x2="16" y2="6"/>
-              <line x1="8" y1="2" x2="8" y2="6"/>
-              <line x1="3" y1="10" x2="21" y2="10"/>
-            </svg>
-            <h3 className="text-lg font-semibold mb-2" style={{ color: "rgba(255,255,255,0.6)" }}>
-              Нет интервью
-            </h3>
-            <p className="text-sm mb-6" style={{ color: "rgba(255,255,255,0.3)" }}>
-              Назначьте первое интервью с кандидатом
-            </p>
-            <Link
-              href="/employer/applications"
-              className="inline-block px-5 py-2.5 rounded-xl text-sm font-semibold transition"
-              style={{ background: "rgba(92,46,204,0.15)", color: "var(--lavender)", border: "1px solid rgba(92,46,204,0.3)" }}
-            >
-              Посмотреть отклики
-            </Link>
-          </div>
-        )}
-
       </div>
-    </div>
-  );
+ );
+ }
+
+ const verStatus = company?.verification_status;
+ const verBadge =
+ verStatus === "approved"
+ ? { label: "Верифицирована ", cls: "bg-emerald-500/20 text-emerald-400" }
+ : verStatus === "pending"
+ ? { label: "На проверке...", cls: "bg-yellow-500/20 text-yellow-400" }
+ : { label: "Не верифицирована", cls: "bg-white/10 text-white/50" };
+
+ return (
+ <div className="min-h-screen text-white p-6" style={{ background: "var(--ink)" }}>
+ <div className="max-w-5xl mx-auto">
+
+ {/* Шапка */}
+ <div className="flex items-start justify-between gap-4 mb-8">
+ <div>
+ <h1 className="text-2xl font-semibold">Кабинет работодателя</h1>
+ <div className="flex items-center gap-2 mt-2">
+ <span className="text-white/70">{company?.name}</span>
+ <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${verBadge.cls}`}>
+ {verBadge.label}
+ </span>
+ </div>
+ </div>
+ <button
+ onClick={handleLogout}
+ className="text-sm text-white/50 hover:text-white transition px-4 py-2 rounded-xl hover:bg-white/5"
+ >
+ Выйти
+ </button>
+ </div>
+
+ {/* Статистика */}
+ <div className="grid grid-cols-3 gap-4 mb-8">
+ {[
+ { label: "Всего вакансий", value: stats.jobs, color: "from-violet-600/20" },
+ { label: "Активных", value: stats.activeJobs, color: "from-emerald-600/20" },
+ { label: "Откликов", value: stats.applications, color: "from-blue-600/20" },
+ ].map((s) => (
+ <div key={s.label} className={`rounded-2xl border border-white/10 bg-gradient-to-br ${s.color} to-transparent p-5`}>
+ <div className="text-3xl font-bold">{s.value}</div>
+ <div className="text-sm text-white/60 mt-1">{s.label}</div>
+ </div>
+ ))}
+ </div>
+
+ {/* Быстрые действия */}
+ <div className="grid md:grid-cols-2 gap-4">
+ <Link
+ href="/employer/jobs/new"
+ className="group rounded-2xl border border-white/10 bg-white/5 hover:bg-white/8 p-6 transition"
+ >
+ <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-3" style={{ background: "rgba(92,46,204,0.2)", border: "1px solid rgba(92,46,204,0.3)" }}>
+ <svg className="w-5 h-5" style={{ color: "var(--lavender)" }} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" /></svg>
+ </div>
+ <div className="font-semibold text-lg">Создать вакансию</div>
+ <div className="text-sm text-white/50 mt-1">Разместите новую вакансию для поиска кандидатов</div>
+ </Link>
+
+ <Link
+ href="/employer/jobs"
+ className="group rounded-2xl border border-white/10 bg-white/5 hover:bg-white/8 p-6 transition"
+ >
+ <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-3" style={{ background: "rgba(92,46,204,0.2)", border: "1px solid rgba(92,46,204,0.3)" }}>
+ <svg className="w-5 h-5" style={{ color: "var(--lavender)" }} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+ </div>
+ <div className="font-semibold text-lg">Мои вакансии</div>
+ <div className="text-sm text-white/50 mt-1">
+ {stats.jobs > 0 ? `${stats.jobs} вакансий, ${stats.activeJobs} активных` : "Вакансий пока нет"}
+ </div>
+ </Link>
+
+ <Link
+ href="/employer/applications"
+ className="group rounded-2xl border border-white/10 bg-white/5 hover:bg-white/8 p-6 transition"
+ >
+ <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-3" style={{ background: "rgba(92,46,204,0.2)", border: "1px solid rgba(92,46,204,0.3)" }}>
+ <svg className="w-5 h-5" style={{ color: "var(--lavender)" }} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+ </div>
+ <div className="font-semibold text-lg">Отклики</div>
+ <div className="text-sm text-white/50 mt-1">
+ {stats.applications > 0 ? `${stats.applications} откликов` : "Откликов пока нет"}
+ </div>
+ </Link>
+
+ <Link
+ href="/employer/analytics"
+ className="group rounded-2xl border border-white/10 bg-white/5 hover:bg-white/8 p-6 transition"
+ >
+ <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-3" style={{ background: "rgba(201,168,76,0.2)", border: "1px solid rgba(201,168,76,0.3)" }}>
+ <svg className="w-5 h-5" style={{ color: "var(--gold)" }} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+ </div>
+ <div className="font-semibold text-lg">Аналитика</div>
+ <div className="text-sm text-white/50 mt-1">Просмотры вакансий и конверсия</div>
+ </Link>
+
+ <Link
+ href="/chat"
+ className="group rounded-2xl border border-white/10 bg-white/5 hover:bg-white/8 p-6 transition"
+ >
+ <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-3" style={{ background: "rgba(92,46,204,0.2)", border: "1px solid rgba(92,46,204,0.3)" }}>
+ <svg className="w-5 h-5" style={{ color: "var(--lavender)" }} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
+ </div>
+ <div className="font-semibold text-lg">Сообщения</div>
+ <div className="text-sm text-white/50 mt-1">Чат с кандидатами</div>
+ </Link>
+
+ <Link
+ href="/employer/company"
+ className="group rounded-2xl border border-white/10 bg-white/5 hover:bg-white/8 p-6 transition"
+ >
+ <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-3" style={{ background: "rgba(201,168,76,0.2)", border: "1px solid rgba(201,168,76,0.3)" }}>
+ <svg className="w-5 h-5" style={{ color: "var(--gold)" }} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+ </div>
+ <div className="font-semibold text-lg">Страница компании</div>
+ <div className="text-sm text-white/50 mt-1">Баннер, логотип, описание</div>
+ </Link>
+
+ <Link
+ href="/employer/team"
+ className="group rounded-2xl border border-white/10 bg-white/5 hover:bg-white/8 p-6 transition"
+ >
+ <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-3" style={{ background: "rgba(92,46,204,0.2)", border: "1px solid rgba(92,46,204,0.3)" }}>
+ <svg className="w-5 h-5" style={{ color: "var(--lavender)" }} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+ </div>
+ <div className="font-semibold text-lg">Команда</div>
+ <div className="text-sm text-white/50 mt-1">Сотрудники, роли, приглашения</div>
+ </Link>
+
+ <Link
+ href="/employer/interviews"
+ className="group rounded-2xl border border-white/10 bg-white/5 hover:bg-white/8 p-6 transition"
+ >
+ <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-3" style={{ background: "rgba(52,211,153,0.2)", border: "1px solid rgba(52,211,153,0.3)" }}>
+ <svg className="w-5 h-5" style={{ color: "#34d399" }} fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}/><line x1="16" y1="2" x2="16" y2="6" strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}/><line x1="8" y1="2" x2="8" y2="6" strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}/><line x1="3" y1="10" x2="21" y2="10" strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}/></svg>
+ </div>
+ <div className="font-semibold text-lg">Интервью</div>
+ <div className="text-sm text-white/50 mt-1">Календарь собеседований</div>
+ </Link>
+ </div>
+
+ {verStatus === "pending" && (
+ <div className="mt-6 rounded-2xl border border-yellow-500/20 bg-yellow-500/5 p-4 text-sm text-yellow-300">
+ Ваша компания находится на проверке. Это обычно занимает до 24 часов. После верификации вы сможете публиковать вакансии.
+ </div>
+ )}
+ </div>
+ </div>
+ );
 }
