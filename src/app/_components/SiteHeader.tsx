@@ -23,6 +23,7 @@ export default function SiteHeader() {
   const supabaseRef = useRef(createClient());
   const [authUser, setAuthUser] = useState<AuthUser | null | undefined>(undefined);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [unreadChats, setUnreadChats] = useState(0);
 
   const navItems = [
@@ -69,6 +70,7 @@ export default function SiteHeader() {
 
   async function handleLogout() {
     setMenuOpen(false);
+    setMobileMenuOpen(false);
     await supabaseRef.current.auth.signOut();
     setAuthUser(null);
     router.replace("/");
@@ -122,7 +124,7 @@ export default function SiteHeader() {
           >
             <span style={{ fontFamily: "Georgia, serif", fontWeight: 700, fontSize: "16px", color: "#fff", letterSpacing: "-1px" }}>FH</span>
           </div>
-          <div className="leading-tight">
+          <div className="leading-tight hidden sm:block">
             <div className="font-display font-bold" style={{ fontSize: "15px", letterSpacing: "-0.3px", color: "var(--text-primary)" }}>
               Freedom<span className="font-accent text-xs ml-0.5" style={{ color: "var(--lavender)", letterSpacing: "0.15em", verticalAlign: "baseline" }}>HIRE</span>
             </div>
@@ -130,8 +132,8 @@ export default function SiteHeader() {
           </div>
         </Link>
 
-        {/* NAV */}
-        <nav className="hidden items-center gap-6 text-sm md:flex">
+        {/* DESKTOP NAV */}
+        <nav className="hidden md:flex items-center gap-6 text-sm">
           {navItems.map((item) => (
             <Link
               key={item.href}
@@ -143,13 +145,14 @@ export default function SiteHeader() {
           ))}
         </nav>
 
-        {/* RIGHT */}
+        {/* RIGHT SIDE */}
         <div className="flex items-center gap-2">
 
-          {/* Chat icon */}
+          {/* Chat icon - Hidden on mobile */}
           {authUser && (
             <Link
               href="/chat"
+              className="hidden sm:flex"
               style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center", width: 36, height: 36, borderRadius: 10, background: iconBg, border: `1px solid ${iconBorder}`, textDecoration: "none", flexShrink: 0, transition: "all .2s" }}
             >
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -163,12 +166,12 @@ export default function SiteHeader() {
             </Link>
           )}
 
-          {/* Language Switcher */}
+          {/* Language Switcher - Hidden on smallest mobile */}
           <div
-            className="flex items-center rounded-xl overflow-hidden shrink-0"
+            className="hidden sm:flex items-center rounded-xl overflow-hidden shrink-0"
             style={{ background: iconBg, border: `1px solid ${iconBorder}` }}
           >
-            {(["ru", "uz"] as Lang[]).map((l) => (
+            {(["ru", "uz", "en"] as Lang[]).map((l, idx) => (
               <button
                 key={l}
                 onClick={() => setLang(l)}
@@ -176,7 +179,7 @@ export default function SiteHeader() {
                 style={{
                   background: lang === l ? "rgba(92,46,204,0.5)" : "transparent",
                   color: lang === l ? "#fff" : "var(--text-secondary)",
-                  borderRight: l === "ru" ? `1px solid ${iconBorder}` : undefined,
+                  borderRight: idx < 2 ? `1px solid ${iconBorder}` : undefined,
                 }}
               >
                 {l.toUpperCase()}
@@ -184,11 +187,11 @@ export default function SiteHeader() {
             ))}
           </div>
 
-          {/* User */}
+          {/* Desktop User Menu */}
           {authUser === undefined ? (
-            <div className="h-9 w-24 rounded-2xl animate-pulse" style={{ background: iconBg }} />
+            <div className="hidden md:block h-9 w-24 rounded-2xl animate-pulse" style={{ background: iconBg }} />
           ) : authUser ? (
-            <div className="relative">
+            <div className="relative hidden md:block">
               <button
                 onClick={() => setMenuOpen((v) => !v)}
                 className="flex items-center gap-2 rounded-2xl px-3 py-2 transition"
@@ -245,22 +248,175 @@ export default function SiteHeader() {
             <>
               <Link
                 href="/auth"
-                className="rounded-2xl px-5 py-2 text-sm font-semibold transition"
+                className="hidden md:block rounded-2xl px-5 py-2 text-sm font-semibold transition"
                 style={{ border: `1px solid ${iconBorder}`, background: iconBg, color: "rgba(255,255,255,0.8)" }}
               >
                 {t.nav.login}
               </Link>
               <Link
                 href="/auth?mode=signup"
-                className="rounded-2xl px-5 py-2 text-sm font-semibold text-white transition"
+                className="hidden md:block rounded-2xl px-5 py-2 text-sm font-semibold text-white transition"
                 style={{ background: "linear-gradient(135deg, #5B2ECC, #7C4AE8)", boxShadow: "0 4px 16px rgba(92,46,204,0.4)" }}
               >
                 {t.nav.register}
               </Link>
             </>
           )}
+
+          {/* MOBILE BURGER MENU BUTTON */}
+          <button
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="md:hidden flex items-center justify-center w-10 h-10 rounded-xl"
+            style={{ background: iconBg, border: `1px solid ${iconBorder}` }}
+            aria-label="Menu"
+          >
+            {mobileMenuOpen ? (
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M18 6L6 18M6 6l12 12" />
+              </svg>
+            ) : (
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M3 12h18M3 6h18M3 18h18" />
+              </svg>
+            )}
+          </button>
         </div>
       </div>
+
+      {/* MOBILE MENU OVERLAY */}
+      {mobileMenuOpen && (
+        <>
+          <div 
+            className="fixed inset-0 bg-black/50 z-40 md:hidden"
+            onClick={() => setMobileMenuOpen(false)}
+          />
+          <div
+            className="fixed top-[73px] right-0 bottom-0 w-[80%] max-w-sm z-50 md:hidden overflow-y-auto"
+            style={{ background: dropdownBg, borderLeft: `1px solid ${dropdownBorder}` }}
+          >
+            <div className="p-4 space-y-4">
+              
+              {/* Mobile Nav Links */}
+              <div className="space-y-1">
+                {navItems.map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="block px-4 py-3 rounded-xl text-base transition"
+                    style={{
+                      background: isActive(item.href) ? "rgba(92,46,204,0.2)" : "transparent",
+                      color: isActive(item.href) ? "var(--text-primary)" : "var(--text-secondary)",
+                      fontWeight: isActive(item.href) ? 600 : 400,
+                    }}
+                  >
+                    {item.label}
+                  </Link>
+                ))}
+              </div>
+
+              {/* Mobile Language Switcher */}
+              <div className="px-4">
+                <div className="text-xs mb-2" style={{ color: "var(--text-muted)" }}>Язык / Language</div>
+                <div className="flex gap-2">
+                  {(["ru", "uz", "en"] as Lang[]).map((l) => (
+                    <button
+                      key={l}
+                      onClick={() => {
+                        setLang(l);
+                        setMobileMenuOpen(false);
+                      }}
+                      className="flex-1 px-3 py-2 rounded-lg text-sm font-semibold transition"
+                      style={{
+                        background: lang === l ? "rgba(92,46,204,0.5)" : "rgba(255,255,255,0.05)",
+                        color: lang === l ? "#fff" : "var(--text-secondary)",
+                        border: `1px solid ${lang === l ? "transparent" : iconBorder}`,
+                      }}
+                    >
+                      {l.toUpperCase()}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Mobile User Section */}
+              {authUser ? (
+                <>
+                  <div className="px-4 py-3 rounded-xl" style={{ background: "rgba(255,255,255,0.03)", border: `1px solid ${dropdownBorder}` }}>
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className={`flex h-10 w-10 items-center justify-center rounded-full text-base font-bold ${
+                        authUser.role === "admin" ? "bg-red-600" : "bg-violet-600"
+                      }`}>
+                        {initials}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-semibold truncate" style={{ color: "#fff" }}>{displayName}</div>
+                        <div className="text-xs truncate" style={{ color: "rgba(255,255,255,0.4)" }}>{authUser.email}</div>
+                      </div>
+                    </div>
+                    <div className={`inline-block text-xs px-2 py-0.5 rounded-full ${roleBadge[authUser.role].cls}`}>
+                      {roleBadge[authUser.role].label}
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <Link
+                      href={getDashboardLink()}
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="block px-4 py-3 rounded-xl text-base transition hover:bg-white/8"
+                      style={{ color: dropdownLinkColor }}
+                    >
+                      {authUser.role === "admin" ? t.nav.adminPanel : t.nav.dashboard}
+                    </Link>
+                    
+                    {authUser && (
+                      <Link
+                        href="/chat"
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="block px-4 py-3 rounded-xl text-base transition hover:bg-white/8 relative"
+                        style={{ color: dropdownLinkColor }}
+                      >
+                        Чат
+                        {unreadChats > 0 && (
+                          <span className="absolute right-4 top-1/2 -translate-y-1/2 bg-violet-600 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                            {unreadChats}
+                          </span>
+                        )}
+                      </Link>
+                    )}
+
+                    <button
+                      onClick={handleLogout}
+                      className="w-full text-left px-4 py-3 rounded-xl text-base text-red-400 transition hover:bg-red-500/10"
+                    >
+                      {t.nav.logout}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <div className="space-y-2 px-4">
+                  <Link
+                    href="/auth"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="block text-center rounded-xl px-5 py-3 text-base font-semibold transition"
+                    style={{ border: `1px solid ${iconBorder}`, background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.8)" }}
+                  >
+                    {t.nav.login}
+                  </Link>
+                  <Link
+                    href="/auth?mode=signup"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="block text-center rounded-xl px-5 py-3 text-base font-semibold text-white transition"
+                    style={{ background: "linear-gradient(135deg, #5B2ECC, #7C4AE8)", boxShadow: "0 4px 16px rgba(92,46,204,0.4)" }}
+                  >
+                    {t.nav.register}
+                  </Link>
+                </div>
+              )}
+            </div>
+          </div>
+        </>
+      )}
     </header>
   );
 }
