@@ -221,6 +221,17 @@ export default function EmployerDashboard() {
  <div className="font-semibold text-lg">Команда</div>
  <div className="text-sm text-white/50 mt-1">Сотрудники, роли, приглашения</div>
  </Link>
+
+ <Link
+ href="/employer/interviews"
+ className="group rounded-2xl border border-white/10 bg-white/5 hover:bg-white/8 p-6 transition"
+ >
+ <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-3" style={{ background: "rgba(52,211,153,0.2)", border: "1px solid rgba(52,211,153,0.3)" }}>
+ <svg className="w-5 h-5" style={{ color: "#34d399" }} fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}/><line x1="16" y1="2" x2="16" y2="6" strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}/><line x1="8" y1="2" x2="8" y2="6" strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}/><line x1="3" y1="10" x2="21" y2="10" strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}/></svg>
+ </div>
+ <div className="font-semibold text-lg">Интервью</div>
+ <div className="text-sm text-white/50 mt-1">Календарь собеседований</div>
+ </Link>
  </div>
 
  {verStatus === "pending" && (
