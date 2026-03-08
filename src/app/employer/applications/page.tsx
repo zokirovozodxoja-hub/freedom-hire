@@ -760,24 +760,34 @@ export default function EmployerApplicationsPage() {
                           </svg>
                           Написать
                         </button>
-                        <button
-                          onClick={() => setInterviewApp(app)}
+                        <Link
+                          href={`/employer/interviews/new?application=${app.id}`}
                           className="inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-body transition"
-                          style={{ border: "1px solid rgba(196,173,255,0.2)", color: "var(--lavender)", background: "rgba(92,46,204,0.1)" }}>
+                          style={{ border: "1px solid rgba(52,211,153,0.2)", color: "#34d399", background: "rgba(52,211,153,0.1)" }}>
                           <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M8 12h.01M12 12h.01M16 12h.01M21 3H3v13l4 4h14V3z" />
+                            <rect x="3" y="4" width="18" height="18" rx="2" strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}/>
+                            <line x1="16" y1="2" x2="16" y2="6" strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}/>
+                            <line x1="8" y1="2" x2="8" y2="6" strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}/>
                           </svg>
-                          AI-интервью
-                        </button>
-                        <div className="ml-auto flex flex-wrap gap-1.5">
-                          {STATUSES.filter((s) => s.key !== app.status).map((s) => (
-                            <button key={s.key} onClick={() => openModal(app, s.key)}
-                              className="rounded-xl px-3 py-1.5 text-xs font-body transition"
-                              style={{ background: s.color, color: s.text, border: `1px solid ${s.border}` }}>
-                              → {s.label}
-                            </button>
+                          Назначить интервью
+                        </Link>
+                        <select
+                          value={app.status}
+                          onChange={(e) => openModal(app, e.target.value)}
+                          className="ml-auto px-3 py-1.5 rounded-xl text-xs font-semibold cursor-pointer"
+                          style={{
+                            background: "rgba(255,255,255,0.04)",
+                            border: "1px solid rgba(196,173,255,0.12)",
+                            color: "white",
+                            outline: "none",
+                          }}
+                        >
+                          {STATUSES.map((s) => (
+                            <option key={s.key} value={s.key} style={{ background: "#1a1a2e", color: "white" }}>
+                              {s.label}
+                            </option>
                           ))}
-                        </div>
+                        </select>
                       </div>
                     </div>
                   </div>
