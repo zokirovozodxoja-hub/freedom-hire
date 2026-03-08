@@ -101,6 +101,9 @@ export async function POST(request: NextRequest) {
     const RESEND_API_KEY = process.env.RESEND_API_KEY;
     const FROM_EMAIL = process.env.FROM_EMAIL || "FreedomHIRE <noreply@freedomhire.uz>";
 
+    console.log("[invite] RESEND_API_KEY present:", !!RESEND_API_KEY);
+    console.log("[invite] FROM_EMAIL:", process.env.FROM_EMAIL);
+
     if (RESEND_API_KEY) {
       const expiresFormatted = new Date(invitation.expires_at).toLocaleDateString("ru-RU", {
         day: "numeric", month: "long", year: "numeric"
@@ -147,7 +150,7 @@ export async function POST(request: NextRequest) {
 </body>
 </html>`;
 
-      await fetch("https://api.resend.com/emails", {
+      const resendRes = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${RESEND_API_KEY}`,
