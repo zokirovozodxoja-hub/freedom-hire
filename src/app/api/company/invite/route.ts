@@ -97,29 +97,70 @@ export async function POST(request: NextRequest) {
       supabase.from("profiles").select("full_name").eq("id", userData.user.id).single(),
     ]);
 
-    // Кладём письмо в очередь
-    await supabase.from("email_queue").insert({
-      to_email: email.toLowerCase(),
-      subject: `Приглашение в команду ${company?.name ?? "компании"} на FreedomHire`,
-      template: "team_invite",
-      template_data: {
-        company_name: company?.name ?? "Компания",
-        invited_name: name?.trim() || null,
-        role_label: ROLE_LABELS[role] ?? role,
-        inviter_name: inviterProfile?.full_name ?? "Администратор",
-        token: invitation.token,
-        expires_at: new Date(invitation.expires_at).toLocaleDateString("ru-RU", {
-          day: "numeric", month: "long", year: "numeric"
-        }),
-      },
-      status: "pending",
-    });
+    // Отправляем письмо напрямую через Resend
+    const RESEND_API_KEY = process.env.RESEND_API_KEY;
+    const FROM_EMAIL = process.env.FROM_EMAIL || "FreedomHIRE <noreply@freedomhire.uz>";
 
-    // Сразу триггерим отправку
-    fetch(`${SITE_URL}/api/email/send`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-    }).catch(() => {}); // fire and forget
+    if (RESEND_API_KEY) {
+      const expiresFormatted = new Date(invitation.expires_at).toLocaleDateString("ru-RU", {
+        day: "numeric", month: "long", year: "numeric"
+      });
+      const companyName = company?.name ?? "Компания";
+      const roleLabel = ROLE_LABELS[role] ?? role;
+      const inviterName = inviterProfile?.full_name ?? "Администратор";
+      const inviteUrl = `${SITE_URL}/invite/${invitation.token}`;
+
+      const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: #f5f5f5; margin: 0; padding: 20px; }
+    .container { max-width: 600px; margin: 0 auto; background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .header { background: linear-gradient(135deg, #5B2ECC, #7C4AE8); padding: 30px; text-align: center; }
+    .header h1 { color: #fff; margin: 0; font-size: 22px; }
+    .content { padding: 30px; }
+    .highlight { background: #F8F6FF; border-left: 4px solid #5B2ECC; padding: 15px; margin: 20px 0; border-radius: 0 8px 8px 0; }
+    .role-badge { display: inline-block; background: #ede9fe; color: #5B2ECC; padding: 4px 12px; border-radius: 20px; font-weight: 600; font-size: 13px; }
+    .btn { display: inline-block; background: #5B2ECC; color: #fff !important; text-decoration: none; padding: 14px 28px; border-radius: 8px; font-weight: 600; margin-top: 20px; font-size: 15px; }
+    .footer { background: #f9f9f9; padding: 20px; text-align: center; color: #666; font-size: 12px; }
+    .expires { color: #999; font-size: 13px; margin-top: 16px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header"><h1>Приглашение в команду</h1></div>
+    <div class="content">
+      <p>Здравствуйте${name?.trim() ? ", " + name.trim() : ""}!</p>
+      <p>Вас приглашают присоединиться к команде работодателя на платформе <strong>FreedomHire</strong>.</p>
+      <div class="highlight">
+        <strong>Компания:</strong> ${companyName}<br>
+        <strong>Роль:</strong> <span class="role-badge">${roleLabel}</span><br>
+        <strong>Пригласил:</strong> ${inviterName}
+      </div>
+      <p>Нажмите кнопку ниже, чтобы принять приглашение:</p>
+      <a href="${inviteUrl}" class="btn">Принять приглашение</a>
+      <p class="expires">Ссылка действительна до ${expiresFormatted}. Если вы не ожидали этого письма — просто проигнорируйте его.</p>
+    </div>
+    <div class="footer"><p>© ${new Date().getFullYear()} FreedomHIRE · freedomhire.uz</p></div>
+  </div>
+</body>
+</html>`;
+
+      await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${RESEND_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from: FROM_EMAIL,
+          to: email.toLowerCase(),
+          subject: `Приглашение в команду ${companyName} на FreedomHire`,
+          html,
+        }),
+      });
+    }
 
     return NextResponse.json({ ok: true });
 
