@@ -127,43 +127,14 @@ function InviteModal({
     setError(null);
 
     try {
-      const { data: userData } = await supabase.auth.getUser();
-      if (!userData.user) throw new Error("Нет сессии");
+      const res = await fetch("/api/company/invite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim(), name: name.trim() || null, role }),
+      });
 
-      // Получаем company_id и member_id текущего пользователя
-      const { data: member, error: mErr } = await supabase
-        .from("company_members")
-        .select("id, company_id, role")
-        .eq("user_id", userData.user.id)
-        .eq("status", "active")
-        .maybeSingle();
-
-      if (mErr || !member) throw new Error("Не найден профиль сотрудника");
-      if (!["owner", "admin"].includes(member.role)) throw new Error("Недостаточно прав");
-
-      // Проверяем, нет ли уже активного приглашения на этот email
-      const { data: existing } = await supabase
-        .from("company_invitations")
-        .select("id, status")
-        .eq("company_id", member.company_id)
-        .eq("email", email.trim().toLowerCase())
-        .eq("status", "pending")
-        .maybeSingle();
-
-      if (existing) throw new Error("Приглашение на этот email уже отправлено");
-
-      // Создаём приглашение
-      const { error: invErr } = await supabase
-        .from("company_invitations")
-        .insert({
-          company_id: member.company_id,
-          email: email.trim().toLowerCase(),
-          name: name.trim() || null,
-          role,
-          invited_by: member.id,
-        });
-
-      if (invErr) throw new Error("Не удалось создать приглашение");
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Ошибка отправки");
 
       onSent();
     } catch (e: unknown) {

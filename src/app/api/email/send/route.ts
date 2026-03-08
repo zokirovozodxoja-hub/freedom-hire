@@ -121,6 +121,52 @@ const templates: Record<string, (data: any) => { subject: string; html: string }
     };
   },
 
+  team_invite: (data) => ({
+    subject: `Приглашение в команду ${data.company_name} на FreedomHire`,
+    html: `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <style>
+          body { font-family: 'Segoe UI', Arial, sans-serif; background: #f5f5f5; margin: 0; padding: 20px; }
+          .container { max-width: 600px; margin: 0 auto; background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+          .header { background: linear-gradient(135deg, #5B2ECC, #7C4AE8); padding: 30px; text-align: center; }
+          .header h1 { color: #fff; margin: 0; font-size: 22px; }
+          .content { padding: 30px; }
+          .highlight { background: #F8F6FF; border-left: 4px solid #5B2ECC; padding: 15px; margin: 20px 0; border-radius: 0 8px 8px 0; }
+          .role-badge { display: inline-block; background: #ede9fe; color: #5B2ECC; padding: 4px 12px; border-radius: 20px; font-weight: 600; font-size: 13px; }
+          .btn { display: inline-block; background: #5B2ECC; color: #fff !important; text-decoration: none; padding: 14px 28px; border-radius: 8px; font-weight: 600; margin-top: 20px; font-size: 15px; }
+          .footer { background: #f9f9f9; padding: 20px; text-align: center; color: #666; font-size: 12px; }
+          .expires { color: #999; font-size: 13px; margin-top: 16px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>Приглашение в команду</h1>
+          </div>
+          <div class="content">
+            <p>Здравствуйте${data.invited_name ? ", " + data.invited_name : ""}!</p>
+            <p>Вас приглашают присоединиться к команде работодателя на платформе <strong>FreedomHire</strong>.</p>
+            <div class="highlight">
+              <strong>Компания:</strong> ${data.company_name}<br>
+              <strong>Роль:</strong> <span class="role-badge">${data.role_label}</span><br>
+              <strong>Пригласил:</strong> ${data.inviter_name || "Администратор"}
+            </div>
+            <p>Нажмите кнопку ниже, чтобы принять приглашение:</p>
+            <a href="${SITE_URL}/invite/${data.token}" class="btn">Принять приглашение</a>
+            <p class="expires">Ссылка действительна до ${data.expires_at}. Если вы не ожидали этого письма — просто проигнорируйте его.</p>
+          </div>
+          <div class="footer">
+            <p>© ${new Date().getFullYear()} FreedomHIRE · freedomhire.uz</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `,
+  }),
+
   new_message: (data) => ({
     subject: `Новое сообщение от ${data.sender_name}`,
     html: `
