@@ -105,6 +105,7 @@ export async function POST(request: NextRequest) {
     console.log("[invite] FROM_EMAIL:", process.env.FROM_EMAIL);
 
     if (RESEND_API_KEY) {
+      try {
       const expiresFormatted = new Date(invitation.expires_at).toLocaleDateString("ru-RU", {
         day: "numeric", month: "long", year: "numeric"
       });
@@ -150,19 +151,25 @@ export async function POST(request: NextRequest) {
 </body>
 </html>`;
 
-      const resendRes = await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${RESEND_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          from: FROM_EMAIL,
-          to: email.toLowerCase(),
-          subject: `Приглашение в команду ${companyName} на FreedomHire`,
-          html,
-        }),
-      });
+      try {
+        const resendRes = await fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${RESEND_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            from: FROM_EMAIL,
+            to: email.toLowerCase(),
+            subject: `Приглашение в команду ${companyName} на FreedomHire`,
+            html,
+          }),
+        });
+        const resendJson = await resendRes.json();
+        console.log("[invite] Resend status:", resendRes.status, JSON.stringify(resendJson));
+      } catch (err: unknown) {
+        console.error("[invite] Resend fetch error:", err instanceof Error ? err.message : err);
+      }
     }
 
     return NextResponse.json({ ok: true });
