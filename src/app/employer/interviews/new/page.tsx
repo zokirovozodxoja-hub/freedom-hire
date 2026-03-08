@@ -73,21 +73,26 @@ export default function NewInterviewPage() {
 
     setCompanyId(member.company_id);
 
-    // Загружаем отклики через company_id напрямую
-    const { data: apps } = await supabase
+    // Загружаем отклики - упрощённый запрос
+    const { data: apps, error: appsError } = await supabase
       .from("applications")
       .select(`
         id, candidate_id, job_id, status,
         profiles:candidate_id(full_name, email),
-        jobs!inner(title, company_id)
+        jobs(title, company_id)
       `)
-      .eq("jobs.company_id", member.company_id)
       .in("status", ["new", "screening", "shortlisted"])
       .order("created_at", { ascending: false })
       .limit(100);
 
-    console.log("Applications loaded:", apps);
-    setApplications((apps || []) as unknown as Application[]);
+    console.log("Applications loaded:", apps, "Error:", appsError);
+    
+    // Фильтруем только отклики нашей компании
+    const companyApps = (apps || []).filter(app => 
+      (app as any).jobs?.company_id === member.company_id
+    );
+    
+    setApplications(companyApps as unknown as Application[]);
 
     // Загружаем команду для выбора участников
     const { data: teamMembers } = await supabase
