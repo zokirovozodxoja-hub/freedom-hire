@@ -26,6 +26,18 @@ export default function SiteHeader() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [unreadChats, setUnreadChats] = useState(0);
 
+  // Block body scroll when mobile menu is open
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [mobileMenuOpen]);
+
   const navItems = [
     { href: "/jobs", label: t.nav.jobs },
     { href: "/employers", label: t.nav.employers },
@@ -287,15 +299,31 @@ export default function SiteHeader() {
       {mobileMenuOpen && (
         <>
           <div 
-            className="fixed inset-0 bg-black/50 z-40 md:hidden"
+            className="fixed inset-0 bg-black/60 z-40 md:hidden backdrop-blur-sm"
             onClick={() => setMobileMenuOpen(false)}
           />
           <div
-            className="fixed top-[73px] right-0 bottom-0 w-[80%] max-w-sm z-50 md:hidden overflow-y-auto"
+            className="fixed top-0 right-0 bottom-0 w-[85%] max-w-sm z-50 md:hidden overflow-y-auto pt-20"
             style={{ background: dropdownBg, borderLeft: `1px solid ${dropdownBorder}` }}
           >
             <div className="p-4 space-y-4">
               
+              {/* Close button inside menu */}
+              <div className="flex items-center justify-between mb-4">
+                <div className="font-display font-bold text-lg" style={{ color: "var(--text-primary)" }}>
+                  Меню
+                </div>
+                <button
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center justify-center w-10 h-10 rounded-xl transition"
+                  style={{ background: "rgba(255,255,255,0.05)" }}
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M18 6L6 18M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
               {/* Mobile Nav Links */}
               <div className="space-y-1">
                 {navItems.map((item) => (
