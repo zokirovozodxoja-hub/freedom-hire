@@ -396,33 +396,39 @@ export default function EmployerTeamPage() {
     const { data: userData } = await supabase.auth.getUser();
     if (!userData.user) { router.replace("/auth"); return; }
 
-    console.log("[team] user id:", userData.user.id);
-
     // Находим текущего member
     const { data: me, error: meErr } = await supabase
       .from("company_members")
-      .select("id, company_id, user_id, role, status, joined_at, created_at, profiles(full_name, email, avatar_url)")
+      .select("id, company_id, user_id, role, status, joined_at, created_at")
       .eq("user_id", userData.user.id)
       .eq("status", "active")
       .maybeSingle();
 
-    console.log("[team] me:", me, "error:", meErr);
-
-    if (!me) {
-      console.log("[team] no member found, redirecting to onboarding");
-      router.replace("/onboarding/employer"); return;
-    }
+    if (!me) { router.replace("/onboarding/employer"); return; }
 
     setMyMember(me as unknown as CompanyMember);
 
     // Все активные члены компании
     const { data: allMembers } = await supabase
       .from("company_members")
-      .select("id, user_id, role, status, joined_at, created_at, profiles(full_name, email, avatar_url)")
-      .eq("company_id", (me as any).company_id)
+      .select("id, company_id, user_id, role, status, joined_at, created_at")
+      .eq("company_id", me.company_id)
       .order("created_at", { ascending: true });
 
-    setMembers((allMembers ?? []) as unknown as CompanyMember[]);
+    // Загружаем профили отдельно
+    const userIds = (allMembers ?? []).map((m: any) => m.user_id);
+    const { data: profilesData } = userIds.length > 0
+      ? await supabase.from("profiles").select("id, full_name, email, avatar_url").in("id", userIds)
+      : { data: [] };
+
+    const profileMap = Object.fromEntries((profilesData ?? []).map((p: any) => [p.id, p]));
+
+    const membersWithProfiles = (allMembers ?? []).map((m: any) => ({
+      ...m,
+      profiles: profileMap[m.user_id] ?? null,
+    }));
+
+    setMembers(membersWithProfiles as unknown as CompanyMember[]);
 
     // Pending приглашения (только для owner/admin)
     if (["owner", "admin"].includes(me.role)) {
