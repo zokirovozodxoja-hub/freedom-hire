@@ -9,20 +9,28 @@ import { createClient } from "@/lib/supabase/client";
 
 type Application = {
   id: string;
-  job_id: string;
   candidate_id: string;
-  jobs: { title: string | null } | null;
-  profiles: { full_name: string | null; email: string | null } | null;
+  job_id: string;
+  profiles: {
+    full_name: string | null;
+    email: string | null;
+  } | null;
+  jobs: {
+    title: string | null;
+  } | null;
 };
 
-type TeamMember = {
+type CompanyMember = {
   id: string;
   user_id: string;
   role: string;
-  profiles: { full_name: string | null; email: string | null } | null;
+  profiles: {
+    full_name: string | null;
+    email: string | null;
+  } | null;
 };
 
-// ─── Main Component ──────────────────────────────────────────────
+// ─── Component ────────────────────────────────────────────────────
 
 export default function NewInterviewPage() {
   const router = useRouter();
@@ -31,7 +39,7 @@ export default function NewInterviewPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [applications, setApplications] = useState<Application[]>([]);
-  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [members, setMembers] = useState<CompanyMember[]>([]);
   const [companyId, setCompanyId] = useState<string>("");
 
   // Form state
@@ -41,10 +49,7 @@ export default function NewInterviewPage() {
   const [scheduledTime, setScheduledTime] = useState("");
   const [duration, setDuration] = useState(60);
   const [title, setTitle] = useState("");
-  const [location, setLocation] = useState("online");
-  const [meetingLink, setMeetingLink] = useState("");
   const [selectedParticipants, setSelectedParticipants] = useState<string[]>([]);
-
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => { void load(); }, []);
@@ -61,42 +66,31 @@ export default function NewInterviewPage() {
       .maybeSingle();
 
     if (!member) { router.replace("/onboarding/employer"); return; }
-
-    // Проверка прав (только owner, admin, recruiter)
     if (!["owner", "admin", "recruiter"].includes(member.role)) {
-      router.replace("/employer");
+      router.replace("/employer/interviews");
       return;
     }
 
     setCompanyId(member.company_id);
 
-    // Загружаем отклики
-    const { data: jobIds } = await supabase
-      .from("jobs")
-      .select("id")
-      .eq("company_id", member.company_id)
-      .eq("is_active", true);
+    // Загружаем отклики через company_id напрямую
+    const { data: apps } = await supabase
+      .from("applications")
+      .select(`
+        id, candidate_id, job_id, status,
+        profiles:candidate_id(full_name, email),
+        jobs!inner(title, company_id)
+      `)
+      .eq("jobs.company_id", member.company_id)
+      .in("status", ["new", "screening", "shortlisted"])
+      .order("created_at", { ascending: false })
+      .limit(100);
 
-    const ids = (jobIds || []).map(j => j.id);
+    console.log("Applications loaded:", apps);
+    setApplications((apps || []) as unknown as Application[]);
 
-    if (ids.length > 0) {
-      const { data: apps } = await supabase
-        .from("applications")
-        .select(`
-          id, job_id, candidate_id,
-          jobs(title),
-          profiles:candidate_id(full_name, email)
-        `)
-        .in("job_id", ids)
-        .in("status", ["pending", "reviewed", "shortlisted"])
-        .order("created_at", { ascending: false })
-        .limit(50);
-
-      setApplications((apps || []) as unknown as Application[]);
-    }
-
-    // Загружаем команду
-    const { data: team } = await supabase
+    // Загружаем команду для выбора участников
+    const { data: teamMembers } = await supabase
       .from("company_members")
       .select(`
         id, user_id, role,
@@ -105,37 +99,26 @@ export default function NewInterviewPage() {
       .eq("company_id", member.company_id)
       .eq("status", "active");
 
-    setTeamMembers((team || []) as unknown as TeamMember[]);
-
+    setMembers((teamMembers || []) as unknown as CompanyMember[]);
     setLoading(false);
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setError(null);
-
-    if (!applicationId) {
-      setError("Выберите кандидата");
-      return;
-    }
-
-    if (!scheduledDate || !scheduledTime) {
-      setError("Укажите дату и время");
-      return;
-    }
+    if (!applicationId) { setError("Выберите кандидата"); return; }
+    if (!scheduledDate || !scheduledTime) { setError("Укажите дату и время"); return; }
 
     setSaving(true);
+    setError(null);
 
     try {
-      // Находим application
       const app = applications.find(a => a.id === applicationId);
       if (!app) throw new Error("Отклик не найден");
 
-      // Формируем datetime
-      const scheduledAt = new Date(`${scheduledDate}T${scheduledTime}`);
+      const scheduledAt = new Date(`${scheduledDate}T${scheduledTime}`).toISOString();
 
-      // Создаём интервью
-      const { data: interview, error: insertError } = await supabase
+      // Создаём интервью (встреча будет создана позже через Daily.co)
+      const { data: interview, error: intError } = await supabase
         .from("interviews")
         .insert({
           application_id: applicationId,
@@ -144,16 +127,16 @@ export default function NewInterviewPage() {
           company_id: companyId,
           stage,
           status: "scheduled",
-          scheduled_at: scheduledAt.toISOString(),
+          scheduled_at: scheduledAt,
           duration_minutes: duration,
           title: title || null,
-          location,
-          meeting_link: meetingLink || null,
+          location: "online",
+          meeting_link: null, // Будет создана комната Daily.co позже
         })
         .select()
         .single();
 
-      if (insertError) throw insertError;
+      if (intError) throw intError;
 
       // Добавляем участников
       if (selectedParticipants.length > 0) {
@@ -167,20 +150,11 @@ export default function NewInterviewPage() {
         await supabase.from("interview_participants").insert(participants);
       }
 
-      // Редирект на страницу интервью
       router.push(`/employer/interviews/${interview.id}`);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Ошибка создания");
       setSaving(false);
     }
-  }
-
-  function toggleParticipant(memberId: string) {
-    setSelectedParticipants(prev =>
-      prev.includes(memberId)
-        ? prev.filter(id => id !== memberId)
-        : [...prev, memberId]
-    );
   }
 
   if (loading) {
@@ -211,19 +185,19 @@ export default function NewInterviewPage() {
           <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
             <path d="M9 18l6-6-6-6"/>
           </svg>
-          <span style={{ color: "rgba(255,255,255,0.7)" }}>Назначить интервью</span>
+          <span style={{ color: "rgba(255,255,255,0.7)" }}>Назначить</span>
         </div>
 
         {/* Header */}
-        <div className="mb-8">
+        <div className="mb-2">
           <h1 className="text-2xl font-semibold">Назначить интервью</h1>
-          <p className="mt-1 text-sm" style={{ color: "rgba(255,255,255,0.45)" }}>
+          <p className="text-sm mt-2" style={{ color: "rgba(255,255,255,0.4)" }}>
             Выберите кандидата и настройте детали собеседования
           </p>
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-6 mt-8">
 
           {/* Кандидат */}
           <div>
@@ -240,19 +214,16 @@ export default function NewInterviewPage() {
                 outline: "none",
               }}
             >
-              <option value="">Выберите кандидата...</option>
+              <option value="" style={{ background: "#1a1a2e", color: "white" }}>Выберите кандидата...</option>
               {applications.map(app => (
-                <option key={app.id} value={app.id}>
+                <option key={app.id} value={app.id} style={{ background: "#1a1a2e", color: "white" }}>
                   {app.profiles?.full_name || app.profiles?.email} — {app.jobs?.title}
                 </option>
               ))}
             </select>
             {applications.length === 0 && (
-              <p className="mt-2 text-xs" style={{ color: "rgba(255,255,255,0.3)" }}>
-                Нет откликов для назначения интервью.{" "}
-                <Link href="/employer/applications" className="text-lavender hover:underline">
-                  Посмотреть отклики
-                </Link>
+              <p className="text-xs mt-2" style={{ color: "rgba(255,255,255,0.3)" }}>
+                Нет откликов для назначения интервью. <Link href="/employer/applications" className="text-lavender hover:underline">Посмотреть отклики</Link>
               </p>
             )}
           </div>
@@ -263,7 +234,6 @@ export default function NewInterviewPage() {
             <select
               value={stage}
               onChange={(e) => setStage(e.target.value as any)}
-              required
               className="w-full px-4 py-3 rounded-xl text-sm"
               style={{
                 background: "rgba(255,255,255,0.04)",
@@ -272,9 +242,9 @@ export default function NewInterviewPage() {
                 outline: "none",
               }}
             >
-              <option value="stage_1">Этап 1 — Первичное собеседование</option>
-              <option value="stage_2">Этап 2 — Техническое интервью</option>
-              <option value="final">Финал — Собеседование с руководством</option>
+              <option value="stage_1" style={{ background: "#1a1a2e", color: "white" }}>Этап 1 — Первичное собеседование</option>
+              <option value="stage_2" style={{ background: "#1a1a2e", color: "white" }}>Этап 2 — Техническое интервью</option>
+              <option value="final" style={{ background: "#1a1a2e", color: "white" }}>Финальное интервью</option>
             </select>
           </div>
 
@@ -294,10 +264,10 @@ export default function NewInterviewPage() {
                   border: "1px solid rgba(196,173,255,0.12)",
                   color: "white",
                   outline: "none",
+                  colorScheme: "dark",
                 }}
               />
             </div>
-
             <div>
               <label className="block text-sm font-medium mb-2">Время</label>
               <input
@@ -311,6 +281,7 @@ export default function NewInterviewPage() {
                   border: "1px solid rgba(196,173,255,0.12)",
                   color: "white",
                   outline: "none",
+                  colorScheme: "dark",
                 }}
               />
             </div>
@@ -318,7 +289,7 @@ export default function NewInterviewPage() {
 
           {/* Длительность */}
           <div>
-            <label className="block text-sm font-medium mb-2">Длительность (минут)</label>
+            <label className="block text-sm font-medium mb-2">Длительность</label>
             <select
               value={duration}
               onChange={(e) => setDuration(Number(e.target.value))}
@@ -330,24 +301,22 @@ export default function NewInterviewPage() {
                 outline: "none",
               }}
             >
-              <option value={30}>30 минут</option>
-              <option value={45}>45 минут</option>
-              <option value={60}>1 час</option>
-              <option value={90}>1.5 часа</option>
-              <option value={120}>2 часа</option>
+              <option value={30} style={{ background: "#1a1a2e", color: "white" }}>30 минут</option>
+              <option value={45} style={{ background: "#1a1a2e", color: "white" }}>45 минут</option>
+              <option value={60} style={{ background: "#1a1a2e", color: "white" }}>1 час</option>
+              <option value={90} style={{ background: "#1a1a2e", color: "white" }}>1.5 часа</option>
+              <option value={120} style={{ background: "#1a1a2e", color: "white" }}>2 часа</option>
             </select>
           </div>
 
           {/* Название (опционально) */}
           <div>
-            <label className="block text-sm font-medium mb-2">
-              Название интервью <span style={{ color: "rgba(255,255,255,0.3)" }}>(опционально)</span>
-            </label>
+            <label className="block text-sm font-medium mb-2">Название (опционально)</label>
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="Например: Техническое интервью — Frontend разработчик"
+              placeholder="Например: Техническое интервью с CTO"
               className="w-full px-4 py-3 rounded-xl text-sm"
               style={{
                 background: "rgba(255,255,255,0.04)",
@@ -358,107 +327,94 @@ export default function NewInterviewPage() {
             />
           </div>
 
-          {/* Локация */}
-          <div>
-            <label className="block text-sm font-medium mb-2">Формат</label>
-            <select
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl text-sm"
-              style={{
-                background: "rgba(255,255,255,0.04)",
-                border: "1px solid rgba(196,173,255,0.12)",
-                color: "white",
-                outline: "none",
-              }}
-            >
-              <option value="online">Онлайн</option>
-              <option value="office">Офис</option>
-              <option value="phone">Телефон</option>
-            </select>
-          </div>
-
-          {/* Ссылка на встречу */}
-          {location === "online" && (
-            <div>
-              <label className="block text-sm font-medium mb-2">
-                Ссылка на видеовстречу <span style={{ color: "rgba(255,255,255,0.3)" }}>(опционально)</span>
-              </label>
-              <input
-                type="url"
-                value={meetingLink}
-                onChange={(e) => setMeetingLink(e.target.value)}
-                placeholder="https://meet.google.com/..."
-                className="w-full px-4 py-3 rounded-xl text-sm"
-                style={{
-                  background: "rgba(255,255,255,0.04)",
-                  border: "1px solid rgba(196,173,255,0.12)",
-                  color: "white",
-                  outline: "none",
-                }}
-              />
+          {/* Информация о видеовстрече */}
+          <div
+            className="rounded-xl p-4"
+            style={{ background: "rgba(52,211,153,0.08)", border: "1px solid rgba(52,211,153,0.2)" }}
+          >
+            <div className="flex items-start gap-3">
+              <svg className="w-5 h-5 mt-0.5 flex-shrink-0" style={{ color: "#34d399" }} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+              </svg>
+              <div className="flex-1">
+                <div className="text-sm font-semibold" style={{ color: "#34d399" }}>Видеовстреча на платформе</div>
+                <div className="text-xs mt-1" style={{ color: "rgba(255,255,255,0.5)" }}>
+                  Комната для видеозвонка будет создана автоматически. Ссылка отправится всем участникам.
+                </div>
+              </div>
             </div>
-          )}
+          </div>
 
           {/* Участники */}
           <div>
-            <label className="block text-sm font-medium mb-3">
-              Участники <span style={{ color: "rgba(255,255,255,0.3)" }}>(опционально)</span>
-            </label>
-            <div className="space-y-2">
-              {teamMembers.map(member => (
-                <label
-                  key={member.id}
-                  className="flex items-center gap-3 p-3 rounded-xl cursor-pointer transition hover:bg-white/5"
-                  style={{ border: "1px solid rgba(196,173,255,0.08)" }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedParticipants.includes(member.id)}
-                    onChange={() => toggleParticipant(member.id)}
-                    className="w-4 h-4"
-                    style={{ accentColor: "var(--lavender)" }}
-                  />
-                  <div className="flex-1">
-                    <div className="text-sm font-medium">
-                      {member.profiles?.full_name || member.profiles?.email}
+            <label className="block text-sm font-medium mb-3">Пригласить участников из команды (опционально)</label>
+            <div className="space-y-2 max-h-60 overflow-y-auto">
+              {members.length === 0 ? (
+                <p className="text-sm" style={{ color: "rgba(255,255,255,0.3)" }}>
+                  Нет сотрудников для приглашения
+                </p>
+              ) : (
+                members.map(member => (
+                  <label
+                    key={member.id}
+                    className="flex items-center gap-3 p-3 rounded-xl cursor-pointer transition hover:bg-white/[0.03]"
+                    style={{ border: "1px solid rgba(196,173,255,0.08)" }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedParticipants.includes(member.id)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedParticipants([...selectedParticipants, member.id]);
+                        } else {
+                          setSelectedParticipants(selectedParticipants.filter(id => id !== member.id));
+                        }
+                      }}
+                      className="w-4 h-4"
+                      style={{ accentColor: "var(--lavender)" }}
+                    />
+                    <div className="flex-1">
+                      <div className="text-sm font-medium">
+                        {member.profiles?.full_name || member.profiles?.email}
+                      </div>
+                      <div className="text-xs" style={{ color: "rgba(255,255,255,0.4)" }}>
+                        {member.role}
+                      </div>
                     </div>
-                    <div className="text-xs" style={{ color: "rgba(255,255,255,0.3)" }}>
-                      {member.role}
-                    </div>
-                  </div>
-                </label>
-              ))}
+                  </label>
+                ))
+              )}
             </div>
           </div>
 
           {/* Error */}
           {error && (
-            <div className="p-4 rounded-xl" style={{ background: "rgba(248,113,113,0.1)", border: "1px solid rgba(248,113,113,0.2)" }}>
-              <p className="text-sm" style={{ color: "#f87171" }}>{error}</p>
+            <div
+              className="rounded-xl p-4 text-sm"
+              style={{ background: "rgba(248,113,113,0.1)", border: "1px solid rgba(248,113,113,0.2)", color: "#f87171" }}
+            >
+              {error}
             </div>
           )}
 
-          {/* Actions */}
+          {/* Buttons */}
           <div className="flex items-center gap-3 pt-4">
             <button
               type="submit"
               disabled={saving || applications.length === 0}
-              className="flex-1 px-6 py-3 rounded-xl font-semibold text-white transition disabled:opacity-50"
+              className="flex-1 px-6 py-3 rounded-xl text-sm font-semibold text-white transition disabled:opacity-50"
               style={{ background: "linear-gradient(135deg, #5B2ECC, #7C4AE8)" }}
             >
               {saving ? "Создание..." : "Назначить интервью"}
             </button>
-
             <Link
               href="/employer/interviews"
-              className="px-6 py-3 rounded-xl font-semibold transition"
-              style={{ background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.7)" }}
+              className="px-6 py-3 rounded-xl text-sm font-semibold transition"
+              style={{ border: "1px solid rgba(196,173,255,0.2)", color: "rgba(255,255,255,0.7)" }}
             >
               Отмена
             </Link>
           </div>
-
         </form>
 
       </div>
