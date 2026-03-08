@@ -123,7 +123,7 @@ export default function SiteHeader() {
 
   return (
     <header
-      className="sticky top-0 z-50 backdrop-blur"
+      className="sticky top-0 z-[100] backdrop-blur"
       style={{ background: navBg, borderBottom: `1px solid ${navBorder}`, transition: "background .3s, border-color .3s" }}
     >
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
@@ -299,12 +299,12 @@ export default function SiteHeader() {
       {mobileMenuOpen && (
         <>
           <div 
-            className="fixed inset-0 bg-black/60 z-40 md:hidden backdrop-blur-sm"
+            className="fixed inset-0 bg-black/60 z-[90] md:hidden backdrop-blur-sm"
             onClick={() => setMobileMenuOpen(false)}
           />
           <div
-            className="fixed top-0 right-0 bottom-0 w-[85%] max-w-sm z-50 md:hidden overflow-y-auto pt-20"
-            style={{ background: dropdownBg, borderLeft: `1px solid ${dropdownBorder}` }}
+            className="fixed top-0 right-0 bottom-0 w-[85%] max-w-sm z-[95] md:hidden overflow-y-auto pt-20 animate-slide-in-right"
+            style={{ background: dropdownBg, borderLeft: `1px solid ${dropdownBorder}`, boxShadow: "-4px 0 20px rgba(0,0,0,0.5)" }}
           >
             <div className="p-4 space-y-4">
               

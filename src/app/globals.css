@@ -178,3 +178,19 @@ input::placeholder, textarea::placeholder { color: rgba(255,255,255,0.22); }
   background-size: 48px 48px;
 }
 .brand-glow { box-shadow: 0 0 60px rgba(92,46,204,0.25), 0 20px 60px rgba(0,0,0,0.5); }
+
+/* Mobile menu animation */
+@keyframes slide-in-right {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.3s ease-out forwards;
+}
