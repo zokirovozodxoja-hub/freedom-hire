@@ -14,7 +14,7 @@ type CompanyMember = {
   status: "active" | "deactivated";
   joined_at: string | null;
   created_at: string;
-  profile: {
+  profiles: {
     full_name: string | null;
     email: string | null;
     avatar_url: string | null;
@@ -294,7 +294,7 @@ function ChangeRoleModal({
   const [saving, setSaving] = useState(false);
   const [error, setError]   = useState<string | null>(null);
 
-  const name = member.profile?.full_name ?? member.profile?.email ?? "Сотрудник";
+  const name = member.profiles?.full_name ?? member.profiles?.email ?? "Сотрудник";
 
   async function handleSave() {
     if (role === member.role) { onClose(); return; }
@@ -396,22 +396,29 @@ export default function EmployerTeamPage() {
     const { data: userData } = await supabase.auth.getUser();
     if (!userData.user) { router.replace("/auth"); return; }
 
+    console.log("[team] user id:", userData.user.id);
+
     // Находим текущего member
-    const { data: me } = await supabase
+    const { data: me, error: meErr } = await supabase
       .from("company_members")
-      .select("id, company_id, user_id, role, status, joined_at, created_at, profile:profiles(full_name, email, avatar_url)")
+      .select("id, company_id, user_id, role, status, joined_at, created_at, profiles(full_name, email, avatar_url)")
       .eq("user_id", userData.user.id)
       .eq("status", "active")
       .maybeSingle();
 
-    if (!me) { router.replace("/onboarding/employer"); return; }
+    console.log("[team] me:", me, "error:", meErr);
+
+    if (!me) {
+      console.log("[team] no member found, redirecting to onboarding");
+      router.replace("/onboarding/employer"); return;
+    }
 
     setMyMember(me as unknown as CompanyMember);
 
     // Все активные члены компании
     const { data: allMembers } = await supabase
       .from("company_members")
-      .select("id, user_id, role, status, joined_at, created_at, profile:profiles(full_name, email, avatar_url)")
+      .select("id, user_id, role, status, joined_at, created_at, profiles(full_name, email, avatar_url)")
       .eq("company_id", (me as any).company_id)
       .order("created_at", { ascending: true });
 
@@ -521,8 +528,8 @@ export default function EmployerTeamPage() {
           </div>
 
           {activeMembers.map((member, i) => {
-            const name = member.profile?.full_name ?? member.profile?.email ?? "Без имени";
-            const email = member.profile?.email ?? "";
+            const name = member.profiles?.full_name ?? member.profiles?.email ?? "Без имени";
+            const email = member.profiles?.email ?? "";
             const isMe = member.user_id === myMember?.user_id;
             const isOwner = member.role === "owner";
             const isLast = i === activeMembers.length - 1;
@@ -538,7 +545,7 @@ export default function EmployerTeamPage() {
               >
                 {/* Avatar + info */}
                 <div className="flex items-center gap-3 min-w-0">
-                  <Avatar name={name} avatarUrl={member.profile?.avatar_url ?? null} size={38} />
+                  <Avatar name={name} avatarUrl={member.profiles?.avatar_url ?? null} size={38} />
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-sm font-semibold text-white truncate">{name}</span>
