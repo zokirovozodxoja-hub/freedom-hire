@@ -399,7 +399,7 @@ export default function EmployerTeamPage() {
     // Находим текущего member
     const { data: me } = await supabase
       .from("company_members")
-      .select("id, user_id, role, status, joined_at, created_at, profile:profiles(full_name, email, avatar_url)")
+      .select("id, company_id, user_id, role, status, joined_at, created_at, profile:profiles(full_name, email, avatar_url)")
       .eq("user_id", userData.user.id)
       .eq("status", "active")
       .maybeSingle();
