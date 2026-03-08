@@ -357,6 +357,10 @@ export default function EmployerTeamPage() {
   const [deactivating, setDeactivating]           = useState<string | null>(null);
   const [revoking, setRevoking]                   = useState<string | null>(null);
   const [toast, setToast]                         = useState<{ text: string; ok: boolean } | null>(null);
+  
+  // Поиск и фильтр
+  const [searchQuery, setSearchQuery] = useState("");
+  const [roleFilter, setRoleFilter]   = useState<Role | "all">("all");
 
   function showToast(text: string, ok = true) {
     setToast({ text, ok });
@@ -441,6 +445,50 @@ export default function EmployerTeamPage() {
     setRevoking(null);
   }
 
+  async function handleCopyLink(invId: string) {
+    const inv = invitations.find(i => i.id === invId);
+    if (!inv) return;
+    
+    // Получаем token из БД
+    const { data } = await supabase
+      .from("company_invitations")
+      .select("token")
+      .eq("id", invId)
+      .single();
+    
+    if (data?.token) {
+      const url = `${window.location.origin}/invite/${data.token}`;
+      await navigator.clipboard.writeText(url);
+      showToast("Ссылка скопирована!");
+    }
+  }
+
+  async function handleResend(invId: string) {
+    const inv = invitations.find(i => i.id === invId);
+    if (!inv) return;
+
+    setRevoking(invId); // используем тот же state для индикатора загрузки
+    
+    try {
+      const res = await fetch("/api/company/invite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          email: inv.email, 
+          name: inv.name, 
+          role: inv.role 
+        }),
+      });
+
+      if (!res.ok) throw new Error("Ошибка отправки");
+      showToast("Приглашение отправлено повторно!");
+    } catch (e) {
+      showToast("Не удалось отправить", false);
+    } finally {
+      setRevoking(null);
+    }
+  }
+
   function formatDate(iso: string | null) {
     if (!iso) return "—";
     return new Date(iso).toLocaleDateString("ru-RU", { day: "numeric", month: "short", year: "numeric" });
@@ -451,6 +499,22 @@ export default function EmployerTeamPage() {
   if (loading) return <Spinner />;
 
   const activeMembers = members.filter(m => m.status === "active");
+  
+  // Фильтрация и поиск
+  const filteredMembers = activeMembers.filter(m => {
+    // Фильтр по роли
+    if (roleFilter !== "all" && m.role !== roleFilter) return false;
+    
+    // Поиск по имени/email
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      const name = (m.profiles?.full_name || "").toLowerCase();
+      const email = (m.profiles?.email || "").toLowerCase();
+      if (!name.includes(q) && !email.includes(q)) return false;
+    }
+    
+    return true;
+  });
 
   return (
     <div className="min-h-screen text-white p-6" style={{ background: "var(--ink)" }}>
@@ -464,7 +528,7 @@ export default function EmployerTeamPage() {
         </div>
 
         {/* ── Заголовок ── */}
-        <div className="flex items-start justify-between gap-4 mb-8">
+        <div className="flex items-start justify-between gap-4 mb-6">
           <div>
             <h1 className="text-2xl font-semibold">Команда</h1>
             <p className="mt-1 text-sm" style={{ color: "rgba(255,255,255,0.45)" }}>
@@ -483,6 +547,57 @@ export default function EmployerTeamPage() {
             </button>
           )}
         </div>
+
+        {/* ── Поиск и фильтр ── */}
+        {activeMembers.length > 1 && (
+          <div className="flex gap-3 mb-4">
+            {/* Поиск */}
+            <div className="flex-1 relative">
+              <svg 
+                className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
+                width="16" height="16" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="2" viewBox="0 0 24 24"
+              >
+                <circle cx="11" cy="11" r="8"/>
+                <path d="M21 21l-4.35-4.35"/>
+              </svg>
+              <input
+                type="text"
+                placeholder="Поиск по имени или email..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm transition"
+                style={{
+                  background: "rgba(255,255,255,0.04)",
+                  border: "1px solid rgba(196,173,255,0.12)",
+                  color: "white",
+                  outline: "none",
+                }}
+                onFocus={(e) => e.target.style.borderColor = "rgba(196,173,255,0.3)"}
+                onBlur={(e) => e.target.style.borderColor = "rgba(196,173,255,0.12)"}
+              />
+            </div>
+
+            {/* Фильтр по роли */}
+            <select
+              value={roleFilter}
+              onChange={(e) => setRoleFilter(e.target.value as Role | "all")}
+              className="px-4 py-2.5 rounded-xl text-sm transition cursor-pointer"
+              style={{
+                background: "rgba(255,255,255,0.04)",
+                border: "1px solid rgba(196,173,255,0.12)",
+                color: "white",
+                outline: "none",
+              }}
+            >
+              <option value="all">Все роли</option>
+              <option value="owner">Владелец</option>
+              <option value="admin">Администратор</option>
+              <option value="recruiter">Рекрутер</option>
+              <option value="hiring_manager">Hiring Manager</option>
+              <option value="observer">Наблюдатель</option>
+            </select>
+          </div>
+        )}
 
         {/* ── Список сотрудников ── */}
         <div
@@ -504,12 +619,30 @@ export default function EmployerTeamPage() {
             <span>Действия</span>
           </div>
 
-          {activeMembers.map((member, i) => {
+          {filteredMembers.length === 0 ? (
+            <div className="px-5 py-12 text-center">
+              <svg className="w-12 h-12 mx-auto mb-3" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="1.5" viewBox="0 0 24 24">
+                <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+              </svg>
+              <p className="text-sm" style={{ color: "rgba(255,255,255,0.3)" }}>
+                Никто не найден
+              </p>
+              {(searchQuery || roleFilter !== "all") && (
+                <button
+                  onClick={() => { setSearchQuery(""); setRoleFilter("all"); }}
+                  className="mt-3 text-xs text-lavender hover:underline"
+                >
+                  Сбросить фильтры
+                </button>
+              )}
+            </div>
+          ) : (
+            filteredMembers.map((member, i) => {
             const name = member.profiles?.full_name ?? member.profiles?.email ?? "Без имени";
             const email = member.profiles?.email ?? "";
             const isMe = member.user_id === myMember?.user_id;
             const isOwner = member.role === "owner";
-            const isLast = i === activeMembers.length - 1;
+            const isLast = i === filteredMembers.length - 1;
 
             return (
               <div
@@ -578,7 +711,8 @@ export default function EmployerTeamPage() {
                 </div>
               </div>
             );
-          })}
+          })
+          )}
         </div>
 
         {/* ── Pending приглашения ── */}
@@ -631,14 +765,46 @@ export default function EmployerTeamPage() {
                       </div>
                     </div>
 
-                    <button
-                      onClick={() => handleRevoke(inv.id)}
-                      disabled={revoking === inv.id}
-                      className="flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium transition hover:bg-red-500/10 disabled:opacity-50"
-                      style={{ color: "rgba(248,113,113,0.7)", border: "1px solid rgba(248,113,113,0.15)" }}
-                    >
-                      {revoking === inv.id ? "..." : "Отозвать"}
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleCopyLink(inv.id)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition hover:bg-white/5"
+                        style={{ color: "var(--lavender)", border: "1px solid rgba(196,173,255,0.15)" }}
+                        title="Скопировать ссылку приглашения"
+                      >
+                        <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                          <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/>
+                          <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/>
+                        </svg>
+                        Ссылка
+                      </button>
+                      
+                      <button
+                        onClick={() => handleResend(inv.id)}
+                        disabled={revoking === inv.id}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition hover:bg-white/5 disabled:opacity-50"
+                        style={{ color: "#34d399", border: "1px solid rgba(52,211,153,0.15)" }}
+                        title="Отправить повторно"
+                      >
+                        <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                          <polyline points="23 4 23 10 17 10"/>
+                          <path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/>
+                        </svg>
+                        {revoking === inv.id ? "..." : "Повторить"}
+                      </button>
+
+                      <button
+                        onClick={() => handleRevoke(inv.id)}
+                        disabled={revoking === inv.id}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition hover:bg-red-500/10 disabled:opacity-50"
+                        style={{ color: "rgba(248,113,113,0.7)", border: "1px solid rgba(248,113,113,0.15)" }}
+                      >
+                        <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                          <path d="M18 6L6 18M6 6l12 12"/>
+                        </svg>
+                        Отозвать
+                      </button>
+                    </div>
                   </div>
                 );
               })}
