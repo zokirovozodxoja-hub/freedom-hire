@@ -52,7 +52,15 @@ export default function NewInterviewPage() {
   const [selectedParticipants, setSelectedParticipants] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => { void load(); }, []);
+  useEffect(() => { 
+    // Читаем application из URL
+    const params = new URLSearchParams(window.location.search);
+    const appId = params.get("application");
+    if (appId) {
+      setApplicationId(appId);
+    }
+    void load(); 
+  }, []);
 
   async function load() {
     const { data: userData } = await supabase.auth.getUser();
@@ -73,7 +81,7 @@ export default function NewInterviewPage() {
 
     setCompanyId(member.company_id);
 
-    // Загружаем отклики - упрощённый запрос
+    // Загружаем отклики - все статусы (не только new/screening)
     const { data: apps, error: appsError } = await supabase
       .from("applications")
       .select(`
@@ -81,7 +89,6 @@ export default function NewInterviewPage() {
         profiles:candidate_id(full_name, email),
         jobs(title, company_id)
       `)
-      .in("status", ["new", "screening", "shortlisted"])
       .order("created_at", { ascending: false })
       .limit(100);
 
