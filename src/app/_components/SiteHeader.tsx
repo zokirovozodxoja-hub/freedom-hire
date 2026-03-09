@@ -143,10 +143,57 @@ export default function SiteHeader() {
 
         {/* RIGHT */}
         <div className="flex items-center gap-2">
-          {/* MOBILE BURGER */}
+          {/* Показываем кнопки или аватар на всех экранах */}
+          {authUser ? (
+            <>
+              {/* Chat button для авторизованных */}
+              <Link href="/chat" className="flex items-center justify-center w-9 h-9 rounded-xl" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(196,173,255,0.12)" }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                </svg>
+              </Link>
+              {/* User menu button */}
+              <button
+                onClick={() => setMenuOpen(!menuOpen)}
+                className="relative flex items-center justify-center w-9 h-9 rounded-full bg-violet-600 text-white font-bold text-sm"
+              >
+                {initials}
+              </button>
+              {/* Dropdown menu для авторизованных */}
+              {menuOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
+                  <div className="absolute right-4 top-14 z-50 w-56 rounded-xl border p-2 space-y-1" style={{ background: "#16162a", borderColor: "rgba(196,173,255,0.2)" }}>
+                    <div className="px-3 py-2 border-b" style={{ borderColor: "rgba(196,173,255,0.1)" }}>
+                      <div className="text-sm font-semibold text-white truncate">{displayName}</div>
+                      <div className="text-xs text-white/40 truncate">{authUser.email}</div>
+                    </div>
+                    <Link href={getDashboardLink()} onClick={() => setMenuOpen(false)} className="block px-3 py-2 rounded-lg text-sm text-white/70 hover:bg-white/5">
+                      {authUser.role === "admin" ? t.nav.adminPanel : t.nav.dashboard}
+                    </Link>
+                    <button onClick={handleLogout} className="w-full text-left px-3 py-2 rounded-lg text-sm text-red-400 hover:bg-white/5">
+                      {t.nav.logout}
+                    </button>
+                  </div>
+                </>
+              )}
+            </>
+          ) : (
+            <>
+              {/* Кнопки входа/регистрации для НЕ авторизованных - теперь видны на всех экранах */}
+              <Link href="/auth" className="rounded-2xl px-4 sm:px-5 py-2 text-xs sm:text-sm font-semibold whitespace-nowrap" style={{ border: "1px solid rgba(196,173,255,0.12)", background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.8)" }}>
+                {t.nav.login}
+              </Link>
+              <Link href="/auth?mode=signup" className="rounded-2xl px-4 sm:px-5 py-2 text-xs sm:text-sm font-semibold text-white whitespace-nowrap" style={{ background: "linear-gradient(135deg, #5B2ECC, #7C4AE8)" }}>
+                {t.nav.register}
+              </Link>
+            </>
+          )}
+          
+          {/* MOBILE BURGER - показываем только на мобильных */}
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="md:hidden flex items-center justify-center w-10 h-10 rounded-xl"
+            className="md:hidden flex items-center justify-center w-10 h-10 rounded-xl ml-1"
             style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(196,173,255,0.12)" }}
           >
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2">
@@ -157,28 +204,6 @@ export default function SiteHeader() {
               )}
             </svg>
           </button>
-
-          {/* DESKTOP BUTTONS - hidden on mobile */}
-          <div className="hidden md:flex items-center gap-2">
-            {authUser && (
-              <Link href="/chat" className="flex items-center justify-center w-9 h-9 rounded-xl" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(196,173,255,0.12)" }}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2">
-                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-                </svg>
-              </Link>
-            )}
-            
-            {!authUser && (
-              <>
-                <Link href="/auth" className="rounded-2xl px-5 py-2 text-sm font-semibold" style={{ border: "1px solid rgba(196,173,255,0.12)", background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.8)" }}>
-                  {t.nav.login}
-                </Link>
-                <Link href="/auth?mode=signup" className="rounded-2xl px-5 py-2 text-sm font-semibold text-white" style={{ background: "linear-gradient(135deg, #5B2ECC, #7C4AE8)" }}>
-                  {t.nav.register}
-                </Link>
-              </>
-            )}
-          </div>
         </div>
       </div>
 
